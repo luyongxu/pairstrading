@@ -91,11 +91,11 @@ create_summary <- function(pricing_data, coin_pairs) {
 #' # 7. Simulate 
 results <- tibble() 
 set.seed(5)
-for (i in 1:10) { 
+for (i in 1:100000) { 
   time_resolution <- sample(c(300, 900, 1800, 7200, 14400, 86400), size = 1) 
   start_date <- sample(seq(from = ymd("2017-01-01"), to = ymd("2017-10-01"), by = "1 day"), size = 1)
-  end_date <- sample(seq(from = start_date, to = Sys.Date(), by = "1 day"), size = 1) 
-  print(str_c("Testing for time resolution ", time_resolution, " from ", start_date, " to ", end_date, "."))
+  end_date <- sample(seq(from = start_date + 3, to = Sys.Date(), by = "1 day"), size = 1) 
+  print(str_c(i, ":Testing for time resolution ", time_resolution, " from ", start_date, " to ", end_date, "."))
   df_a <- prepare_data(time_resolution = time_resolution, 
                        start_date = start_date, 
                        end_date = end_date) 
