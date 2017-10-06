@@ -20,18 +20,20 @@ source("./Mean Reversion/RMR.001 Load Packages.R")
 pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data clean.csv")
 
 #' # 3. Plot Data 
-#' Plots were compared visually with data on CoinMarketCap.com. Data quality looks good. 
+#' Plots were compared visually with data on CoinMarketCap.com. Overall data quality for daily time resolution is good. 
 pricing_data %>% 
   ggplot(aes(x = date_time, y = close, colour = factor(period))) + 
   geom_line() + 
   facet_wrap(~ currency_pair, scales = "free_y")
 
-#' # 4. Plot Data Individually
-for (currency_pair in unique(pricing_data[["currency_pair"]])) { 
-  pricing_data %>% 
-    filter(currency_pair == currency_pair) %>% 
-    ggplot(aes(x = date_time, y = close, colour = factor(period))) + 
-    geom_line() + 
-    scale_y_continuous(trans = "log2") + 
-    facet_wrap(~ currency_pair)
+#' # 4. Plot Data Individually 
+#' There appear to be some data quality issues with intraday time resolutions. It is not clear if these prices are 
+#' errors in the data or if they were actual trades. 
+for (currency_pair_var in unique(pricing_data[["currency_pair"]])) { 
+  print(pricing_data %>% 
+          filter(currency_pair == currency_pair_var) %>% 
+          ggplot(aes(x = date_time, y = close, colour = factor(period))) + 
+          geom_line() + 
+          scale_y_continuous(trans = "log2") + 
+          facet_wrap(~ currency_pair))
 }

@@ -24,7 +24,7 @@ pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data clean.csv")
 #' April 1, 2017. Based on some exploratory analysis, the number of cointegrated coins rapidly increased after April 1, 2017. 
 #' This time period coincides with an extremely rapid rise of bitcoin (starting from roughly $1100) and many other coins.
 pricing_data_a <- pricing_data %>% 
-  filter(period == "86400", 
+  filter(period == 86400, 
          date_time >= "2017-04-01") %>% 
   select(date_unix, date_time, close, currency_pair) %>% 
   spread(currency_pair, close)
@@ -42,9 +42,14 @@ print(pricing_data_a)
 #' lead to different conclusions when looking at test statistics relative to critical values. 
 test_cointegration <- function(coin_y, coin_x) { 
   lm_model <- lm(coin_y ~ coin_x) 
-  adf_test <- adf.test(lm_model[["residuals"]], alternative = "stationary", k = 1) 
-  return(list(df_stat = adf_test[["statistic"]], 
-              p_value = adf_test[["p.value"]]))
+  residuals <- lm_model[["residuals"]]
+  adf_test <- ur.df(residuals, type = "drift", lags = 1) 
+  ou_process <- lm(residuals - lag(residuals, 1) ~ lag(residuals, 1))
+  return(list(df_stat = adf_test@testreg[["coefficients"]][2, 3], 
+              crit_value_1pct = adf_test@cval[1, 1], 
+              crit_value_5pct = adf_test@cval[1, 2], 
+              crit_value_10pct = adf_test@cval[1, 3], 
+              half_life = -log(2) / coef(ou_process)[2]))
 } 
 
 #' # 5. Create Coin Combinations 
@@ -56,36 +61,45 @@ coins_btc <- c("BTC_DASH", "BTC_ETH", "BTC_LTC", "BTC_REP", "BTC_XEM", "BTC_XMR"
 coin_pairs <- rbind(expand.grid(coins_usdt, coins_usdt), expand.grid(coins_btc, coins_btc)) %>% 
   as_tibble() %>% 
   rename(coin_y = Var1, coin_x = Var2) %>% 
-  filter(coin_y != coin_x)
+  filter(coin_y != coin_x) %>% 
+  mutate_if(is.factor, as.character) 
+print(coin_pairs)
 
 #' # 6. Test Cointegration on All Coin Pairs 
 #' The Engle-Granger method is tested on all coin combinations generated above. The Dickey-Fuller statistic and the p-value 
-#' for each coin combination are generated. Of the 98 coin combinations, 13 of the coins have a p-value of less than 10 percent. 
+#' for each coin combination are generated. Of the 98 coin combinations, 11 of the coins have a p-value of less than 10 percent. 
+#' Most of these coins have a half-life of mean reversion of less than 10 days. However, many of the highly cointegrated coin 
+#' pairs are comprised of coins that may individually exhiibt some stationarity. See BTC_DASH for example. If an individual 
+#' coin is stationary, any trivial combination of that coin with another coin could be made stationary as well. 
 df_stat <- c() 
-p_value <- c()
+crit_value_1pct <- c()
+crit_value_5pct <- c()
+crit_value_10pct <- c()
+half_life <- c()
 for (n in 1:nrow(coin_pairs)) { 
-  df_stat <- c(df_stat, 
-               test_cointegration(pricing_data_a[[coin_pairs[[n, "coin_y"]]]], 
-                                  pricing_data_a[[coin_pairs[[n, "coin_x"]]]]) %>% 
-                 .[["df_stat"]])
-  p_value <- c(p_value, 
-               test_cointegration(pricing_data_a[[coin_pairs[[n, "coin_y"]]]], 
-                                  pricing_data_a[[coin_pairs[[n, "coin_x"]]]]) %>% 
-                 .[["p_value"]])
+  coin_y <- coin_pairs[[n, "coin_y"]]
+  coin_x <- coin_pairs[[n, "coin_x"]] 
+  cointegration_results<- test_cointegration(pricing_data_a[[coin_y]], 
+                                             pricing_data_a[[coin_x]])
+  print(str_c("Testing cointegration of ", coin_y, " and ", coin_x, "."))
+  df_stat <- c(df_stat, cointegration_results[["df_stat"]])
+  crit_value_1pct <- c(crit_value_1pct, cointegration_results[["crit_value_1pct"]])
+  crit_value_5pct <- c(crit_value_5pct, cointegration_results[["crit_value_5pct"]])
+  crit_value_10pct <- c(crit_value_10pct, cointegration_results[["crit_value_10pct"]])
+  half_life <- c(half_life, cointegration_results[["half_life"]])
 }
 coin_pairs <- coin_pairs %>% 
-  filter(coin_y != coin_x) %>%
   mutate(df_stat = df_stat, 
-         p_value = p_value) %>% 
+         crit_value_1pct = crit_value_1pct, 
+         crit_value_5pct = crit_value_5pct, 
+         crit_value_10pct = crit_value_10pct, 
+         half_life = half_life) %>% 
   arrange(df_stat)
-rm(df_stat, p_value, n)
+rm(coin_x, coin_y, cointegration_results, df_stat, crit_value_1pct, crit_value_5pct, crit_value_10pct, half_life, n)
 knitr::kable(coin_pairs)
 
 #' # 7. Plot Cointegrated Coins 
-#' For the 13 coin combinations with p-value of less than 10 percent, the coin_y and the fitted regression line are plotted. 
-#' The residuals of the linear regression of coin_y on coin_x are also plotted. Most of the highly cointegrated coin combinations 
-#' are from currency pairs that use USDT as the quote currency. 
-plot_coins <- function(coin_y, coin_x){ 
+plot_coins <- function(coin_y, coin_x) { 
   m <- lm(coin_y ~ coin_x, data = pricing_data_a)
   print(summary(m))
   print(ggplot(pricing_data_a, aes(x = date_time)) + 
@@ -95,16 +109,14 @@ plot_coins <- function(coin_y, coin_x){
     geom_line(aes(y = m[["residuals"]]), colour = "blue") + 
     geom_hline(yintercept = 0))
 }
-plot_coins(coin_y = pricing_data_a[["USDT_DASH"]], coin_x = pricing_data_a[["USDT_BTC"]])
-plot_coins(coin_y = pricing_data_a[["USDT_BTC"]], coin_x = pricing_data_a[["USDT_DASH"]])
-plot_coins(coin_y = pricing_data_a[["BTC_REP"]], coin_x = pricing_data_a[["BTC_XMR"]])
-plot_coins(coin_y = pricing_data_a[["USDT_XEM"]], coin_x = pricing_data_a[["USDT_LTC"]])
-plot_coins(coin_y = pricing_data_a[["USDT_ETH"]], coin_x = pricing_data_a[["USDT_XMR"]])
-plot_coins(coin_y = pricing_data_a[["USDT_ETH"]], coin_x = pricing_data_a[["USDT_XEM"]])
-plot_coins(coin_y = pricing_data_a[["USDT_BTC"]], coin_x = pricing_data_a[["USDT_ETH"]])
-plot_coins(coin_y = pricing_data_a[["USDT_DASH"]], coin_x = pricing_data_a[["USDT_ETH"]])
-plot_coins(coin_y = pricing_data_a[["USDT_ETH"]], coin_x = pricing_data_a[["USDT_BTC"]])
-plot_coins(coin_y = pricing_data_a[["USDT_ETH"]], coin_x = pricing_data_a[["USDT_DASH"]])
-plot_coins(coin_y = pricing_data_a[["BTC_XMR"]], coin_x = pricing_data_a[["BTC_REP"]])
-plot_coins(coin_y = pricing_data_a[["USDT_ETH"]], coin_x = pricing_data_a[["USDT_REP"]])
-plot_coins(coin_y = pricing_data_a[["BTC_XMR"]], coin_x = pricing_data_a[["BTC_DASH"]])
+
+#' For the top 40 coin combinations ranked by the Dickey-Fuller test statistic, the coin_y and the coin_x * hedge_ratio are plotted. 
+#' The residuals of the linear regression of coin_y on coin_x are also plotted in a following plot. BTC_DASH appears to be 
+#' itself stationary, so any trivial combination of BTC_DASH and another coin is likely to also be stationary. 
+for (i in 1:40) { 
+  coin_y <- coin_pairs[["coin_y"]][i] 
+  coin_x <- coin_pairs[["coin_x"]][i] 
+  print(str_c("Generating plots for ", coin_y, " and ", coin_x, "."))
+  plot_coins(coin_y = pricing_data_a[[coin_y]], coin_x = pricing_data_a[[coin_x]])
+}
+

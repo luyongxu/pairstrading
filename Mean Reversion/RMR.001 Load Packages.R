@@ -16,8 +16,9 @@
 #' # 1. Load Packages
 library(tidyverse)
 library(stringr)
+library(lubridate)
 library(jsonlite)
-library(tseries)
+library(urca)
 
 #' # 2. Options
 #' Turn off scientific notation. 
