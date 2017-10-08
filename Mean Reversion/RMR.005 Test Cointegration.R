@@ -33,10 +33,12 @@ print(pricing_data_a)
 #' # 4. Cointegration Function 
 #' The Engle-Granger method is used to test for cointegration. This method is comprised of two steps:  (1) Perform a linear 
 #' regression of coin_y on coin_x. (2) Perform an Augmented Dickey-Fuller test on the residuals from the linear regression 
-#' estimated in (1). The function returns both the Dickey-Fuller test statistic and the p-value. Note that the p-value is 
-#' calculated from a distribution where the linear regression coefficients are not estimated from the data. Since the 
-#' regression coefficients are estimated from the data, the p-value is biased downward, so interpretation of the p-value 
-#' relative to critical values should be done with caution.  
+#' estimated in (1). The ADF test assumes a non-zero mean but no time-based trend. The function returns the Dickey-Fuller 
+#' test statistic, the critical values at 1 percent, 5 percent, and 10 percent, and the half-life of mean reversion assuming 
+#' that the mean reversion follows a Ornstein–Uhlenbeck process. Note that the p-value is calculated from a distribution where 
+#' the linear regression coefficients are not estimated from the data. Since the regression coefficients are estimated from 
+#' the data, the p-value is biased downward, so interpretation of the p-value relative to critical values should be done with 
+#' caution.  
 #' 
 #' Other methods considered were the Johansen test and the Phillips-Ouliaris cointegration test. Using different methods may 
 #' lead to different conclusions when looking at test statistics relative to critical values. 
@@ -66,11 +68,12 @@ coin_pairs <- rbind(expand.grid(coins_usdt, coins_usdt), expand.grid(coins_btc, 
 print(coin_pairs)
 
 #' # 6. Test Cointegration on All Coin Pairs 
-#' The Engle-Granger method is tested on all coin combinations generated above. The Dickey-Fuller statistic and the p-value 
-#' for each coin combination are generated. Of the 98 coin combinations, 11 of the coins have a p-value of less than 10 percent. 
-#' Most of these coins have a half-life of mean reversion of less than 10 days. However, many of the highly cointegrated coin 
-#' pairs are comprised of coins that may individually exhiibt some stationarity. See BTC_DASH for example. If an individual 
-#' coin is stationary, any trivial combination of that coin with another coin could be made stationary as well. 
+#' The Engle-Granger method is tested on all coin combinations generated above. The Dickey-Fuller statistic, critical values at 
+#' the 1 percent, 5 percent, and 10 percent level, and the half-life of mean reversion for each coin combination are generated. 
+#' Of the 98 coin combinations, 11 of the coins have a p-value of less than 10 percent. Most of these coins have a half-life of 
+#' mean reversion of less than 10 days. However, many of the highly cointegrated coin pairs are comprised of coins that may 
+#' individually exhiibt some stationarity. See BTC_DASH for example. If an individual coin is stationary, any trivial combination 
+#' of that coin with another coin could be made stationary as well. 
 df_stat <- c() 
 crit_value_1pct <- c()
 crit_value_5pct <- c()

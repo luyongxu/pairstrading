@@ -11,7 +11,7 @@
 
 <meta name="author" content="Kevin Lu" />
 
-<meta name="date" content="2017-10-06" />
+<meta name="date" content="2017-10-08" />
 
 <title>Clean Pricing Data</title>
 
@@ -245,7 +245,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">Clean Pricing Data</h1>
 <h4 class="author"><em>Kevin Lu</em></h4>
-<h4 class="date"><em>October 06, 2017</em></h4>
+<h4 class="date"><em>October 08, 2017</em></h4>
 
 </div>
 
@@ -311,48 +311,48 @@ div.tocify {
 <div id="summary" class="section level1">
 <h1>6. Summary</h1>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">print</span>(pricing_data)</code></pre></div>
-<pre><code>## # A tibble: 5,683,110 x 11
-##     date_unix           date_time   high   low   open close   volume
-##         &lt;int&gt;              &lt;dttm&gt;  &lt;dbl&gt; &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt;    &lt;dbl&gt;
-##  1 1424373000 2015-02-19 19:10:00   0.33   225   0.33   225 0.999999
-##  2 1424373300 2015-02-19 19:15:00 225.00   225 225.00   225 0.000000
-##  3 1424373600 2015-02-19 19:20:00 225.00   225 225.00   225 0.000000
-##  4 1424373900 2015-02-19 19:25:00 225.00   225 225.00   225 0.000000
-##  5 1424374200 2015-02-19 19:30:00 225.00   225 225.00   225 0.000000
-##  6 1424374500 2015-02-19 19:35:00 225.00   225 225.00   225 0.000000
-##  7 1424374800 2015-02-19 19:40:00 225.00   225 225.00   225 0.000000
-##  8 1424375100 2015-02-19 19:45:00 225.00   225 225.00   225 0.000000
-##  9 1424375400 2015-02-19 19:50:00 225.00   225 225.00   225 0.000000
-## 10 1424375700 2015-02-19 19:55:00 225.00   225 225.00   225 0.000000
-## # ... with 5,683,100 more rows, and 4 more variables: quote_volume &lt;dbl&gt;,
+<pre><code>## # A tibble: 5,693,079 x 11
+##     date_unix           date_time  high   low  open close   volume
+##         &lt;int&gt;              &lt;dttm&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;    &lt;dbl&gt;
+##  1 1424373000 2015-02-19 19:10:00   225   225   225   225 0.999999
+##  2 1424373300 2015-02-19 19:15:00   225   225   225   225 0.000000
+##  3 1424373600 2015-02-19 19:20:00   225   225   225   225 0.000000
+##  4 1424373900 2015-02-19 19:25:00   225   225   225   225 0.000000
+##  5 1424374200 2015-02-19 19:30:00   225   225   225   225 0.000000
+##  6 1424374500 2015-02-19 19:35:00   225   225   225   225 0.000000
+##  7 1424374800 2015-02-19 19:40:00   225   225   225   225 0.000000
+##  8 1424375100 2015-02-19 19:45:00   225   225   225   225 0.000000
+##  9 1424375400 2015-02-19 19:50:00   225   225   225   225 0.000000
+## 10 1424375700 2015-02-19 19:55:00   225   225   225   225 0.000000
+## # ... with 5,693,069 more rows, and 4 more variables: quote_volume &lt;dbl&gt;,
 ## #   weighted_average &lt;dbl&gt;, currency_pair &lt;chr&gt;, period &lt;int&gt;</code></pre>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">summary</span>(pricing_data)</code></pre></div>
 <pre><code>##    date_unix            date_time                        high         
 ##  Min.   :1390003200   Min.   :2014-01-18 00:00:00   Min.   :   0.000  
-##  1st Qu.:1444234500   1st Qu.:2015-10-07 16:15:00   1st Qu.:   0.006  
-##  Median :1468978500   Median :2016-07-20 01:35:00   Median :   0.028  
-##  Mean   :1465240558   Mean   :2016-06-06 19:15:57   Mean   :  85.918  
-##  3rd Qu.:1489168200   3rd Qu.:2017-03-10 17:50:00   3rd Qu.:   7.250  
-##  Max.   :1507313700   Max.   :2017-10-06 18:15:00   Max.   :9000.000  
+##  1st Qu.:1444277700   1st Qu.:2015-10-08 04:15:00   1st Qu.:   0.006  
+##  Median :1469065500   Median :2016-07-21 01:45:00   Median :   0.028  
+##  Mean   :1465314343   Mean   :2016-06-07 15:45:42   Mean   :  86.400  
+##  3rd Qu.:1489263600   3rd Qu.:2017-03-11 20:20:00   3rd Qu.:   7.290  
+##  Max.   :1507441200   Max.   :2017-10-08 05:40:00   Max.   :9000.000  
 ##                                                     NA's   :1         
 ##       low                open              close         
 ##  Min.   :   0.000   Min.   :   0.000   Min.   :   0.000  
 ##  1st Qu.:   0.006   1st Qu.:   0.006   1st Qu.:   0.006  
 ##  Median :   0.028   Median :   0.028   Median :   0.028  
-##  Mean   :  85.351   Mean   :  85.637   Mean   :  85.643  
-##  3rd Qu.:   7.210   3rd Qu.:   7.230   3rd Qu.:   7.232  
+##  Mean   :  85.831   Mean   :  86.119   Mean   :  86.124  
+##  3rd Qu.:   7.250   3rd Qu.:   7.268   3rd Qu.:   7.269  
 ##  Max.   :6414.729   Max.   :9000.000   Max.   :6414.729  
 ##  NA's   :1          NA's   :1          NA's   :1         
 ##      volume           quote_volume       weighted_average  
 ##  Min.   :        0   Min.   :        0   Min.   :   0.000  
 ##  1st Qu.:        0   1st Qu.:        0   1st Qu.:   0.006  
 ##  Median :        1   Median :        8   Median :   0.028  
-##  Mean   :    13910   Mean   :    61139   Mean   :  85.637  
-##  3rd Qu.:       41   3rd Qu.:      338   3rd Qu.:   7.231  
+##  Mean   :    13920   Mean   :    61063   Mean   :  86.118  
+##  3rd Qu.:       41   3rd Qu.:      338   3rd Qu.:   7.268  
 ##  Max.   :139231790   Max.   :495536294   Max.   :6844.175  
 ##  NA's   :1                               NA's   :1         
 ##  currency_pair          period     
-##  Length:5683110     Min.   :  300  
+##  Length:5693079     Min.   :  300  
 ##  Class :character   1st Qu.:  300  
 ##  Mode  :character   Median :  300  
 ##                     Mean   : 1150  
