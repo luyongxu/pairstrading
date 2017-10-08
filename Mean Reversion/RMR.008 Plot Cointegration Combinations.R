@@ -18,9 +18,9 @@ source("./Mean Reversion/RMR.001 Load Packages.R")
 
 #' # 2. Load Data 
 #' An initial run of 18,600 iterations was completed using the following search parameters: 
-#' time_resolution <- sample(c(300, 900, 1800, 7200, 14400, 86400), size = 1) 
-#' start_date <- sample(seq(from = ymd("2017-01-01"), to = ymd("2017-10-01"), by = "1 day"), size = 1)
-#' end_date <- sample(seq(from = start_date + 3, to = Sys.Date(), by = "1 day"), size = 1) 
+# time_resolution <- sample(c(300, 900, 1800, 7200, 14400, 86400), size = 1) 
+# start_date <- sample(seq(from = ymd("2017-01-01"), to = ymd("2017-10-01"), by = "1 day"), size = 1)
+# end_date <- sample(seq(from = start_date + 3, to = Sys.Date(), by = "1 day"), size = 1) 
 results <- read_csv("./Mean Reversion/Raw Data/search cointegration results A.csv")
 
 #' # 3. Summary Plots 
