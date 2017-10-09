@@ -40,7 +40,9 @@ for (i in 1:10) {
   coin_y <- coin_pairs_300[["coin_y"]][i] 
   coin_x <- coin_pairs_300[["coin_x"]][i] 
   print(str_c("Generating plots for ", coin_y, " and ", coin_x, "."))
-  plot_coins(df = pricing_data_300, coin_y = pricing_data_300[[coin_y]], coin_x = pricing_data_300[[coin_x]])
+  plot_coins(df = pricing_data_300, 
+             coin_y = pricing_data_300[[coin_y]], 
+             coin_x = pricing_data_300[[coin_x]])
 }
 
 #' # 4. Plot Time Resolution 900 
@@ -48,7 +50,9 @@ for (i in 1:10) {
   coin_y <- coin_pairs_900[["coin_y"]][i] 
   coin_x <- coin_pairs_900[["coin_x"]][i] 
   print(str_c("Generating plots for ", coin_y, " and ", coin_x, "."))
-  plot_coins(df = pricing_data_900, coin_y = pricing_data_900[[coin_y]], coin_x = pricing_data_900[[coin_x]])
+  plot_coins(df = pricing_data_900, 
+             coin_y = pricing_data_900[[coin_y]], 
+             coin_x = pricing_data_900[[coin_x]])
 }
 
 #' # 5. Plot Time Resolution 1800 
@@ -56,7 +60,9 @@ for (i in 1:10) {
   coin_y <- coin_pairs_1800[["coin_y"]][i] 
   coin_x <- coin_pairs_1800[["coin_x"]][i] 
   print(str_c("Generating plots for ", coin_y, " and ", coin_x, "."))
-  plot_coins(df = pricing_data_1800, coin_y = pricing_data_1800[[coin_y]], coin_x = pricing_data_1800[[coin_x]])
+  plot_coins(df = pricing_data_1800, 
+             coin_y = pricing_data_1800[[coin_y]], 
+             coin_x = pricing_data_1800[[coin_x]])
 }
 
 #' # 6. Plot Time Resolution 7200 
@@ -64,7 +70,9 @@ for (i in 1:10) {
   coin_y <- coin_pairs_7200[["coin_y"]][i] 
   coin_x <- coin_pairs_7200[["coin_x"]][i] 
   print(str_c("Generating plots for ", coin_y, " and ", coin_x, "."))
-  plot_coins(df = pricing_data_7200, coin_y = pricing_data_7200[[coin_y]], coin_x = pricing_data_7200[[coin_x]])
+  plot_coins(df = pricing_data_7200, 
+             coin_y = pricing_data_7200[[coin_y]], 
+             coin_x = pricing_data_7200[[coin_x]])
 }
 
 #' # 7. Plot Time Resolution 14400 
@@ -72,7 +80,9 @@ for (i in 1:10) {
   coin_y <- coin_pairs_14400[["coin_y"]][i] 
   coin_x <- coin_pairs_14400[["coin_x"]][i] 
   print(str_c("Generating plots for ", coin_y, " and ", coin_x, "."))
-  plot_coins(df = pricing_data_14400, coin_y = pricing_data_14400[[coin_y]], coin_x = pricing_data_14400[[coin_x]])
+  plot_coins(df = pricing_data_14400, 
+             coin_y = pricing_data_14400[[coin_y]], 
+             coin_x = pricing_data_14400[[coin_x]])
 }
 
 #' # 8. Plot Time Resolution 86400 
@@ -80,5 +90,71 @@ for (i in 1:10) {
   coin_y <- coin_pairs_86400[["coin_y"]][i] 
   coin_x <- coin_pairs_86400[["coin_x"]][i] 
   print(str_c("Generating plots for ", coin_y, " and ", coin_x, "."))
-  plot_coins(df = pricing_data_86400, coin_y = pricing_data_86400[[coin_y]], coin_x = pricing_data_86400[[coin_x]])
+  plot_coins(df = pricing_data_86400, 
+             coin_y = pricing_data_86400[[coin_y]], 
+             coin_x = pricing_data_86400[[coin_x]])
 }
+
+#' # 9. BTC_XEM and BTC_LTC Coin Pair 
+#' An examination of BTC_XEM and BTC_LTC across time resolutions. 
+plot_coins(df = pricing_data_300, 
+           coin_y = pricing_data_300[["BTC_XEM"]], 
+           coin_x = pricing_data_300[["BTC_LTC"]])
+plot_coins(df = pricing_data_900, 
+           coin_y = pricing_data_900[["BTC_XEM"]], 
+           coin_x = pricing_data_900[["BTC_LTC"]])
+plot_coins(df = pricing_data_1800, 
+           coin_y = pricing_data_1800[["BTC_XEM"]], 
+           coin_x = pricing_data_1800[["BTC_LTC"]])
+plot_coins(df = pricing_data_7200, 
+           coin_y = pricing_data_7200[["BTC_XEM"]], 
+           coin_x = pricing_data_7200[["BTC_LTC"]])
+plot_coins(df = pricing_data_14400, 
+           coin_y = pricing_data_14400[["BTC_XEM"]], 
+           coin_x = pricing_data_14400[["BTC_LTC"]])
+plot_coins(df = pricing_data_86400, 
+           coin_y = pricing_data_86400[["BTC_XEM"]], 
+           coin_x = pricing_data_86400[["BTC_LTC"]])
+
+#' # 9. USDT_REP and USDT_BTC Coin Pair 
+#' An examination of USDT_REP and USDT_BTC across time resolutions. 
+plot_coins(df = pricing_data_300, 
+           coin_y = pricing_data_300[["USDT_REP"]], 
+           coin_x = pricing_data_300[["USDT_BTC"]])
+plot_coins(df = pricing_data_900, 
+           coin_y = pricing_data_900[["USDT_REP"]], 
+           coin_x = pricing_data_900[["USDT_BTC"]])
+plot_coins(df = pricing_data_1800, 
+           coin_y = pricing_data_1800[["USDT_REP"]], 
+           coin_x = pricing_data_1800[["USDT_BTC"]])
+plot_coins(df = pricing_data_7200, 
+           coin_y = pricing_data_7200[["USDT_REP"]], 
+           coin_x = pricing_data_7200[["USDT_BTC"]])
+plot_coins(df = pricing_data_14400, 
+           coin_y = pricing_data_14400[["USDT_REP"]], 
+           coin_x = pricing_data_14400[["USDT_BTC"]])
+plot_coins(df = pricing_data_86400, 
+           coin_y = pricing_data_86400[["USDT_REP"]], 
+           coin_x = pricing_data_86400[["USDT_BTC"]])
+
+#' # 10. USDT_XMR and USDT_LTC Coin Pair 
+#' An examination of USDT_XMR and USDT_LTC across time resolutions. 
+plot_coins(df = pricing_data_300, 
+           coin_y = pricing_data_300[["USDT_XMR"]], 
+           coin_x = pricing_data_300[["USDT_LTC"]])
+plot_coins(df = pricing_data_900, 
+           coin_y = pricing_data_900[["USDT_XMR"]], 
+           coin_x = pricing_data_900[["USDT_LTC"]])
+plot_coins(df = pricing_data_1800, 
+           coin_y = pricing_data_1800[["USDT_XMR"]], 
+           coin_x = pricing_data_1800[["USDT_LTC"]])
+plot_coins(df = pricing_data_7200, 
+           coin_y = pricing_data_7200[["USDT_XMR"]], 
+           coin_x = pricing_data_7200[["USDT_LTC"]])
+plot_coins(df = pricing_data_14400, 
+           coin_y = pricing_data_14400[["USDT_XMR"]], 
+           coin_x = pricing_data_14400[["USDT_LTC"]])
+plot_coins(df = pricing_data_86400, 
+           coin_y = pricing_data_86400[["USDT_XMR"]], 
+           coin_x = pricing_data_86400[["USDT_LTC"]])
+
