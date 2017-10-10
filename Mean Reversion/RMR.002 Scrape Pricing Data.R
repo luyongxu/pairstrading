@@ -36,7 +36,7 @@ return_chartdata <- function(currency_pair, start_unix, end_unix, period) {
                        "&period=", period)) %>% 
     mutate(period = period, 
            currency_pair = currency_pair, 
-           date_time = as.POSIXct(date, origin="1970-01-01")) %>% 
+           date_time = as.POSIXct(date, origin = "1970-01-01")) %>% 
     select(date, date_time, high, low, open, close, volume, 
            quoteVolume, weightedAverage, currency_pair, period) %>% 
     as_tibble()

@@ -19,6 +19,7 @@ library(stringr)
 library(lubridate)
 library(jsonlite)
 library(urca)
+library(zoo)
 
 #' # 2. Options
 #' Turn off scientific notation. 
