@@ -13,13 +13,15 @@
 #'     fig_height: 5 
 #' ---
 
-#' # 1. Load Packages
-library(tidyverse)
-library(stringr)
-library(lubridate)
-library(jsonlite)
-library(urca)
-library(zoo)
+#' # 1. Load Packages 
+suppressWarnings(suppressMessages({ 
+  library(tidyverse)
+  library(stringr)
+  library(lubridate)
+  library(jsonlite)
+  library(urca)
+  library(zoo)
+}))
 
 #' # 2. Options
 #' Turn off scientific notation. 

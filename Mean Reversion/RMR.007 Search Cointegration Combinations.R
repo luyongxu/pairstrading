@@ -98,7 +98,7 @@ calculate_statistics <- function(pricing_data, coin_pairs) {
            half_life = half_life) %>% 
     arrange(df_stat)
   return(df)
-}
+} 
 
 #' # 7. Plot Coins Function 
 plot_coins <- function(df, coin_y, coin_x) { 

@@ -11,7 +11,7 @@
 
 <meta name="author" content="Kevin Lu" />
 
-<meta name="date" content="2017-10-09" />
+<meta name="date" content="2017-10-11" />
 
 <title>Load Packages</title>
 
@@ -245,18 +245,21 @@ div.tocify {
 
 <h1 class="title toc-ignore">Load Packages</h1>
 <h4 class="author"><em>Kevin Lu</em></h4>
-<h4 class="date"><em>October 09, 2017</em></h4>
+<h4 class="date"><em>October 11, 2017</em></h4>
 
 </div>
 
 
 <div id="load-packages" class="section level1">
 <h1>1. Load Packages</h1>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">library</span>(tidyverse)
-<span class="kw">library</span>(stringr)
-<span class="kw">library</span>(lubridate)
-<span class="kw">library</span>(jsonlite)
-<span class="kw">library</span>(urca)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">suppressWarnings</span>(<span class="kw">suppressMessages</span>({ 
+  <span class="kw">library</span>(tidyverse)
+  <span class="kw">library</span>(stringr)
+  <span class="kw">library</span>(lubridate)
+  <span class="kw">library</span>(jsonlite)
+  <span class="kw">library</span>(urca)
+  <span class="kw">library</span>(zoo)
+}))</code></pre></div>
 </div>
 <div id="options" class="section level1">
 <h1>2. Options</h1>
