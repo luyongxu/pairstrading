@@ -33,7 +33,7 @@ render_wrapper <- function(filename, output) {
                       knit_root_dir = ".", 
                       output_format = "flexdashboard::flex_dashboard")
   }
-}
+} 
 
 #' # 2. Render Research
 render_wrapper("RMR.001 Load Packages", "html_document")
@@ -46,3 +46,4 @@ render_wrapper("RMR.007 Search Cointegration Combinations", "html_document")
 render_wrapper("RMR.008 Plot Cointegration Combinations", "html_document")
 render_wrapper("RMR.009 Test Optimal Cointegration", "html_document")
 render_wrapper("RMR.010 Cross Validate Strategy", "html_document")
+
