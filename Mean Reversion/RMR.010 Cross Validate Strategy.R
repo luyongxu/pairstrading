@@ -17,7 +17,7 @@
 source("./Mean Reversion/RMR.001 Load Packages.R") 
 
 #' # 2. Load Data 
-pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data clean.csv") 
+pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv") 
 
 #' # 3. Prepare Data Function 
 #' Description  
@@ -62,7 +62,7 @@ test_cointegration <- function(coin_y, coin_x) {
 #' is the quote currency. All combinations of coins within each set are created. Combinations that consist of the coin 
 #' with itself are removed. The function returns a dataframe containing the coin pairs. 
 create_pairs <- function() { 
-  coins_usdt <- c("USDT_BTC", "USDT_DASH", "USDT_ETH", "USDT_LTC", "USDT_REP", "USDT_XEM", "USDT_XMR", "USDT_ZEC")
+  coins_usdt <- c("USDT_BTC", "USDT_DASH", "USDT_ETH", "USDT_LTC", "USDT_REP", "USDT_XMR", "USDT_ZEC")
   coins_btc <- c("BTC_DASH", "BTC_ETH", "BTC_LTC", "BTC_REP", "BTC_XEM", "BTC_XMR", "BTC_ZEC")
   coin_pairs <- rbind(expand.grid(coins_usdt, coins_usdt), expand.grid(coins_btc, coins_btc)) %>% 
     rename(coin_y = Var1, coin_x = Var2) %>% 
