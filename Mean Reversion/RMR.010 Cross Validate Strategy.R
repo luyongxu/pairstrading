@@ -137,9 +137,11 @@ generate_signals <- function(train, test, coin_y, coin_x, threshold_z) {
            spread_z = (spread - mean(model[["residuals"]])) / sd(model[["residuals"]]), 
            signal_long = ifelse(lag(spread_z, 1) <= -threshold_z, 1, NA), 
            signal_long = ifelse(lag(spread_z, 1) >= 0, 0, signal_long), 
+           signal_long = ifelse(lag(spread_z, 1) <= -4, 0, signal_long), 
            signal_long = na.locf(signal_long, na.rm = FALSE), 
            signal_short = ifelse(lag(spread_z, 1) >= threshold_z, -1, NA), 
            signal_short = ifelse(lag(spread_z, 1) <= 0, 0, signal_short), 
+           signal_short = ifelse(lag(spread_z, 1) >= 4, 0, signal_short), 
            signal_short = na.locf(signal_short, na.rm = FALSE), 
            signal = signal_long + signal_short, 
            signal = ifelse(is.na(signal), 0, signal)) 
@@ -340,4 +342,4 @@ ggplot(results, aes(x = date_time)) +
   geom_line(aes(y = return_strategy_cumulative_200, colour = "2.00"), size = 1) + 
   geom_hline(yintercept = 1, colour = "black") + 
   labs(title = "Strategy Return vs Buy Hold Return", x = "Date", y = "Cumulative Return") 
-
+print(results[["return_strategy_cumulative_200"]][nrow(results)]) 
