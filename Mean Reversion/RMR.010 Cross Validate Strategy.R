@@ -281,8 +281,8 @@ for (i in 1:10) {
 
 #' # 13. Individual Pairs Cross Validation April 2017 
 #' This section displays results from individual cointegrated coin pairs selected from a training set comprised of data  
-#' from May 1, 2017 to July 1, 2017. The model is fit using the training set and evaluated on a test set comprised 
-#' data from July 1, 2017 to July 31, 2017.  
+#' from Feburary 1, 2017 to April 1, 2017. The model is fit using the training set and evaluated on a test set comprised 
+#' data from April 1, 2017 to April 30, 2017.  
 train <- prepare_data(df = pricing_data, time_resolution = 7200, start_date = "2017-02-01", end_date = "2017-04-01") 
 test <- prepare_data(df = pricing_data, time_resolution = 7200, start_date = "2017-04-01", end_date = "2017-04-30") 
 cointegrated_coins <- select_pairs(train = train, coin_pairs = create_pairs()) 
@@ -293,8 +293,8 @@ for (i in 1:10) {
 
 #' # 14. Individual Pairs Cross Validation March 2017 
 #' This section displays results from individual cointegrated coin pairs selected from a training set comprised of data  
-#' from May 1, 2017 to July 1, 2017. The model is fit using the training set and evaluated on a test set comprised 
-#' data from July 1, 2017 to July 31, 2017.  
+#' from January 1, 2017 to March 1, 2017. The model is fit using the training set and evaluated on a test set comprised 
+#' data from March 1, 2017 to March 31, 2017.  
 train <- prepare_data(df = pricing_data, time_resolution = 7200, start_date = "2017-01-01", end_date = "2017-03-01") 
 test <- prepare_data(df = pricing_data, time_resolution = 7200, start_date = "2017-03-01", end_date = "2017-03-31") 
 cointegrated_coins <- select_pairs(train = train, coin_pairs = create_pairs()) 
@@ -318,17 +318,16 @@ ggplot(test, aes(x = date_time)) +
 
 #' # 16. Strategy Rolling Cross Validation Time Resolution 7200
 #' This section displays results fro ma pairs trading strategy using an equally-weighted portfolio of cointegrated 
-#' coins where new coins are selected each month. The cross validation is run iteratively through time using a test 
+#' coins where new coins are selected every two weeks. The cross validation is run iteratively through time using a test 
 #' set comprised of data from January 1, 2017 to October 1, 2017. 
-test_dates <- (c("2017-01-01", "2017-02-01", "2017-03-01", "2017-04-01", "2017-05-01", "2017-06-01", 
-                 "2017-07-01", "2017-08-01", "2017-09-01")) 
+test_dates <- seq(ymd("2017-01-01"), ymd("2017-10-01"), by = "2 weeks")
 results <- tibble() 
 for (test_date in test_dates) { 
   test_date <- as.Date(test_date) 
   print(str_c("Cross validating strategy. using train set from ", test_date - months(2) , " to ", test_date, 
-              " and test set from ", test_date, " to ", test_date + months(1), "."))  
+              " and test set from ", test_date, " to ", test_date + weeks(2), "."))  
   train <- prepare_data(df = pricing_data, time_resolution = 7200, start_date = test_date - months(2), end_date = test_date)
-  test <- prepare_data(df = pricing_data, time_resolution = 7200, start_date = test_date, end_date = test_date + months(1))
+  test <- prepare_data(df = pricing_data, time_resolution = 7200, start_date = test_date, end_date = test_date + weeks(2))
   test <- test %>% 
     mutate(return_strategy_200 = backtest_strategy(train, test, select_pairs(train, create_pairs()), 2.00), 
            return_strategy_change_200 = return_strategy_200 / lag(return_strategy_200, 1) - 1) %>% 
