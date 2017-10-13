@@ -25,4 +25,4 @@ suppressWarnings(suppressMessages({
 
 #' # 2. Options
 #' Turn off scientific notation. 
-options(scipen = 999)
+options(scipen = 999) 
