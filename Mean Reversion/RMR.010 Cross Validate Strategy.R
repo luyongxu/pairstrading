@@ -62,7 +62,8 @@ test_cointegration <- function(coin_y, coin_x) {
 #' is the quote currency. All combinations of coins within each set are created. Combinations that consist of the coin 
 #' with itself are removed. The function returns a dataframe containing the coin pairs. 
 create_pairs <- function() { 
-  coins_usdt <- c("USDT_BTC", "USDT_DASH", "USDT_ETH", "USDT_LTC", "USDT_REP", "USDT_XMR", "USDT_ZEC")
+  # coins_usdt <- c("USDT_BTC", "USDT_DASH", "USDT_ETH", "USDT_LTC", "USDT_REP", "USDT_XMR", "USDT_ZEC")
+  coins_usdt <- c("")
   coins_btc <- c("BTC_DASH", "BTC_ETH", "BTC_LTC", "BTC_REP", "BTC_XEM", "BTC_XMR", "BTC_ZEC")
   coin_pairs <- rbind(expand.grid(coins_usdt, coins_usdt), expand.grid(coins_btc, coins_btc)) %>% 
     rename(coin_y = Var1, 
@@ -339,10 +340,10 @@ plot_many <- function(pricing_data, time_resolution, cutoff_date, train_window, 
 } 
 
 #' # 13. Set Parameters 
-time_resolution <- 1800
-train_window <- days(4) 
-test_window <- days(2) 
-test_by <- "2 days"
+time_resolution <- 900
+train_window <- days(32) 
+test_window <- days(16) 
+test_by <- "16 days"
 threshold_z <- 2 
 
 #' # 14. Cross Validation September 2017 
