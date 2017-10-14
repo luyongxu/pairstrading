@@ -312,7 +312,7 @@ plot_many <- function(pricing_data, time_resolution, cutoff_date, train_window, 
                                                selected_pairs = selected_pairs, 
                                                threshold_z = threshold_z)) 
   print(selected_pairs) 
-  for (i in 1:10) { 
+  for (i in 1:min(10, nrow(selected_pairs))) { 
     plot_single(train = train, 
                 test = test, 
                 coin_y = selected_pairs[["coin_y"]][i], 
@@ -333,9 +333,9 @@ plot_many <- function(pricing_data, time_resolution, cutoff_date, train_window, 
 
 #' # 13. Set Parameters 
 time_resolution <- 300 
-train_window <- days(8) 
-test_window <- days(4) 
-test_by <- "4 days"
+train_window <- days(4) 
+test_window <- days(2) 
+test_by <- "2 days"
 threshold_z <- 2 
 
 #' # 14. Cross Validation September 2017 
@@ -379,12 +379,12 @@ plot_many(pricing_data = pricing_data,
           threshold_z = threshold_z) 
 
 #' # 19. Cross Validation April 2017 
-plot_many(pricing_data = pricing_data, 
-          time_resolution = time_resolution, 
-          cutoff_date = "2017-04-01", 
-          train_window = train_window, 
-          test_window = test_window, 
-          threshold_z = threshold_z) 
+plot_many(pricing_data = pricing_data,
+          time_resolution = time_resolution,
+          cutoff_date = "2017-04-01",
+          train_window = train_window,
+          test_window = test_window,
+          threshold_z = threshold_z)
 
 #' # 20. Cross Validation March 2017 
 plot_many(pricing_data = pricing_data, 
