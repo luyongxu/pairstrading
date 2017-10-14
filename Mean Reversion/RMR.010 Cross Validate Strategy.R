@@ -107,8 +107,7 @@ test_pairs <- function(train, coin_pairs) {
 select_pairs <- function(train, coin_pairs) { 
   set.seed(5) 
   df <- test_pairs(train = train, coin_pairs = coin_pairs) %>% 
-    filter(adf_stat <= -3.43) %>% 
-    sample_frac(size = 0.50) 
+    filter(adf_stat <= -3.43) 
   return(df) 
 } 
 
@@ -334,10 +333,10 @@ plot_many <- function(pricing_data, time_resolution, cutoff_date, train_window, 
 } 
 
 #' # 13. Set Parameters 
-time_resolution <- 300 
-train_window <- days(4) 
-test_window <- days(2) 
-test_by <- "2 days"
+time_resolution <- 900 
+train_window <- days(16) 
+test_window <- days(8) 
+test_by <- "8 days"
 threshold_z <- 2 
 
 #' # 14. Cross Validation September 2017 
