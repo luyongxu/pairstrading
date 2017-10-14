@@ -107,7 +107,7 @@ test_pairs <- function(train, coin_pairs) {
 select_pairs <- function(train, coin_pairs) { 
   set.seed(5) 
   df <- test_pairs(train = train, coin_pairs = coin_pairs) %>% 
-    filter(adf_stat <= -3.43) 
+    filter(adf_stat <= -3.43)
   return(df) 
 } 
 
