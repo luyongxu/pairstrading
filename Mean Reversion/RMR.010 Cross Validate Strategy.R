@@ -333,7 +333,7 @@ plot_many <- function(pricing_data, time_resolution, cutoff_date, train_window, 
 } 
 
 #' # 13. Set Parameters 
-time_resolution <- 900 
+time_resolution <- 1800
 train_window <- days(64) 
 test_window <- days(32) 
 test_by <- "32 days"
