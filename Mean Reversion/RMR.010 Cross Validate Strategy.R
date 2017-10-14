@@ -49,7 +49,7 @@ prepare_data <- function(pricing_data, time_resolution, start_date, end_date) {
 #' coin_y: A vector containing the pricing data for the dependent coin in the regression.  
 #' coin_x: A vector containing the pricing data for the independent coin in the regression.  
 test_cointegration <- function(coin_y, coin_x) { 
-  lm_model <- lm(log(coin_y) ~ log(coin_x))  
+  lm_model <- lm(coin_y ~ coin_x)  
   lm_residuals <- lm_model[["residuals"]] 
   adf_test <- ur.df(lm_residuals, type = "drift", lags = 1) 
   df_stat = adf_test@testreg[["coefficients"]][2, 3]
@@ -62,8 +62,7 @@ test_cointegration <- function(coin_y, coin_x) {
 #' is the quote currency. All combinations of coins within each set are created. Combinations that consist of the coin 
 #' with itself are removed. The function returns a dataframe containing the coin pairs. 
 create_pairs <- function() { 
-  # coins_usdt <- c("USDT_BTC", "USDT_DASH", "USDT_ETH", "USDT_LTC", "USDT_REP", "USDT_XMR", "USDT_ZEC")
-  coins_usdt <- c("")
+  coins_usdt <- c("USDT_BTC", "USDT_DASH", "USDT_ETH", "USDT_LTC", "USDT_REP", "USDT_XMR", "USDT_ZEC")
   coins_btc <- c("BTC_DASH", "BTC_ETH", "BTC_LTC", "BTC_REP", "BTC_XEM", "BTC_XMR", "BTC_ZEC")
   coin_pairs <- rbind(expand.grid(coins_usdt, coins_usdt), expand.grid(coins_btc, coins_btc)) %>% 
     rename(coin_y = Var1, 
@@ -133,11 +132,11 @@ select_pairs <- function(train, coin_pairs) {
 #' coin_x: A string indicating the independent coin in the coin pair regression.  
 #' threshold_z: A number indicating the absolute value of the z-score threshold for entering a position in the spread. 
 generate_signals <- function(train, test, coin_y, coin_x, threshold_z) { 
-  model <- lm(log(train[[coin_y]]) ~ log(train[[coin_x]]))   
+  model <- lm(train[[coin_y]] ~ train[[coin_x]])   
   intercept <- coef(model)[1] 
   hedge_ratio <- coef(model)[2] 
   df_signals <- test %>% 
-    mutate(spread = log(test[[coin_y]]) - log(test[[coin_x]]) * hedge_ratio - intercept, 
+    mutate(spread = test[[coin_y]] - test[[coin_x]] * hedge_ratio - intercept, 
            spread_z = (spread - mean(model[["residuals"]])) / sd(model[["residuals"]]), 
            signal_long = ifelse(lag(spread_z, 1) <= -threshold_z, 1, NA), 
            signal_long = ifelse(lag(spread_z, 1) >= 0, 0, signal_long), 
@@ -171,7 +170,7 @@ generate_signals <- function(train, test, coin_y, coin_x, threshold_z) {
 #' coin_x: A string indicating the independent coin in the coin pair regression.  
 #' threshold_z: A number indicating the absolute value of the z-score threshold for entering a position in the spread. 
 backtest_pair <- function(train, test, coin_y, coin_x, threshold_z) { 
-  model <- lm(log(train[[coin_y]]) ~ log(train[[coin_x]]))  
+  model <- lm(train[[coin_y]] ~ train[[coin_x]])  
   intercept <- coef(model)[1] 
   hedge_ratio <- coef(model)[2] 
   df_backtest <- test %>% 
@@ -182,8 +181,8 @@ backtest_pair <- function(train, test, coin_y, coin_x, threshold_z) {
                                      threshold_z = threshold_z), 
            coin_y_return = test[[coin_y]] / lag(test[[coin_y]], 1) - 1, 
            coin_x_return = test[[coin_x]] / lag(test[[coin_x]], 1) - 1, 
-           coin_y_position = signal * 1, 
-           coin_x_position = signal * hedge_ratio * -1,  
+           coin_y_position = test[[coin_y]] * signal * 1, 
+           coin_x_position = test[[coin_x]] * signal * hedge_ratio * -1,  
            coin_y_pnl = lag(coin_y_position, 1) * coin_y_return, 
            coin_x_pnl = lag(coin_x_position, 1) * coin_x_return, 
            combined_position = abs(coin_y_position) + abs(coin_x_position), 
@@ -242,7 +241,7 @@ backtest_strategy <- function(train, test, selected_pairs, threshold_z) {
 #' coin_x: A string indicating the independent coin in the coin pair regression.  
 #' threshold_z: A number indicating the absolute value of the z-score threshold for entering a position in the spread. 
 plot_single <- function(train, test, coin_y, coin_x, threshold_z) { 
-  model <- lm(log(train[[coin_y]]) ~ log(train[[coin_x]]))  
+  model <- lm(train[[coin_y]] ~ train[[coin_x]])  
   intercept <- coef(model)[1] 
   hedge_ratio <- coef(model)[2] 
   df_plot <- test %>% 
