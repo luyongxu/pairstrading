@@ -337,9 +337,9 @@ plot_many <- function(pricing_data, time_resolution, cutoff_date, train_window, 
 
 #' # 13. Set Parameters 
 time_resolution <- 1800
-train_window <- days(16) 
-test_window <- days(8) 
-test_by <- "8 days"
+train_window <- days(8) 
+test_window <- days(4) 
+test_by <- "4 days"
 threshold_z <- 2 
 
 #' # 14. Cross Validation September 2017 
