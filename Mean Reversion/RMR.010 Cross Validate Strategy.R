@@ -306,7 +306,10 @@ plot_many <- function(pricing_data, time_resolution, cutoff_date, train_window, 
                        time_resolution = time_resolution, 
                        start_date = as.Date(cutoff_date), 
                        end_date = as.Date(cutoff_date) + test_window) 
-  selected_pairs <- select_pairs(train = train, coin_pairs = create_pairs()) 
+  selected_pairs <- select_pairs(train = train, coin_pairs = create_pairs())
+  if (nrow(selected_pairs) == 0) { 
+    return("No coin pairs selected.")
+  }
   test <- test %>% 
     mutate(return_strategy = backtest_strategy(train = train, 
                                                test = ., 
@@ -334,9 +337,9 @@ plot_many <- function(pricing_data, time_resolution, cutoff_date, train_window, 
 
 #' # 13. Set Parameters 
 time_resolution <- 1800
-train_window <- days(32) 
-test_window <- days(16) 
-test_by <- "16 days"
+train_window <- days(16) 
+test_window <- days(8) 
+test_by <- "8 days"
 threshold_z <- 2 
 
 #' # 14. Cross Validation September 2017 
