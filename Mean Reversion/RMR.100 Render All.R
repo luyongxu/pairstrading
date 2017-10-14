@@ -46,4 +46,4 @@ render_wrapper("RMR.007 Search Cointegration Combinations", "html_document")
 render_wrapper("RMR.008 Plot Cointegration Combinations", "html_document")
 render_wrapper("RMR.009 Test Optimal Cointegration", "html_document")
 render_wrapper("RMR.010 Cross Validate Strategy", "html_document")
-
+beepr::beep(3)

@@ -140,10 +140,12 @@ generate_signals <- function(train, test, coin_y, coin_x, threshold_z) {
            signal_long = ifelse(lag(spread_z, 1) <= -threshold_z, 1, NA), 
            signal_long = ifelse(lag(spread_z, 1) >= 0, 0, signal_long), 
            signal_long = ifelse(lag(spread_z, 1) <= -4, 0, signal_long), 
+           signal_long = ifelse(lag(cummin(spread_z), 1) <= -4, 0, signal_long), 
            signal_long = na.locf(signal_long, na.rm = FALSE), 
            signal_short = ifelse(lag(spread_z, 1) >= threshold_z, -1, NA), 
            signal_short = ifelse(lag(spread_z, 1) <= 0, 0, signal_short), 
            signal_short = ifelse(lag(spread_z, 1) >= 4, 0, signal_short), 
+           signal_short = ifelse(lag(cummax(spread_z), 1) >= 4, 0, signal_short), 
            signal_short = na.locf(signal_short, na.rm = FALSE), 
            signal = signal_long + signal_short, 
            signal = ifelse(is.na(signal), 0, signal)) 
