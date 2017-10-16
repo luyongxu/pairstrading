@@ -181,8 +181,9 @@ backtest_pair <- function(train, test, coin_y, coin_x, threshold_z) {
                                      threshold_z = threshold_z), 
            coin_y_return = test[[coin_y]] / lag(test[[coin_y]], 1) - 1, 
            coin_x_return = test[[coin_x]] / lag(test[[coin_x]], 1) - 1, 
-           coin_y_position = test[[coin_y]] * signal * 1, 
-           coin_x_position = test[[coin_x]] * signal * hedge_ratio * -1,  
+           coin_y_position = signal * 1, 
+           coin_x_position = signal * (train[[coin_x]][length(train[[coin_x]])] / train[[coin_y]][length(train[[coin_y]])] * 
+                                         hedge_ratio) * -1, 
            coin_y_pnl = lag(coin_y_position, 1) * coin_y_return, 
            coin_x_pnl = lag(coin_x_position, 1) * coin_x_return, 
            combined_position = abs(coin_y_position) + abs(coin_x_position), 
