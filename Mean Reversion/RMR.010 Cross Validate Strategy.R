@@ -267,7 +267,6 @@ plot_single <- function(train, test, coin_y, coin_x, threshold_z) {
                                        threshold_z = threshold_z), 
            return_buyhold_y = test[[coin_y]] / test[[coin_y]][1], 
            return_buyhold_x = test[[coin_x]] / test[[coin_x]][1])
-  print(summary(model)) 
   print(ggplot(df_plot, aes(x = date_time)) + 
           geom_line(aes(y = spread_z, colour = "Spread Z"), size = 1) + 
           geom_line(aes(y = signal, colour = "Signal"), size = 0.5) + 
@@ -349,7 +348,7 @@ plot_many <- function(pricing_data, time_resolution, cutoff_date, train_window, 
 } 
 
 #' # 13. Set Parameters 
-quote_currency <- "USDT" 
+quote_currency <- "BTC" 
 time_resolution <- 900
 train_window <- days(32) 
 test_window <- days(16) 
