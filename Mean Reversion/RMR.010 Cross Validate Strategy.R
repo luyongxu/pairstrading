@@ -145,7 +145,18 @@ generate_signals <- function(train, test, coin_y, coin_x, threshold_z) {
   df_signals <- test %>% 
     mutate(spread = log(test[[coin_y]]) - log(test[[coin_x]]) * hedge_ratio - intercept, 
            spread_z = (spread - mean(model[["residuals"]])) / sd(model[["residuals"]]), 
-           signal = -spread_z) 
+           signal_long = ifelse(lag(spread_z, 1) <= -threshold_z, 1, NA), 
+           signal_long = ifelse(lag(spread_z, 1) >= 0, 0, signal_long), 
+           signal_long = ifelse(lag(spread_z, 1) <= -4, 0, signal_long), 
+           signal_long = ifelse(lag(cummin(spread_z), 1) <= -4, 0, signal_long), 
+           signal_long = na.locf(signal_long, na.rm = FALSE), 
+           signal_short = ifelse(lag(spread_z, 1) >= threshold_z, -1, NA), 
+           signal_short = ifelse(lag(spread_z, 1) <= 0, 0, signal_short), 
+           signal_short = ifelse(lag(spread_z, 1) >= 4, 0, signal_short), 
+           signal_short = ifelse(lag(cummax(spread_z), 1) >= 4, 0, signal_short), 
+           signal_short = na.locf(signal_short, na.rm = FALSE), 
+           signal = signal_long + signal_short, 
+           signal = ifelse(is.na(signal), 0, signal)) 
   return(df_signals[["signal"]])
 } 
 
@@ -254,7 +265,7 @@ plot_single <- function(train, test, coin_y, coin_x, threshold_z) {
                                        coin_x = coin_x, 
                                        threshold_z = threshold_z), 
            return_buyhold_y = test[[coin_y]] / test[[coin_y]][1], 
-           return_buyhold_x = test[[coin_x]] / test[[coin_x]][1]) 
+           return_buyhold_x = test[[coin_x]] / test[[coin_x]][1])
   print(summary(model)) 
   print(ggplot(df_plot, aes(x = date_time)) + 
           geom_line(aes(y = spread_z, colour = "Spread Z"), size = 1) + 
