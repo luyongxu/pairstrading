@@ -195,7 +195,7 @@ backtest_pair <- function(train, test, coin_y, coin_x, threshold_z) {
            coin_x_pnl = lag(coin_x_position, 1) * coin_x_return, 
            combined_position = abs(coin_y_position) + abs(coin_x_position), 
            combined_pnl = coin_y_pnl + coin_x_pnl, 
-           combined_return = combined_pnl / lag(combined_position, 1)) %>% 
+           combined_return = combined_pnl / (1 + hedge_ratio)) %>% 
     mutate_all(funs(ifelse(is.na(.), 0, .))) %>% 
     mutate(return_pair = cumprod(1 + combined_return)) 
   return(df_backtest[["return_pair"]])
@@ -349,7 +349,7 @@ plot_many <- function(pricing_data, time_resolution, cutoff_date, train_window, 
 } 
 
 #' # 13. Set Parameters 
-quote_currency <- "BTC" 
+quote_currency <- "USDT" 
 time_resolution <- 900
 train_window <- days(32) 
 test_window <- days(16) 
