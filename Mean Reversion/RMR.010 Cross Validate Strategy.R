@@ -146,16 +146,16 @@ generate_signals <- function(train, test, coin_y, coin_x, threshold_z) {
     mutate(spread = log(test[[coin_y]]) - log(test[[coin_x]]) * hedge_ratio - intercept, 
            spread_z = (spread - mean(model[["residuals"]])) / sd(model[["residuals"]]), 
            lag_spread_z = lag(spread_z, 1), 
-           signal_long = ifelse(lag_spread_z <=  0 & lag_spread_z > -1, 0.33, 0), 
-           signal_long = ifelse(lag_spread_z <= -1 & lag_spread_z > -2, 0.67, signal_long), 
-           signal_long = ifelse(lag_spread_z <= -2 & lag_spread_z > -3, 1.00, signal_long), 
-           signal_long = ifelse(lag_spread_z <= -3 & lag_spread_z > -4, 0.00, signal_long), 
-           signal_long = ifelse(lag_spread_z <= -4, 0, signal_long), 
-           signal_short = ifelse(lag_spread_z >= 0 & lag_spread_z < 1, -0.33, 0), 
-           signal_short = ifelse(lag_spread_z >= 1 & lag_spread_z < 2, -0.67, signal_short), 
-           signal_short = ifelse(lag_spread_z >= 2 & lag_spread_z < 3, -1.00, signal_short), 
-           signal_short = ifelse(lag_spread_z >= 3 & lag_spread_z < 4, -0.00, signal_short), 
-           signal_short = ifelse(lag_spread_z >= 4, 0, signal_short), 
+           signal_long = ifelse(lag_spread_z <=  0.0 & lag_spread_z > -0.5, 0.25, 0), 
+           signal_long = ifelse(lag_spread_z <= -0.5 & lag_spread_z > -1.0, 0.50, signal_long), 
+           signal_long = ifelse(lag_spread_z <= -1.0 & lag_spread_z > -2.0, 0.75, signal_long), 
+           signal_long = ifelse(lag_spread_z <= -2.0 & lag_spread_z > -4.0, 1.00, signal_long), 
+           signal_long = ifelse(lag_spread_z <= -4.0, 0, signal_long), 
+           signal_short = ifelse(lag_spread_z >= 0.0 & lag_spread_z < 0.5, -0.25, 0), 
+           signal_short = ifelse(lag_spread_z >= 0.5 & lag_spread_z < 1.0, -0.50, signal_short), 
+           signal_short = ifelse(lag_spread_z >= 1.0 & lag_spread_z < 2.0, -0.75, signal_short), 
+           signal_short = ifelse(lag_spread_z >= 2.0 & lag_spread_z < 4.0, -1.00, signal_short), 
+           signal_short = ifelse(lag_spread_z >= 4.0, 0, signal_short), 
            signal = signal_long + signal_short, 
            signal = ifelse(is.na(signal), 0, signal)) 
   return(df_signals[["signal"]])
@@ -323,7 +323,7 @@ plot_many <- function(pricing_data, time_resolution, cutoff_date, train_window, 
     return("No coin pairs selected.")
   } 
   print(selected_pairs) 
-  for (i in 1:min(5, nrow(selected_pairs))) { 
+  for (i in 1:min(3, nrow(selected_pairs))) { 
     plot_single(train = train, 
                 test = test, 
                 coin_y = selected_pairs[["coin_y"]][i], 
@@ -348,7 +348,7 @@ plot_many <- function(pricing_data, time_resolution, cutoff_date, train_window, 
 } 
 
 #' # 13. Set Parameters 
-quote_currency <- "BTC" 
+quote_currency <- "USDT" 
 time_resolution <- 900
 train_window <- days(32) 
 test_window <- days(16) 
