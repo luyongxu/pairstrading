@@ -347,12 +347,12 @@ plot_many <- function(pricing_data, time_resolution, cutoff_date, train_window, 
 } 
 
 #' # 13. Set Parameters 
-quote_currency <- "BTC" 
+quote_currency <- "USDT" 
 time_resolution <- 900
 train_window <- days(32) 
 test_window <- days(16) 
 test_by <- "16 days"
-threshold_z <- 2 
+threshold_z <- 4 
 
 #' # 14. Cross Validation September 2017 
 plot_many(pricing_data = pricing_data, 
