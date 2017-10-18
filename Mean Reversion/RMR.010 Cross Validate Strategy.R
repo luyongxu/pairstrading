@@ -49,7 +49,7 @@ prepare_data <- function(pricing_data, time_resolution, start_date, end_date) {
 #' coin_y: A vector containing the pricing data for the dependent coin in the regression.  
 #' coin_x: A vector containing the pricing data for the independent coin in the regression.  
 test_cointegration <- function(coin_y, coin_x) { 
-  lm_model <- lm(coin_y ~ coin_x)  
+  lm_model <- lm(log(coin_y) ~ log(coin_x))  
   lm_residuals <- lm_model[["residuals"]] 
   adf_test <- ur.df(lm_residuals, type = "drift", lags = 1) 
   df_stat = adf_test@testreg[["coefficients"]][2, 3]
@@ -139,22 +139,22 @@ select_pairs <- function(train, coin_pairs) {
 #' coin_x: A string indicating the independent coin in the coin pair regression.  
 #' threshold_z: A number indicating the absolute value of the z-score threshold for entering a position in the spread. 
 generate_signals <- function(train, test, coin_y, coin_x, threshold_z) { 
-  model <- lm(train[[coin_y]] ~ train[[coin_x]])    
+  model <- lm(log(train[[coin_y]]) ~ log(train[[coin_x]]))    
   intercept <- coef(model)[1] 
   hedge_ratio <- coef(model)[2] 
   df_signals <- test %>% 
-    mutate(spread = test[[coin_y]] - test[[coin_x]] * hedge_ratio - intercept, 
+    mutate(spread = log(test[[coin_y]]) - log(test[[coin_x]]) * hedge_ratio - intercept, 
            spread_z = (spread - mean(model[["residuals"]])) / sd(model[["residuals"]]), 
            lag_spread_z = lag(spread_z, 1), 
-           signal_long = ifelse(lag_spread_z <=  0 & lag_spread_z > -1, 0.25, 0), 
-           signal_long = ifelse(lag_spread_z <= -1 & lag_spread_z > -2, 0.50, signal_long), 
-           signal_long = ifelse(lag_spread_z <= -2 & lag_spread_z > -3, 0.75, signal_long), 
-           signal_long = ifelse(lag_spread_z <= -3 & lag_spread_z > -4, 1.00, signal_long), 
+           signal_long = ifelse(lag_spread_z <=  0 & lag_spread_z > -1, 0.33, 0), 
+           signal_long = ifelse(lag_spread_z <= -1 & lag_spread_z > -2, 0.67, signal_long), 
+           signal_long = ifelse(lag_spread_z <= -2 & lag_spread_z > -3, 1.00, signal_long), 
+           signal_long = ifelse(lag_spread_z <= -3 & lag_spread_z > -4, 0.00, signal_long), 
            signal_long = ifelse(lag_spread_z <= -4, 0, signal_long), 
-           signal_short = ifelse(lag_spread_z >= 0 & lag_spread_z < 1, -0.25, 0), 
-           signal_short = ifelse(lag_spread_z >= 1 & lag_spread_z < 2, -0.50, signal_short), 
-           signal_short = ifelse(lag_spread_z >= 2 & lag_spread_z < 3, -0.75, signal_short), 
-           signal_short = ifelse(lag_spread_z >= 3 & lag_spread_z < 4, -1.00, signal_short), 
+           signal_short = ifelse(lag_spread_z >= 0 & lag_spread_z < 1, -0.33, 0), 
+           signal_short = ifelse(lag_spread_z >= 1 & lag_spread_z < 2, -0.67, signal_short), 
+           signal_short = ifelse(lag_spread_z >= 2 & lag_spread_z < 3, -1.00, signal_short), 
+           signal_short = ifelse(lag_spread_z >= 3 & lag_spread_z < 4, -0.00, signal_short), 
            signal_short = ifelse(lag_spread_z >= 4, 0, signal_short), 
            signal = signal_long + signal_short, 
            signal = ifelse(is.na(signal), 0, signal)) 
@@ -178,7 +178,7 @@ generate_signals <- function(train, test, coin_y, coin_x, threshold_z) {
 #' coin_x: A string indicating the independent coin in the coin pair regression.  
 #' threshold_z: A number indicating the absolute value of the z-score threshold for entering a position in the spread. 
 backtest_pair <- function(train, test, coin_y, coin_x, threshold_z) { 
-  model <- lm(train[[coin_y]] ~ train[[coin_x]])   
+  model <- lm(log(train[[coin_y]]) ~ log(train[[coin_x]]))   
   intercept <- coef(model)[1] 
   hedge_ratio <- coef(model)[2] 
   df_backtest <- test %>% 
@@ -189,13 +189,13 @@ backtest_pair <- function(train, test, coin_y, coin_x, threshold_z) {
                                      threshold_z = threshold_z), 
            coin_y_return = test[[coin_y]] / lag(test[[coin_y]], 1) - 1, 
            coin_x_return = test[[coin_x]] / lag(test[[coin_x]], 1) - 1, 
-           coin_y_position = test[[coin_y]] * signal * 1           *  1, 
-           coin_x_position = test[[coin_x]] * signal * hedge_ratio * -1,  
+           coin_y_position = signal * 1           *  1, 
+           coin_x_position = signal * hedge_ratio * -1,  
            coin_y_pnl = lag(coin_y_position, 1) * coin_y_return, 
            coin_x_pnl = lag(coin_x_position, 1) * coin_x_return, 
            combined_position = abs(coin_y_position) + abs(coin_x_position), 
            combined_pnl = coin_y_pnl + coin_x_pnl, 
-           combined_return = combined_pnl / lag(combined_position, 1)) %>% 
+           combined_return = combined_pnl / (1 + hedge_ratio)) %>% 
     mutate_all(funs(ifelse(is.na(.), 0, .))) %>% 
     mutate(return_pair = cumprod(1 + combined_return)) 
   return(df_backtest[["return_pair"]])
@@ -249,11 +249,11 @@ backtest_strategy <- function(train, test, selected_pairs, threshold_z) {
 #' coin_x: A string indicating the independent coin in the coin pair regression.  
 #' threshold_z: A number indicating the absolute value of the z-score threshold for entering a position in the spread. 
 plot_single <- function(train, test, coin_y, coin_x, threshold_z) { 
-  model <- lm(train[[coin_y]] ~ train[[coin_x]])   
+  model <- lm(log(train[[coin_y]]) ~ log(train[[coin_x]]))   
   intercept <- coef(model)[1] 
   hedge_ratio <- coef(model)[2] 
   df_plot <- test %>% 
-    mutate(spread = test[[coin_y]] - test[[coin_x]] * hedge_ratio - intercept, 
+    mutate(spread = log(test[[coin_y]]) - log(test[[coin_x]]) * hedge_ratio - intercept, 
            spread_z = (spread - mean(model[["residuals"]])) / sd(model[["residuals"]]), 
            signal = generate_signals(train = train, 
                                      test = test, 
@@ -323,7 +323,7 @@ plot_many <- function(pricing_data, time_resolution, cutoff_date, train_window, 
     return("No coin pairs selected.")
   } 
   print(selected_pairs) 
-  for (i in 1:min(10, nrow(selected_pairs))) { 
+  for (i in 1:min(5, nrow(selected_pairs))) { 
     plot_single(train = train, 
                 test = test, 
                 coin_y = selected_pairs[["coin_y"]][i], 
@@ -348,7 +348,7 @@ plot_many <- function(pricing_data, time_resolution, cutoff_date, train_window, 
 } 
 
 #' # 13. Set Parameters 
-quote_currency <- "BTC" 
+quote_currency <- "USDT" 
 time_resolution <- 900
 train_window <- days(32) 
 test_window <- days(16) 
@@ -447,7 +447,8 @@ for (cutoff_date in cutoff_dates) {
     mutate(return_strategy = 
              backtest_strategy(train = train, 
                                test = test, 
-                               selected_pairs = select_pairs(train = train, coin_pairs = create_pairs(quote_currency = quote_currency)), 
+                               selected_pairs = select_pairs(train = train, 
+                                                             coin_pairs = create_pairs(quote_currency = quote_currency)), 
                                threshold_z = threshold_z), 
            return_strategy_change = return_strategy / lag(return_strategy, 1) - 1) %>% 
     mutate_all(funs(ifelse(is.na(.), 0, .)))
