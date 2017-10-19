@@ -20,7 +20,8 @@ suppressWarnings(suppressMessages({
   library(lubridate)
   library(jsonlite)
   library(urca)
-  library(zoo)
+  library(zoo) 
+  library(RcppRoll)
 }))
 
 #' # 2. Options
