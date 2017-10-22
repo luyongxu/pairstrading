@@ -21,7 +21,9 @@ suppressWarnings(suppressMessages({
   library(jsonlite)
   library(urca)
   library(zoo) 
-  library(RcppRoll)
+  library(RcppRoll) 
+  library(foreach) 
+  library(doParallel)
 }))
 
 #' # 2. Options
