@@ -11,7 +11,7 @@
 #'     number_sections: false
 #'     fig_width: 8 
 #'     fig_height: 5 
-#' ---
+#' --- 
 
 #' # 1. Load Packages 
 source("./Mean Reversion/RMR.001 Load Packages.R") 
@@ -216,20 +216,20 @@ generate_signals <- function(train, test, coin_y, coin_x, model) {
            signal_long = if_else(lag_spread_z <= -3.0 & lag_spread_z > -4.0, 1.00, signal_long), 
            signal_long = if_else(lag_spread_z <= -4.0 & lag_spread_z > -5.0, 1.00, signal_long), 
            signal_long = if_else(lag_spread_z <= -5.0 & lag_spread_z > -6.0, 1.00, signal_long), 
-           signal_long = if_else(lag_spread_z <= -6.0 & lag_spread_z > -7.0, 1.00, signal_long), 
-           signal_long = if_else(lag_spread_z <= -7.0, 0, signal_long), 
+           signal_long = if_else(lag_spread_z <= -6.0 & lag_spread_z > -7.0, 0.00, signal_long), 
+           signal_long = if_else(lag_spread_z <= -6.0, 0, signal_long), 
            signal_short = if_else(lag_spread_z >= 0.0 & lag_spread_z < 1.0, -0.25, 0), 
            signal_short = if_else(lag_spread_z >= 1.0 & lag_spread_z < 2.0, -0.50, signal_short), 
            signal_short = if_else(lag_spread_z >= 2.0 & lag_spread_z < 3.0, -0.75, signal_short), 
            signal_short = if_else(lag_spread_z >= 3.0 & lag_spread_z < 4.0, -1.00, signal_short), 
            signal_short = if_else(lag_spread_z >= 4.0 & lag_spread_z < 5.0, -1.00, signal_short), 
            signal_short = if_else(lag_spread_z >= 5.0 & lag_spread_z < 6.0, -1.00, signal_short), 
-           signal_short = if_else(lag_spread_z >= 6.0 & lag_spread_z < 7.0, -1.00, signal_short), 
-           signal_short = if_else(lag_spread_z >= 7.0, 0, signal_short), 
+           signal_short = if_else(lag_spread_z >= 6.0 & lag_spread_z < 7.0, -0.00, signal_short), 
+           signal_short = if_else(lag_spread_z >= 6.0, 0, signal_short), 
            signal = signal_long + signal_short, 
            signal = if_else(is.na(signal), 0, signal), 
-           signal = if_else(cummin(lag_spread_z) <= -7.0, 0, signal), 
-           signal = if_else(cummax(lag_spread_z) >=  7.0, 0, signal))  
+           signal = if_else(cummin(lag_spread_z) <= -6.0, 0, signal), 
+           signal = if_else(cummax(lag_spread_z) >=  6.0, 0, signal))  
   return(df_signals[["signal"]])
 } 
 
@@ -401,8 +401,8 @@ plot_single <- function(train, test, coin_y, coin_x, rolling_window) {
 #' 
 #' Value  
 #' Prints the plots described above.  
-plot_many <- function(pricing_data, time_resolution, cutoff_date, train_window, test_window, quote_currency, 
-                      rolling_window, number_pairs) { 
+plot_many <- function(pricing_data, time_resolution, cutoff_date, train_window, 
+                      test_window, quote_currency, rolling_window, number_pairs) { 
   train <- prepare_data(pricing_data = pricing_data, 
                         time_resolution = time_resolution, 
                         start_date = as.Date(cutoff_date) - train_window, 
@@ -446,141 +446,144 @@ plot_many <- function(pricing_data, time_resolution, cutoff_date, train_window, 
 time_resolution <- 900
 train_window <- days(32) 
 test_window <- days(16) 
-quote_currency <- "BTC" 
+quote_currency <- "USDT" 
 rolling_window <- 86400 / time_resolution * as.numeric(days(2)) / 86400 
 number_pairs <- 3 
 test_by <- "16 days" 
 
-#' # 15. Cross Validation September 2017 
-plot_many(pricing_data = pricing_data, 
-          time_resolution = time_resolution, 
-          cutoff_date = "2017-09-01", 
-          train_window = train_window, 
-          test_window = test_window, 
-          quote_currency = quote_currency, 
-          rolling_window = rolling_window, 
-          number_pairs = number_pairs) 
-
-#' # 16. Cross Validation August 2017 
-plot_many(pricing_data = pricing_data, 
-          time_resolution = time_resolution, 
-          cutoff_date = "2017-08-01", 
-          train_window = train_window, 
-          test_window = test_window, 
-          quote_currency = quote_currency, 
-          rolling_window = rolling_window, 
-          number_pairs = number_pairs) 
-
-#' # 17. Cross Validation July 2017 
-plot_many(pricing_data = pricing_data, 
-          time_resolution = time_resolution, 
-          cutoff_date = "2017-07-01", 
-          train_window = train_window, 
-          test_window = test_window, 
-          quote_currency = quote_currency, 
-          rolling_window = rolling_window, 
-          number_pairs = number_pairs) 
-
-#' # 18. Cross Validation June 2017 
-plot_many(pricing_data = pricing_data, 
-          time_resolution = time_resolution, 
-          cutoff_date = "2017-06-01", 
-          train_window = train_window, 
-          test_window = test_window, 
-          quote_currency = quote_currency, 
-          rolling_window = rolling_window, 
-          number_pairs = number_pairs) 
-
-#' # 19. Cross Validation May 2017 
-plot_many(pricing_data = pricing_data, 
-          time_resolution = time_resolution, 
-          cutoff_date = "2017-05-01", 
-          train_window = train_window, 
-          test_window = test_window, 
-          quote_currency = quote_currency, 
-          rolling_window = rolling_window, 
-          number_pairs = number_pairs) 
-
-#' # 20. Cross Validation April 2017 
+#' # 15. Cross Validation September 2017
 plot_many(pricing_data = pricing_data,
           time_resolution = time_resolution,
-          cutoff_date = "2017-04-01", 
-          train_window = train_window, 
-          test_window = test_window, 
-          quote_currency = quote_currency, 
-          rolling_window = rolling_window, 
-          number_pairs = number_pairs) 
+          cutoff_date = "2017-09-01",
+          train_window = train_window,
+          test_window = test_window,
+          quote_currency = quote_currency,
+          rolling_window = rolling_window,
+          number_pairs = number_pairs)
 
-#' # 21. Cross Validation March 2017 
-plot_many(pricing_data = pricing_data, 
-          time_resolution = time_resolution, 
-          cutoff_date = "2017-03-01", 
-          train_window = train_window, 
-          test_window = test_window, 
-          quote_currency = quote_currency, 
-          rolling_window = rolling_window, 
-          number_pairs = number_pairs) 
+#' # 16. Cross Validation August 2017
+plot_many(pricing_data = pricing_data,
+          time_resolution = time_resolution,
+          cutoff_date = "2017-08-01",
+          train_window = train_window,
+          test_window = test_window,
+          quote_currency = quote_currency,
+          rolling_window = rolling_window,
+          number_pairs = number_pairs)
 
-#' # 22. Cross Validation February 2017 
-plot_many(pricing_data = pricing_data, 
-          time_resolution = time_resolution, 
-          cutoff_date = "2017-02-01", 
-          train_window = train_window, 
-          test_window = test_window, 
-          quote_currency = quote_currency, 
-          rolling_window = rolling_window, 
-          number_pairs = number_pairs) 
+#' # 17. Cross Validation July 2017
+plot_many(pricing_data = pricing_data,
+          time_resolution = time_resolution,
+          cutoff_date = "2017-07-01",
+          train_window = train_window,
+          test_window = test_window,
+          quote_currency = quote_currency,
+          rolling_window = rolling_window,
+          number_pairs = number_pairs)
 
-#' # 23. Cross Validation January 2017 
-plot_many(pricing_data = pricing_data, 
-          time_resolution = time_resolution, 
-          cutoff_date = "2017-01-01", 
-          train_window = train_window, 
-          test_window = test_window, 
-          quote_currency = quote_currency, 
-          rolling_window = rolling_window, 
+#' # 18. Cross Validation June 2017
+plot_many(pricing_data = pricing_data,
+          time_resolution = time_resolution,
+          cutoff_date = "2017-06-01",
+          train_window = train_window,
+          test_window = test_window,
+          quote_currency = quote_currency,
+          rolling_window = rolling_window,
+          number_pairs = number_pairs)
+
+#' # 19. Cross Validation May 2017
+plot_many(pricing_data = pricing_data,
+          time_resolution = time_resolution,
+          cutoff_date = "2017-05-01",
+          train_window = train_window,
+          test_window = test_window,
+          quote_currency = quote_currency,
+          rolling_window = rolling_window,
           number_pairs = number_pairs) 
+plot_many(pricing_data = pricing_data,
+          time_resolution = time_resolution,
+          cutoff_date = "2017-05-15", 
+          train_window = train_window,
+          test_window = test_window,
+          quote_currency = quote_currency,
+          rolling_window = rolling_window,
+          number_pairs = number_pairs)
+
+#' # 20. Cross Validation April 2017
+plot_many(pricing_data = pricing_data,
+          time_resolution = time_resolution,
+          cutoff_date = "2017-04-01",
+          train_window = train_window,
+          test_window = test_window,
+          quote_currency = quote_currency,
+          rolling_window = rolling_window,
+          number_pairs = number_pairs)
+
+#' # 21. Cross Validation March 2017
+plot_many(pricing_data = pricing_data,
+          time_resolution = time_resolution,
+          cutoff_date = "2017-03-01",
+          train_window = train_window,
+          test_window = test_window,
+          quote_currency = quote_currency,
+          rolling_window = rolling_window,
+          number_pairs = number_pairs) 
+plot_many(pricing_data = pricing_data,
+          time_resolution = time_resolution,
+          cutoff_date = "2017-03-15",
+          train_window = train_window,
+          test_window = test_window,
+          quote_currency = quote_currency,
+          rolling_window = rolling_window,
+          number_pairs = number_pairs)
+
+#' # 22. Cross Validation February 2017
+plot_many(pricing_data = pricing_data,
+          time_resolution = time_resolution,
+          cutoff_date = "2017-02-01",
+          train_window = train_window,
+          test_window = test_window,
+          quote_currency = quote_currency,
+          rolling_window = rolling_window,
+          number_pairs = number_pairs)
+
+#' # 23. Cross Validation January 2017
+plot_many(pricing_data = pricing_data,
+          time_resolution = time_resolution,
+          cutoff_date = "2017-01-01",
+          train_window = train_window,
+          test_window = test_window,
+          quote_currency = quote_currency,
+          rolling_window = rolling_window,
+          number_pairs = number_pairs)
 
 #' # 24. Cross Validation Full 
-registerDoParallel(makeCluster(detectCores(), outfile = ""), detectCores())
-getDoParWorkers()
 cutoff_dates <- seq(ymd("2017-01-01"), ymd("2017-10-01"), by = test_by)
-results <- 
-  foreach(i = cutoff_dates, 
-          .packages = c("tidyverse", "stringr", "zoo", "urca", "RcppRoll")) %dopar% { 
-            cutoff_date <- as.Date(i) 
-            print(str_c("Cross validating strategy."))
-            print(str_c("Using train set from ", i - train_window , " to ", i, ".")) 
-            print(str_c("Using test set from ", i, " to ", i + test_window, "."))  
-            train <- prepare_data(pricing_data = pricing_data, 
-                                  time_resolution = time_resolution, 
-                                  start_date = i - train_window, 
-                                  end_date = i) 
-            test <- prepare_data(pricing_data = pricing_data, 
-                                 time_resolution = time_resolution, 
-                                 start_date = i, 
-                                 end_date = i + test_window) 
-            coin_pairs <- create_pairs(quote_currency = quote_currency) 
-            plot_many(pricing_data = pricing_data, 
-                      time_resolution = time_resolution, 
-                      cutoff_date = i, 
-                      train_window = train_window, 
-                      test_window = test_window, 
-                      quote_currency = quote_currency, 
-                      rolling_window = rolling_window, 
-                      number_pairs = number_pairs) 
-            test <- test %>% 
-              mutate(return_strategy = backtest_strategy(train = train, 
-                                                         test = test, 
-                                                         selected_pairs = select_pairs(train = train, coin_pairs = coin_pairs), 
-                                                         rolling_window = rolling_window), 
-                     return_strategy_change = return_strategy / lag(return_strategy, 1) - 1) %>% 
-              mutate_all(funs(ifelse(is.na(.), 0, .)))
-            return(test)
-          } 
-stopImplicitCluster()
+results <- tibble() 
+for (i in cutoff_dates) {  
+  i <- as.Date(i) 
+  print(str_c("Cross validating strategy."))
+  print(str_c("Using train set from ", i - train_window , " to ", i, ".")) 
+  print(str_c("Using test set from ", i, " to ", i + test_window, "."))  
+  train <- prepare_data(pricing_data = pricing_data, 
+                        time_resolution = time_resolution, 
+                        start_date = i - train_window, 
+                        end_date = i) 
+  test <- prepare_data(pricing_data = pricing_data, 
+                       time_resolution = time_resolution, 
+                       start_date = i, 
+                       end_date = i + test_window) 
+  coin_pairs <- create_pairs(quote_currency = quote_currency) 
+  test <- test %>% 
+    mutate(return_strategy = backtest_strategy(train = train, 
+                                               test = test, 
+                                               selected_pairs = select_pairs(train = train, coin_pairs = coin_pairs), 
+                                               rolling_window = rolling_window), 
+           return_strategy_change = return_strategy / lag(return_strategy, 1) - 1) %>% 
+    mutate_all(funs(ifelse(is.na(.), 0, .)))
+  results <- bind_rows(results, test) 
+} 
 results <- results %>% 
-  map_df(bind_rows) %>% 
   mutate(return_strategy_cumulative = cumprod(1 + return_strategy_change), 
          date_time = as.POSIXct(date_time, origin = "1970-01-01")) 
 ggplot(results, aes(x = date_time)) + 
