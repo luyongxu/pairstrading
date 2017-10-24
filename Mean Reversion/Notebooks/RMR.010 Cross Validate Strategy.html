@@ -11,7 +11,7 @@
 
 <meta name="author" content="Kevin Lu" />
 
-<meta name="date" content="2017-10-20" />
+<meta name="date" content="2017-10-23" />
 
 <title>Cross Validate Strategy</title>
 
@@ -245,7 +245,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">Cross Validate Strategy</h1>
 <h4 class="author"><em>Kevin Lu</em></h4>
-<h4 class="date"><em>October 20, 2017</em></h4>
+<h4 class="date"><em>October 23, 2017</em></h4>
 
 </div>
 
@@ -256,21 +256,7 @@ div.tocify {
 </div>
 <div id="load-data" class="section level1">
 <h1>2. Load Data</h1>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">pricing_data &lt;-<span class="st"> </span><span class="kw">read_csv</span>(<span class="st">&quot;./Mean Reversion/Raw Data/pricing data.csv&quot;</span>) </code></pre></div>
-<pre><code>## Parsed with column specification:
-## cols(
-##   date_unix = col_integer(),
-##   date_time = col_datetime(format = &quot;&quot;),
-##   high = col_double(),
-##   low = col_double(),
-##   open = col_double(),
-##   close = col_double(),
-##   volume = col_double(),
-##   quote_volume = col_double(),
-##   weighted_average = col_double(),
-##   currency_pair = col_character(),
-##   period = col_integer()
-## )</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">pricing_data &lt;-<span class="st"> </span><span class="kw">read_csv</span>(<span class="st">&quot;./Mean Reversion/Raw Data/pricing data.csv&quot;</span>, <span class="dt">col_types =</span> <span class="kw">c</span>(<span class="st">&quot;iTdddddddci&quot;</span>)) </code></pre></div>
 </div>
 <div id="prepare-data-function" class="section level1">
 <h1>3. Prepare Data Function</h1>
@@ -281,6 +267,8 @@ pricing_data: A dataframe containing pricing data from Poloneix gathered in tidy
 time_resolution: The number of seconds that each observation spans. Takes values 300, 900, 1800, 7200, 14400, and 86400.<br />
 start_date: The start date of the time window.<br />
 end_date: The end date of the time window.</p>
+<p>Value<br />
+Returns a dataframe consiting of the unix timestamp, date time, and the closing price of various currency pairs.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">prepare_data &lt;-<span class="st"> </span><span class="cf">function</span>(pricing_data, time_resolution, start_date, end_date) { 
   df &lt;-<span class="st"> </span>pricing_data <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">filter</span>(period <span class="op">==</span><span class="st"> </span>time_resolution, 
@@ -294,10 +282,12 @@ end_date: The end date of the time window.</p>
 <div id="test-cointegration-function" class="section level1">
 <h1>4. Test Cointegration Function</h1>
 <p>Description<br />
-The Engle-Granger method is used to test for cointegration. This method is comprised of two steps: (1) Perform a linear regression of log(coin_y) on log(coin_x). (2) Perform an Augmented Dickey-Fuller test on the residuals from the linear regression estimated in (1). The ADF test specification is of a non-zero mean, no time-based trend, and one autoregressive lag. The function returns the ADF test statistic.</p>
+The Engle-Granger method is used to test for cointegration. This method is comprised of two steps: (1) Perform a linear regression of log(coin_y) on log(coin_x). (2) Perform an Augmented Dickey-Fuller test on the residuals from the linear regression estimated in (1). The ADF test specification is of a non-zero mean, no time-based trend, and one autoregressive lag.</p>
 <p>Arguments<br />
 coin_y: A vector containing the pricing data for the dependent coin in the regression.<br />
 coin_x: A vector containing the pricing data for the independent coin in the regression.</p>
+<p>Value<br />
+Returns the ADF test statistic for the given coin pair.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">test_cointegration &lt;-<span class="st"> </span><span class="cf">function</span>(coin_y, coin_x) { 
   lm_model &lt;-<span class="st"> </span><span class="kw">lm.fit</span>(<span class="dt">y =</span> <span class="kw">log</span>(coin_y), <span class="dt">x =</span> <span class="kw">cbind</span>(<span class="dv">1</span>, <span class="kw">log</span>(coin_x)))  
   lm_residuals &lt;-<span class="st"> </span>lm_model[[<span class="st">&quot;residuals&quot;</span>]] 
@@ -309,12 +299,18 @@ coin_x: A vector containing the pricing data for the independent coin in the reg
 <div id="create-coin-pairs-function" class="section level1">
 <h1>5. Create Coin Pairs Function</h1>
 <p>Description<br />
-Two sets of currency pairs are examined: currency pairs where USDT is the quote currency and currency pairs where BTC is the quote currency. All combinations of coins are created within a given quote currency. Combinations that consist of the coin with itself are removed. The function returns a dataframe containing the coin pairs.</p>
+Two sets of currency pairs are examined: currency pairs where USDT is the quote currency and currency pairs where BTC is the quote currency. All combinations of coins are created within a given quote currency. Combinations that consist of the coin with itself are removed.</p>
 <p>Arguments<br />
 quote_currency: A string indicating the quote currency of the currency pairs. Can take values USDT or BTC.</p>
+<p>Value<br />
+Returns a dataframe containing the coin pairs.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">create_pairs &lt;-<span class="st"> </span><span class="cf">function</span>(quote_currency) { 
-  <span class="cf">if</span> (quote_currency <span class="op">==</span><span class="st"> &quot;USDT&quot;</span>) coin_list &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;USDT_BTC&quot;</span>, <span class="st">&quot;USDT_DASH&quot;</span>, <span class="st">&quot;USDT_ETH&quot;</span>, <span class="st">&quot;USDT_LTC&quot;</span>, <span class="st">&quot;USDT_REP&quot;</span>, <span class="st">&quot;USDT_XMR&quot;</span>, <span class="st">&quot;USDT_ZEC&quot;</span>)
-  <span class="cf">if</span> (quote_currency <span class="op">==</span><span class="st"> &quot;BTC&quot;</span>) coin_list &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;BTC_DASH&quot;</span>, <span class="st">&quot;BTC_ETH&quot;</span>, <span class="st">&quot;BTC_LTC&quot;</span>, <span class="st">&quot;BTC_REP&quot;</span>, <span class="st">&quot;BTC_XEM&quot;</span>, <span class="st">&quot;BTC_XMR&quot;</span>, <span class="st">&quot;BTC_ZEC&quot;</span>)
+  <span class="cf">if</span> (quote_currency <span class="op">==</span><span class="st"> &quot;USDT&quot;</span>) {
+    coin_list &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;USDT_BTC&quot;</span>, <span class="st">&quot;USDT_DASH&quot;</span>, <span class="st">&quot;USDT_ETH&quot;</span>, <span class="st">&quot;USDT_LTC&quot;</span>, <span class="st">&quot;USDT_REP&quot;</span>, <span class="st">&quot;USDT_XMR&quot;</span>, <span class="st">&quot;USDT_ZEC&quot;</span>)
+  }
+  <span class="cf">if</span> (quote_currency <span class="op">==</span><span class="st"> &quot;BTC&quot;</span>) {
+    coin_list &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;BTC_DASH&quot;</span>, <span class="st">&quot;BTC_ETH&quot;</span>, <span class="st">&quot;BTC_LTC&quot;</span>, <span class="st">&quot;BTC_REP&quot;</span>, <span class="st">&quot;BTC_XEM&quot;</span>, <span class="st">&quot;BTC_XMR&quot;</span>, <span class="st">&quot;BTC_ZEC&quot;</span>)
+  }
   coin_pairs &lt;-<span class="st"> </span><span class="kw">expand.grid</span>(coin_list, coin_list) <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">rename</span>(<span class="dt">coin_y =</span> Var1, 
            <span class="dt">coin_x =</span> Var2) <span class="op">%&gt;%</span><span class="st"> </span>
@@ -327,17 +323,19 @@ quote_currency: A string indicating the quote currency of the currency pairs. Ca
 <div id="test-coin-pairs-function" class="section level1">
 <h1>6. Test Coin Pairs Function</h1>
 <p>Description<br />
-Test for cointegration between each coin pair generated by the create_pairs() function. The test for cointegration is performed by the test_cointegration() function. The function returns a dataframe containing the coin pairs and the ADF test statistic resulting from testing cointegration between each coin pair.</p>
+Test for cointegration between each coin pair generated by the create_pairs() function. The test for cointegration is performed by test_cointegration().</p>
 <p>Arguments<br />
 train: A dataframe generated by prepare_data() that represents the training set for the coin pairs.<br />
 coin_pairs: A dataframe generated by create_pairs().</p>
+<p>Value<br />
+Returns a dataframe containing the coin pairs and the ADF test statistic resulting from testing cointegration between each coin pair.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">test_pairs &lt;-<span class="st"> </span><span class="cf">function</span>(train, coin_pairs) { 
-  adf_stat &lt;-<span class="st"> </span><span class="kw">c</span>() 
+  adf_stat &lt;-<span class="st"> </span><span class="kw">numeric</span>(<span class="kw">nrow</span>(coin_pairs))  
   <span class="cf">for</span> (n <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span><span class="kw">nrow</span>(coin_pairs)) { 
     coin_y &lt;-<span class="st"> </span>coin_pairs[[n, <span class="st">&quot;coin_y&quot;</span>]] 
     coin_x &lt;-<span class="st"> </span>coin_pairs[[n, <span class="st">&quot;coin_x&quot;</span>]] 
     cointegration_results &lt;-<span class="st"> </span><span class="kw">test_cointegration</span>(<span class="dt">coin_y =</span> train[[coin_y]], <span class="dt">coin_x =</span> train[[coin_x]])
-    adf_stat &lt;-<span class="st"> </span><span class="kw">c</span>(adf_stat, cointegration_results)
+    adf_stat[n] &lt;-<span class="st"> </span>cointegration_results
   } 
   df &lt;-<span class="st"> </span>coin_pairs <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">mutate</span>(<span class="dt">adf_stat =</span> adf_stat) <span class="op">%&gt;%</span><span class="st"> </span>
@@ -348,10 +346,12 @@ coin_pairs: A dataframe generated by create_pairs().</p>
 <div id="select-coin-pairs-function" class="section level1">
 <h1>7. Select Coin Pairs Function</h1>
 <p>Description<br />
-Select cointegrated coin pairs to be used in a mean reversion strategy. The current coin selection logic is to select all coins where the ADF test statistic is less than -2.57.</p>
+Select cointegrated coin pairs to be used in a mean reversion strategy. Coin pairs are tested for cointegration using test_pairs(). Coin pairs with an ADF test statistic below a certain threshold are selected.</p>
 <p>Arguments<br />
 train: A dataframe generated by prepare_data() that represents the training set for the coin pair.<br />
 coin_pairs: A dataframe generated by create_pairs().</p>
+<p>Value<br />
+Returns a dataframe containing the coin pairs that were selected.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">select_pairs &lt;-<span class="st"> </span><span class="cf">function</span>(train, coin_pairs) { 
   df &lt;-<span class="st"> </span><span class="kw">test_pairs</span>(<span class="dt">train =</span> train, <span class="dt">coin_pairs =</span> coin_pairs) <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">filter</span>(adf_stat <span class="op">&lt;=</span><span class="st"> </span><span class="op">-</span><span class="fl">3.43</span>)
@@ -361,46 +361,51 @@ coin_pairs: A dataframe generated by create_pairs().</p>
 <div id="train-model-function" class="section level1">
 <h1>8. Train Model Function</h1>
 <p>Description<br />
-A rolling linear regression of log(coin y) on log(coin x) using a defined window length. Returns statistics of interest calculated from a rolling regression over the test set.</p>
+Performs rolling linear regression of log(coin y) on log(coin x) using a defined rolling window length over the test set.</p>
 <p>Arguments<br />
 train: A dataframe generated by prepare_data() that represents the training set for the coin pair.<br />
 test: A dataframe generated by prepare_data() that represents the test set for the coin pair.<br />
 coin_y: A string indicating the dependent coin in the coin pair regression.<br />
 coin_x: A string indicating the independent coin in the coin pair regression.<br />
-window_length: The number of observations used in each iteration of a rolling linear regression.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">train_model &lt;-<span class="st"> </span><span class="cf">function</span>(train, test, coin_y, coin_x, window_length) { 
-  <span class="co"># Perform rolling linear regression </span>
-  combined &lt;-<span class="st"> </span><span class="kw">bind_rows</span>(train, test) <span class="op">%&gt;%</span><span class="st">  </span>
-<span class="st">    </span><span class="kw">mutate</span>(<span class="dt">y =</span> <span class="kw">log</span>(.[[coin_y]]), <span class="dt">x =</span> <span class="kw">log</span>(.[[coin_x]])) <span class="op">%&gt;%</span><span class="st"> </span>
-<span class="st">    </span><span class="kw">select</span>(y, x)
-  rolling_coef &lt;-<span class="st"> </span><span class="kw">rollapply</span>(<span class="dt">data =</span> combined, 
-                            <span class="dt">width =</span> window_length, 
-                            <span class="dt">FUN =</span> <span class="cf">function</span>(df) { 
-                              df &lt;-<span class="st"> </span><span class="kw">as_tibble</span>(df)
-                              model &lt;-<span class="st"> </span><span class="kw">lm.fit</span>(<span class="dt">y =</span> df[[<span class="st">&quot;y&quot;</span>]], <span class="dt">x =</span> <span class="kw">cbind</span>(<span class="dv">1</span>, (df[[<span class="st">&quot;x&quot;</span>]])))
-                              <span class="kw">return</span>(model[[<span class="st">&quot;coefficients&quot;</span>]])}, 
-                            <span class="dt">by.column =</span> <span class="ot">FALSE</span>, 
-                            <span class="dt">fill =</span> <span class="ot">NA</span>, 
-                            <span class="dt">align =</span> <span class="st">&quot;right&quot;</span>)
-  rolling_coef &lt;-<span class="st"> </span>rolling_coef <span class="op">%&gt;%</span><span class="st"> </span>
+rolling_window: The number of observations used in each iteration of a rolling linear regression.</p>
+<p>Value<br />
+Returns a list containing the intercept and hedge ratio calculated from a rolling regression over the test set as well as the spread and z-score of the spread.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">train_model &lt;-<span class="st"> </span><span class="cf">function</span>(train, test, coin_y, coin_x, rolling_window) { 
+  
+  <span class="co"># Perform rolling linear regression for the test set  </span>
+  rolling_coef &lt;-<span class="st"> </span><span class="kw">bind_rows</span>(train, test) <span class="op">%&gt;%</span><span class="st">  </span>
+<span class="st">    </span><span class="kw">mutate</span>(<span class="dt">y =</span> <span class="kw">log</span>(.[[coin_y]]), 
+           <span class="dt">x =</span> <span class="kw">log</span>(.[[coin_x]])) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">    </span><span class="kw">select</span>(y, x) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">    </span><span class="kw">rollapply</span>(<span class="dt">data =</span> ., 
+              <span class="dt">width =</span> rolling_window, 
+              <span class="dt">FUN =</span> <span class="cf">function</span>(df) { 
+                df &lt;-<span class="st"> </span><span class="kw">as_tibble</span>(df)
+                model &lt;-<span class="st"> </span><span class="kw">lm.fit</span>(<span class="dt">y =</span> df[[<span class="st">&quot;y&quot;</span>]], <span class="dt">x =</span> <span class="kw">cbind</span>(<span class="dv">1</span>, (df[[<span class="st">&quot;x&quot;</span>]])))
+                <span class="kw">return</span>(model[[<span class="st">&quot;coefficients&quot;</span>]])}, 
+              <span class="dt">by.column =</span> <span class="ot">FALSE</span>, 
+              <span class="dt">fill =</span> <span class="ot">NA</span>, 
+              <span class="dt">align =</span> <span class="st">&quot;right&quot;</span>) <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">as_tibble</span>() <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">rename</span>(<span class="dt">intercept =</span> x1, 
            <span class="dt">hedge_ratio =</span> x2) <span class="op">%&gt;%</span><span class="st"> </span>
-<span class="st">    </span><span class="kw">filter</span>(<span class="kw">row_number</span>() <span class="op">&gt;</span><span class="st"> </span><span class="kw">nrow</span>(train))
-  <span class="co"># Calculate spread in training and test set </span>
-  model &lt;-<span class="st"> </span><span class="kw">lm.fit</span>(<span class="dt">y =</span> <span class="kw">log</span>(train[[coin_y]]), <span class="dt">x =</span> <span class="kw">cbind</span>(<span class="dv">1</span>, <span class="kw">log</span>(train[[coin_x]]))) 
+<span class="st">    </span><span class="kw">filter</span>(<span class="kw">row_number</span>() <span class="op">&gt;</span><span class="st"> </span><span class="kw">nrow</span>(train)) 
+  
+  <span class="co"># Calculate spread in training and test set  </span>
   train &lt;-<span class="st"> </span>train <span class="op">%&gt;%</span><span class="st"> </span>
-<span class="st">    </span><span class="kw">mutate</span>(<span class="dt">spread =</span> model[[<span class="st">&quot;residuals&quot;</span>]]) 
+<span class="st">    </span><span class="kw">mutate</span>(<span class="dt">spread =</span> <span class="kw">lm.fit</span>(<span class="dt">y =</span> <span class="kw">log</span>(train[[coin_y]]), <span class="dt">x =</span> <span class="kw">cbind</span>(<span class="dv">1</span>, <span class="kw">log</span>(train[[coin_x]])))[[<span class="st">&quot;residuals&quot;</span>]]) 
   test &lt;-<span class="st"> </span>test <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">mutate</span>(<span class="dt">spread =</span> <span class="kw">log</span>(test[[coin_y]]) <span class="op">-</span><span class="st"> </span><span class="kw">log</span>(test[[coin_x]]) <span class="op">*</span><span class="st"> </span>rolling_coef[[<span class="st">&quot;hedge_ratio&quot;</span>]] <span class="op">-</span><span class="st"> </span>rolling_coef[[<span class="st">&quot;intercept&quot;</span>]]) 
-  <span class="co"># Combine train and test to calculate rolling z-score</span>
+  
+  <span class="co"># Combine train and test to calculate rolling z-score for the test set  </span>
   result &lt;-<span class="st"> </span><span class="kw">bind_rows</span>(train <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">mutate</span>(<span class="dt">source =</span> <span class="st">&quot;train&quot;</span>), 
                       test <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">mutate</span>(<span class="dt">source =</span> <span class="st">&quot;test&quot;</span>)) <span class="op">%&gt;%</span><span class="st"> </span>
-<span class="st">    </span><span class="kw">mutate</span>(<span class="dt">rolling_mean =</span> <span class="kw">roll_mean</span>(spread, <span class="dt">n =</span> window_length, <span class="dt">fill =</span> <span class="ot">NA</span>, <span class="dt">align =</span> <span class="st">&quot;right&quot;</span>), 
-           <span class="dt">rolling_sd =</span> <span class="kw">roll_sd</span>(spread, <span class="dt">n =</span> window_length, <span class="dt">fill =</span> <span class="ot">NA</span>, <span class="dt">align =</span> <span class="st">&quot;right&quot;</span>), 
+<span class="st">    </span><span class="kw">mutate</span>(<span class="dt">rolling_mean =</span> <span class="kw">roll_mean</span>(spread, <span class="dt">n =</span> rolling_window, <span class="dt">fill =</span> <span class="ot">NA</span>, <span class="dt">align =</span> <span class="st">&quot;right&quot;</span>), 
+           <span class="dt">rolling_sd =</span> <span class="kw">roll_sd</span>(spread, <span class="dt">n =</span> rolling_window, <span class="dt">fill =</span> <span class="ot">NA</span>, <span class="dt">align =</span> <span class="st">&quot;right&quot;</span>), 
            <span class="dt">spread_z =</span> (spread <span class="op">-</span><span class="st"> </span>rolling_mean) <span class="op">/</span><span class="st"> </span>rolling_sd) <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">filter</span>(source <span class="op">==</span><span class="st"> &quot;test&quot;</span>) 
-  <span class="co"># Return list of rolling statistics </span>
+  
+  <span class="co"># Return list of statistics for the test set  </span>
   <span class="kw">return</span>(<span class="kw">list</span>(<span class="dt">intercept =</span> rolling_coef[[<span class="st">&quot;intercept&quot;</span>]], 
               <span class="dt">hedge_ratio =</span> rolling_coef[[<span class="st">&quot;hedge_ratio&quot;</span>]], 
               <span class="dt">spread =</span> result[[<span class="st">&quot;spread&quot;</span>]], 
@@ -410,38 +415,41 @@ window_length: The number of observations used in each iteration of a rolling li
 <div id="generate-signals-function" class="section level1">
 <h1>9. Generate Signals Function</h1>
 <p>Description<br />
-Generate trading signals that indicate the current position in the spread formed by a linear combination of coin y and coin x. A signal of +1 indicates a long position in the spread, 0 indicates a flat position, and -1 indicates a short position in the spread. Signals are generated for the test set using a model trained on the training set.</p>
+Generate trading signals that indicate the current position in the spread formed by a trained model generated by<br />
+train_model(). The trained model generates the spread and z-score of the spread over the test set. A signal of +1 indicates a long position in the spread, 0 indicates a flat position, and -1 indicates a short position in the spread.</p>
 <p>Arguments<br />
 train: A dataframe generated by prepare_data() that represents the training set for the coin pair.<br />
 test: A dataframe generated by prepare_data() that represents the test set for the coin pair.<br />
 coin_y: A string indicating the dependent coin in the coin pair regression.<br />
 coin_x: A string indicating the independent coin in the coin pair regression.<br />
 model: A trained model generated by train_model().</p>
+<p>Value<br />
+Returns a vector containing the trading signal over the test set.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">generate_signals &lt;-<span class="st"> </span><span class="cf">function</span>(train, test, coin_y, coin_x, model) { 
   df_signals &lt;-<span class="st"> </span>test <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">mutate</span>(<span class="dt">spread =</span> model[[<span class="st">&quot;spread&quot;</span>]], 
            <span class="dt">spread_z =</span> model[[<span class="st">&quot;spread_z&quot;</span>]], 
            <span class="dt">lag_spread_z =</span> <span class="kw">lag</span>(spread_z, <span class="dv">1</span>, <span class="dt">default =</span> <span class="dv">0</span>), 
-           <span class="dt">signal_long =</span> <span class="kw">ifelse</span>(lag_spread_z <span class="op">&lt;=</span><span class="st">  </span><span class="fl">0.0</span> <span class="op">&amp;</span><span class="st"> </span>lag_spread_z <span class="op">&gt;</span><span class="st"> </span><span class="op">-</span><span class="fl">1.0</span>, <span class="fl">0.25</span>, <span class="dv">0</span>), 
-           <span class="dt">signal_long =</span> <span class="kw">ifelse</span>(lag_spread_z <span class="op">&lt;=</span><span class="st"> </span><span class="op">-</span><span class="fl">1.0</span> <span class="op">&amp;</span><span class="st"> </span>lag_spread_z <span class="op">&gt;</span><span class="st"> </span><span class="op">-</span><span class="fl">2.0</span>, <span class="fl">0.50</span>, signal_long), 
-           <span class="dt">signal_long =</span> <span class="kw">ifelse</span>(lag_spread_z <span class="op">&lt;=</span><span class="st"> </span><span class="op">-</span><span class="fl">2.0</span> <span class="op">&amp;</span><span class="st"> </span>lag_spread_z <span class="op">&gt;</span><span class="st"> </span><span class="op">-</span><span class="fl">3.0</span>, <span class="fl">0.75</span>, signal_long), 
-           <span class="dt">signal_long =</span> <span class="kw">ifelse</span>(lag_spread_z <span class="op">&lt;=</span><span class="st"> </span><span class="op">-</span><span class="fl">3.0</span> <span class="op">&amp;</span><span class="st"> </span>lag_spread_z <span class="op">&gt;</span><span class="st"> </span><span class="op">-</span><span class="fl">4.0</span>, <span class="fl">1.00</span>, signal_long), 
-           <span class="dt">signal_long =</span> <span class="kw">ifelse</span>(lag_spread_z <span class="op">&lt;=</span><span class="st"> </span><span class="op">-</span><span class="fl">4.0</span> <span class="op">&amp;</span><span class="st"> </span>lag_spread_z <span class="op">&gt;</span><span class="st"> </span><span class="op">-</span><span class="fl">5.0</span>, <span class="fl">1.00</span>, signal_long), 
-           <span class="dt">signal_long =</span> <span class="kw">ifelse</span>(lag_spread_z <span class="op">&lt;=</span><span class="st"> </span><span class="op">-</span><span class="fl">5.0</span> <span class="op">&amp;</span><span class="st"> </span>lag_spread_z <span class="op">&gt;</span><span class="st"> </span><span class="op">-</span><span class="fl">6.0</span>, <span class="fl">1.00</span>, signal_long), 
-           <span class="dt">signal_long =</span> <span class="kw">ifelse</span>(lag_spread_z <span class="op">&lt;=</span><span class="st"> </span><span class="op">-</span><span class="fl">6.0</span> <span class="op">&amp;</span><span class="st"> </span>lag_spread_z <span class="op">&gt;</span><span class="st"> </span><span class="op">-</span><span class="fl">7.0</span>, <span class="fl">1.00</span>, signal_long), 
-           <span class="dt">signal_long =</span> <span class="kw">ifelse</span>(lag_spread_z <span class="op">&lt;=</span><span class="st"> </span><span class="op">-</span><span class="fl">7.0</span>, <span class="dv">0</span>, signal_long), 
-           <span class="dt">signal_short =</span> <span class="kw">ifelse</span>(lag_spread_z <span class="op">&gt;=</span><span class="st"> </span><span class="fl">0.0</span> <span class="op">&amp;</span><span class="st"> </span>lag_spread_z <span class="op">&lt;</span><span class="st"> </span><span class="fl">1.0</span>, <span class="op">-</span><span class="fl">0.25</span>, <span class="dv">0</span>), 
-           <span class="dt">signal_short =</span> <span class="kw">ifelse</span>(lag_spread_z <span class="op">&gt;=</span><span class="st"> </span><span class="fl">1.0</span> <span class="op">&amp;</span><span class="st"> </span>lag_spread_z <span class="op">&lt;</span><span class="st"> </span><span class="fl">2.0</span>, <span class="op">-</span><span class="fl">0.50</span>, signal_short), 
-           <span class="dt">signal_short =</span> <span class="kw">ifelse</span>(lag_spread_z <span class="op">&gt;=</span><span class="st"> </span><span class="fl">2.0</span> <span class="op">&amp;</span><span class="st"> </span>lag_spread_z <span class="op">&lt;</span><span class="st"> </span><span class="fl">3.0</span>, <span class="op">-</span><span class="fl">0.75</span>, signal_short), 
-           <span class="dt">signal_short =</span> <span class="kw">ifelse</span>(lag_spread_z <span class="op">&gt;=</span><span class="st"> </span><span class="fl">3.0</span> <span class="op">&amp;</span><span class="st"> </span>lag_spread_z <span class="op">&lt;</span><span class="st"> </span><span class="fl">4.0</span>, <span class="op">-</span><span class="fl">1.00</span>, signal_short), 
-           <span class="dt">signal_short =</span> <span class="kw">ifelse</span>(lag_spread_z <span class="op">&gt;=</span><span class="st"> </span><span class="fl">4.0</span> <span class="op">&amp;</span><span class="st"> </span>lag_spread_z <span class="op">&lt;</span><span class="st"> </span><span class="fl">5.0</span>, <span class="op">-</span><span class="fl">1.00</span>, signal_short), 
-           <span class="dt">signal_short =</span> <span class="kw">ifelse</span>(lag_spread_z <span class="op">&gt;=</span><span class="st"> </span><span class="fl">5.0</span> <span class="op">&amp;</span><span class="st"> </span>lag_spread_z <span class="op">&lt;</span><span class="st"> </span><span class="fl">6.0</span>, <span class="op">-</span><span class="fl">1.00</span>, signal_short), 
-           <span class="dt">signal_short =</span> <span class="kw">ifelse</span>(lag_spread_z <span class="op">&gt;=</span><span class="st"> </span><span class="fl">6.0</span> <span class="op">&amp;</span><span class="st"> </span>lag_spread_z <span class="op">&lt;</span><span class="st"> </span><span class="fl">7.0</span>, <span class="op">-</span><span class="fl">1.00</span>, signal_short), 
-           <span class="dt">signal_short =</span> <span class="kw">ifelse</span>(lag_spread_z <span class="op">&gt;=</span><span class="st"> </span><span class="fl">7.0</span>, <span class="dv">0</span>, signal_short), 
+           <span class="dt">signal_long =</span> <span class="kw">if_else</span>(lag_spread_z <span class="op">&lt;=</span><span class="st">  </span><span class="fl">0.0</span> <span class="op">&amp;</span><span class="st"> </span>lag_spread_z <span class="op">&gt;</span><span class="st"> </span><span class="op">-</span><span class="fl">1.0</span>, <span class="fl">0.25</span>, <span class="dv">0</span>), 
+           <span class="dt">signal_long =</span> <span class="kw">if_else</span>(lag_spread_z <span class="op">&lt;=</span><span class="st"> </span><span class="op">-</span><span class="fl">1.0</span> <span class="op">&amp;</span><span class="st"> </span>lag_spread_z <span class="op">&gt;</span><span class="st"> </span><span class="op">-</span><span class="fl">2.0</span>, <span class="fl">0.50</span>, signal_long), 
+           <span class="dt">signal_long =</span> <span class="kw">if_else</span>(lag_spread_z <span class="op">&lt;=</span><span class="st"> </span><span class="op">-</span><span class="fl">2.0</span> <span class="op">&amp;</span><span class="st"> </span>lag_spread_z <span class="op">&gt;</span><span class="st"> </span><span class="op">-</span><span class="fl">3.0</span>, <span class="fl">0.75</span>, signal_long), 
+           <span class="dt">signal_long =</span> <span class="kw">if_else</span>(lag_spread_z <span class="op">&lt;=</span><span class="st"> </span><span class="op">-</span><span class="fl">3.0</span> <span class="op">&amp;</span><span class="st"> </span>lag_spread_z <span class="op">&gt;</span><span class="st"> </span><span class="op">-</span><span class="fl">4.0</span>, <span class="fl">1.00</span>, signal_long), 
+           <span class="dt">signal_long =</span> <span class="kw">if_else</span>(lag_spread_z <span class="op">&lt;=</span><span class="st"> </span><span class="op">-</span><span class="fl">4.0</span> <span class="op">&amp;</span><span class="st"> </span>lag_spread_z <span class="op">&gt;</span><span class="st"> </span><span class="op">-</span><span class="fl">5.0</span>, <span class="fl">1.00</span>, signal_long), 
+           <span class="dt">signal_long =</span> <span class="kw">if_else</span>(lag_spread_z <span class="op">&lt;=</span><span class="st"> </span><span class="op">-</span><span class="fl">5.0</span> <span class="op">&amp;</span><span class="st"> </span>lag_spread_z <span class="op">&gt;</span><span class="st"> </span><span class="op">-</span><span class="fl">6.0</span>, <span class="fl">1.00</span>, signal_long), 
+           <span class="dt">signal_long =</span> <span class="kw">if_else</span>(lag_spread_z <span class="op">&lt;=</span><span class="st"> </span><span class="op">-</span><span class="fl">6.0</span> <span class="op">&amp;</span><span class="st"> </span>lag_spread_z <span class="op">&gt;</span><span class="st"> </span><span class="op">-</span><span class="fl">7.0</span>, <span class="fl">1.00</span>, signal_long), 
+           <span class="dt">signal_long =</span> <span class="kw">if_else</span>(lag_spread_z <span class="op">&lt;=</span><span class="st"> </span><span class="op">-</span><span class="fl">7.0</span>, <span class="dv">0</span>, signal_long), 
+           <span class="dt">signal_short =</span> <span class="kw">if_else</span>(lag_spread_z <span class="op">&gt;=</span><span class="st"> </span><span class="fl">0.0</span> <span class="op">&amp;</span><span class="st"> </span>lag_spread_z <span class="op">&lt;</span><span class="st"> </span><span class="fl">1.0</span>, <span class="op">-</span><span class="fl">0.25</span>, <span class="dv">0</span>), 
+           <span class="dt">signal_short =</span> <span class="kw">if_else</span>(lag_spread_z <span class="op">&gt;=</span><span class="st"> </span><span class="fl">1.0</span> <span class="op">&amp;</span><span class="st"> </span>lag_spread_z <span class="op">&lt;</span><span class="st"> </span><span class="fl">2.0</span>, <span class="op">-</span><span class="fl">0.50</span>, signal_short), 
+           <span class="dt">signal_short =</span> <span class="kw">if_else</span>(lag_spread_z <span class="op">&gt;=</span><span class="st"> </span><span class="fl">2.0</span> <span class="op">&amp;</span><span class="st"> </span>lag_spread_z <span class="op">&lt;</span><span class="st"> </span><span class="fl">3.0</span>, <span class="op">-</span><span class="fl">0.75</span>, signal_short), 
+           <span class="dt">signal_short =</span> <span class="kw">if_else</span>(lag_spread_z <span class="op">&gt;=</span><span class="st"> </span><span class="fl">3.0</span> <span class="op">&amp;</span><span class="st"> </span>lag_spread_z <span class="op">&lt;</span><span class="st"> </span><span class="fl">4.0</span>, <span class="op">-</span><span class="fl">1.00</span>, signal_short), 
+           <span class="dt">signal_short =</span> <span class="kw">if_else</span>(lag_spread_z <span class="op">&gt;=</span><span class="st"> </span><span class="fl">4.0</span> <span class="op">&amp;</span><span class="st"> </span>lag_spread_z <span class="op">&lt;</span><span class="st"> </span><span class="fl">5.0</span>, <span class="op">-</span><span class="fl">1.00</span>, signal_short), 
+           <span class="dt">signal_short =</span> <span class="kw">if_else</span>(lag_spread_z <span class="op">&gt;=</span><span class="st"> </span><span class="fl">5.0</span> <span class="op">&amp;</span><span class="st"> </span>lag_spread_z <span class="op">&lt;</span><span class="st"> </span><span class="fl">6.0</span>, <span class="op">-</span><span class="fl">1.00</span>, signal_short), 
+           <span class="dt">signal_short =</span> <span class="kw">if_else</span>(lag_spread_z <span class="op">&gt;=</span><span class="st"> </span><span class="fl">6.0</span> <span class="op">&amp;</span><span class="st"> </span>lag_spread_z <span class="op">&lt;</span><span class="st"> </span><span class="fl">7.0</span>, <span class="op">-</span><span class="fl">1.00</span>, signal_short), 
+           <span class="dt">signal_short =</span> <span class="kw">if_else</span>(lag_spread_z <span class="op">&gt;=</span><span class="st"> </span><span class="fl">7.0</span>, <span class="dv">0</span>, signal_short), 
            <span class="dt">signal =</span> signal_long <span class="op">+</span><span class="st"> </span>signal_short, 
-           <span class="dt">signal =</span> <span class="kw">ifelse</span>(<span class="kw">is.na</span>(signal), <span class="dv">0</span>, signal), 
-           <span class="dt">signal =</span> <span class="kw">ifelse</span>(<span class="kw">cummin</span>(lag_spread_z) <span class="op">&lt;=</span><span class="st"> </span><span class="op">-</span><span class="fl">7.0</span>, <span class="dv">0</span>, signal), 
-           <span class="dt">signal =</span> <span class="kw">ifelse</span>(<span class="kw">cummax</span>(lag_spread_z) <span class="op">&gt;=</span><span class="st">  </span><span class="fl">7.0</span>, <span class="dv">0</span>, signal))  
+           <span class="dt">signal =</span> <span class="kw">if_else</span>(<span class="kw">is.na</span>(signal), <span class="dv">0</span>, signal), 
+           <span class="dt">signal =</span> <span class="kw">if_else</span>(<span class="kw">cummin</span>(lag_spread_z) <span class="op">&lt;=</span><span class="st"> </span><span class="op">-</span><span class="fl">7.0</span>, <span class="dv">0</span>, signal), 
+           <span class="dt">signal =</span> <span class="kw">if_else</span>(<span class="kw">cummax</span>(lag_spread_z) <span class="op">&gt;=</span><span class="st">  </span><span class="fl">7.0</span>, <span class="dv">0</span>, signal))  
   <span class="kw">return</span>(df_signals[[<span class="st">&quot;signal&quot;</span>]])
 } </code></pre></div>
 </div>
@@ -449,14 +457,21 @@ model: A trained model generated by train_model().</p>
 <h1>10. Backtest Pair Function</h1>
 <p>Description<br />
 Calculate the return of a cointegration-based mean reversion trading strategy using coin y and coin x.</p>
-<p>The current backtesting logic uses signals generated by generate_signals(). The coin_y_return and coin_x_return indicate the one period percentage return of each coin. The coin_y_position and coin_x_position indicate the market value in USD in each coin. coin_y_pnl and coin_x_pnl indicate the USD value of the profit and loss for each coin. The combined_position indicates the gross market value of the combined positions.</p>
+<p>The current backtesting logic uses a model generated by train_model() and trading signals generated by generate_signals(). The coin_y_return and coin_x_return indicate the one period percentage return of each coin. The coin_y_position and coin_x_position indicate the market value in USD in each coin. coin_y_pnl and coin_x_pnl indicate the USD value of the profit and loss for each coin. The combined_position indicates the gross market value of the combined positions. The return is calculated relative to the maximum capital allocation to the given coin pair.</p>
 <p>Arguments<br />
 train: A dataframe generated by prepare_data() that represents the training set for the coin pair.<br />
 test: A dataframe generated by prepare_data() that represents the test set for the coin pair.<br />
 coin_y: A string indicating the dependent coin in the coin pair regression.<br />
-coin_x: A string indicating the independent coin in the coin pair regression.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">backtest_pair &lt;-<span class="st"> </span><span class="cf">function</span>(train, test, coin_y, coin_x) { 
-  model &lt;-<span class="st"> </span><span class="kw">train_model</span>(train, test, coin_y, coin_x, window_length)    
+coin_x: A string indicating the independent coin in the coin pair regression.<br />
+rolling_window: The number of observations used in each iteration of a rolling linear regression.</p>
+<p>Value<br />
+Returns a vector containing the cumulative return of applying the trading strategy to the given coin pair.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">backtest_pair &lt;-<span class="st"> </span><span class="cf">function</span>(train, test, coin_y, coin_x, rolling_window) { 
+  model &lt;-<span class="st"> </span><span class="kw">train_model</span>(<span class="dt">train =</span> train, 
+                       <span class="dt">test =</span> test, 
+                       <span class="dt">coin_y =</span> coin_y, 
+                       <span class="dt">coin_x =</span> coin_x, 
+                       <span class="dt">rolling_window =</span> rolling_window)    
   df_backtest &lt;-<span class="st"> </span>test <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">mutate</span>(<span class="dt">signal =</span> <span class="kw">generate_signals</span>(<span class="dt">train =</span> train, 
                                      <span class="dt">test =</span> test, 
@@ -480,12 +495,15 @@ coin_x: A string indicating the independent coin in the coin pair regression.</p
 <div id="backtest-strategy-function" class="section level1">
 <h1>11. Backtest Strategy Function</h1>
 <p>Description<br />
-Calculate the return of a cointegration-based mean reversion trading strategy using an equally weighted portfolio of cointegrated coin pairs.</p>
+Calculate the return of a cointegration-based mean reversion trading strategy using an equally weighted portfolio of cointegrated coin pairs. The cumulative return of each coin pair is calculated using return_pair() and the mean is taken.</p>
 <p>Arguments<br />
 train: A dataframe generated by prepare_data() that represents the training set for the coin pair.<br />
 test: A dataframe generated by prepare_data() that represents the test set for the coin pair.<br />
-selected_pairs: A dataframe generated by select_coins() that represents a set of cointegrated coin pairs.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">backtest_strategy &lt;-<span class="st"> </span><span class="cf">function</span>(train, test, selected_pairs) { 
+selected_pairs: A dataframe generated by select_coins() that represents a set of cointegrated coin pairs.<br />
+rolling_window: The number of observations used in each iteration of a rolling linear regression.</p>
+<p>Value<br />
+A vector containing the cumulative return of the overall trading strategy.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">backtest_strategy &lt;-<span class="st"> </span><span class="cf">function</span>(train, test, selected_pairs, rolling_window) { 
   <span class="cf">if</span> (<span class="kw">nrow</span>(selected_pairs) <span class="op">==</span><span class="st"> </span><span class="dv">0</span>) { 
     <span class="kw">return</span>(<span class="dv">1</span>) 
   } 
@@ -495,13 +513,14 @@ selected_pairs: A dataframe generated by select_coins() that represents a set of
       <span class="dt">return_pair =</span> <span class="kw">backtest_pair</span>(<span class="dt">train =</span> train, 
                                   <span class="dt">test =</span> test, 
                                   <span class="dt">coin_y =</span> selected_pairs[[<span class="st">&quot;coin_y&quot;</span>]][i], 
-                                  <span class="dt">coin_x =</span> selected_pairs[[<span class="st">&quot;coin_x&quot;</span>]][i]), 
+                                  <span class="dt">coin_x =</span> selected_pairs[[<span class="st">&quot;coin_x&quot;</span>]][i], 
+                                  <span class="dt">rolling_window =</span> rolling_window), 
       <span class="dt">coin_y =</span> selected_pairs[[<span class="st">&quot;coin_y&quot;</span>]][i], 
       <span class="dt">coin_x =</span> selected_pairs[[<span class="st">&quot;coin_x&quot;</span>]][i], 
       <span class="dt">date_time =</span> test[[<span class="st">&quot;date_time&quot;</span>]]
     )
     df &lt;-<span class="st"> </span><span class="kw">bind_rows</span>(df, single_pair)
-  }
+  } 
   df &lt;-<span class="st"> </span>df <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">group_by</span>(date_time) <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">summarise</span>(<span class="dt">return_strategy =</span> <span class="kw">mean</span>(return_pair)) 
@@ -516,9 +535,16 @@ Create plots of a cointegration-based mean reversion trading strategy of a singl
 train: A dataframe generated by prepare_data() that represents the training set for the coin pair.<br />
 test: A dataframe generated by prepare_data() that represents the test set for the coin pair.<br />
 coin_y: A string indicating the dependent coin in the coin pair regression.<br />
-coin_x: A string indicating the independent coin in the coin pair regression.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">plot_single &lt;-<span class="st"> </span><span class="cf">function</span>(train, test, coin_y, coin_x) { 
-  model &lt;-<span class="st"> </span><span class="kw">train_model</span>(train, test, coin_y, coin_x, window_length)    
+coin_x: A string indicating the independent coin in the coin pair regression.<br />
+rolling_window: The number of observations used in each iteration of a rolling linear regression.</p>
+<p>Value<br />
+Prints the plots described above.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">plot_single &lt;-<span class="st"> </span><span class="cf">function</span>(train, test, coin_y, coin_x, rolling_window) { 
+  model &lt;-<span class="st"> </span><span class="kw">train_model</span>(<span class="dt">train =</span> train, 
+                       <span class="dt">test =</span> test, 
+                       <span class="dt">coin_y =</span> coin_y, 
+                       <span class="dt">coin_x =</span> coin_x, 
+                       <span class="dt">rolling_window =</span> rolling_window)
   df_plot &lt;-<span class="st"> </span>test <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">mutate</span>(<span class="dt">spread =</span> model[[<span class="st">&quot;spread&quot;</span>]], 
            <span class="dt">spread_z =</span> model[[<span class="st">&quot;spread_z&quot;</span>]], 
@@ -530,7 +556,8 @@ coin_x: A string indicating the independent coin in the coin pair regression.</p
            <span class="dt">return_pair =</span> <span class="kw">backtest_pair</span>(<span class="dt">train =</span> train, 
                                        <span class="dt">test =</span> test, 
                                        <span class="dt">coin_y =</span> coin_y, 
-                                       <span class="dt">coin_x =</span> coin_x), 
+                                       <span class="dt">coin_x =</span> coin_x, 
+                                       <span class="dt">rolling_window =</span> rolling_window), 
            <span class="dt">return_buyhold_y =</span> test[[coin_y]] <span class="op">/</span><span class="st"> </span>test[[coin_y]][<span class="dv">1</span>], 
            <span class="dt">return_buyhold_x =</span> test[[coin_x]] <span class="op">/</span><span class="st"> </span>test[[coin_x]][<span class="dv">1</span>])
   <span class="kw">print</span>(<span class="kw">ggplot</span>(df_plot, <span class="kw">aes</span>(<span class="dt">x =</span> date_time)) <span class="op">+</span><span class="st"> </span>
@@ -564,14 +591,19 @@ coin_x: A string indicating the independent coin in the coin pair regression.</p
 <div id="plot-many-function" class="section level1">
 <h1>13. Plot Many Function</h1>
 <p>Description<br />
-Create many plots by calling the plot_single() function multiple times. Also creates a plot showing the results of the overall strategy. Creates a train and test set surrounding a cutoff date and creates plot for the top 10 selected coins ranked by their ADF statistic.</p>
+Create many plots by calling the plot_single() function multiple times. Also creates a plot showing the results of the overall strategy using backtest_strateg(). Creates a train and test set surrounding a cutoff date and creates plot for the top n coins ranked by their ADF statistic.</p>
 <p>Arguments<br />
 pricing_data: A dataframe containing pricing data from Poloneix gathered in tidy format.<br />
 time_resolution: The number of seconds that each observation spans. Takes values 300, 900, 1800, 7200, 14400, and 86400.<br />
 cutoff_date: A data representing the cutoff date between the train and test sets.<br />
-train_window: A period object from the lubridate package representing the length of time the train set covers.<br />
-test_window: A period object from lubridate package representing the length of time the the test set covers.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">plot_many &lt;-<span class="st"> </span><span class="cf">function</span>(pricing_data, time_resolution, cutoff_date, train_window, test_window) { 
+train_window: A period object from lubridate representing the length of time the train set covers.<br />
+test_window: A period object from lubridate representing the length of time the the test set covers. quote_currency: A string indicating the quote currency of the currency pairs. Can take values USDT or BTC.<br />
+rolling_window: The number of observations used in each iteration of a rolling linear regression.<br />
+number_pairs: The number of pairs to generate plots for.</p>
+<p>Value<br />
+Prints the plots described above.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">plot_many &lt;-<span class="st"> </span><span class="cf">function</span>(pricing_data, time_resolution, cutoff_date, train_window, test_window, quote_currency, 
+                      rolling_window, number_pairs) { 
   train &lt;-<span class="st"> </span><span class="kw">prepare_data</span>(<span class="dt">pricing_data =</span> pricing_data, 
                         <span class="dt">time_resolution =</span> time_resolution, 
                         <span class="dt">start_date =</span> <span class="kw">as.Date</span>(cutoff_date) <span class="op">-</span><span class="st"> </span>train_window, 
@@ -580,22 +612,25 @@ test_window: A period object from lubridate package representing the length of t
                        <span class="dt">time_resolution =</span> time_resolution, 
                        <span class="dt">start_date =</span> <span class="kw">as.Date</span>(cutoff_date), 
                        <span class="dt">end_date =</span> <span class="kw">as.Date</span>(cutoff_date) <span class="op">+</span><span class="st"> </span>test_window) 
+  coin_pairs &lt;-<span class="st"> </span><span class="kw">create_pairs</span>(<span class="dt">quote_currency =</span> quote_currency)
   selected_pairs &lt;-<span class="st"> </span><span class="kw">select_pairs</span>(<span class="dt">train =</span> train, 
-                                 <span class="dt">coin_pairs =</span> <span class="kw">create_pairs</span>(<span class="dt">quote_currency =</span> quote_currency))
+                                 <span class="dt">coin_pairs =</span> coin_pairs)
   <span class="cf">if</span> (<span class="kw">nrow</span>(selected_pairs) <span class="op">==</span><span class="st"> </span><span class="dv">0</span>) { 
     <span class="kw">return</span>(<span class="st">&quot;No coin pairs selected.&quot;</span>)
   } 
   <span class="kw">print</span>(selected_pairs) 
-  <span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span><span class="kw">min</span>(<span class="dv">3</span>, <span class="kw">nrow</span>(selected_pairs))) { 
+  <span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span><span class="kw">min</span>(number_pairs, <span class="kw">nrow</span>(selected_pairs))) { 
     <span class="kw">plot_single</span>(<span class="dt">train =</span> train, 
                 <span class="dt">test =</span> test, 
                 <span class="dt">coin_y =</span> selected_pairs[[<span class="st">&quot;coin_y&quot;</span>]][i], 
-                <span class="dt">coin_x =</span> selected_pairs[[<span class="st">&quot;coin_x&quot;</span>]][i])
+                <span class="dt">coin_x =</span> selected_pairs[[<span class="st">&quot;coin_x&quot;</span>]][i], 
+                <span class="dt">rolling_window =</span> rolling_window)
   } 
   test &lt;-<span class="st"> </span>test <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">mutate</span>(<span class="dt">return_strategy =</span> <span class="kw">backtest_strategy</span>(<span class="dt">train =</span> train, 
                                                <span class="dt">test =</span> ., 
-                                               <span class="dt">selected_pairs =</span> selected_pairs)) 
+                                               <span class="dt">selected_pairs =</span> selected_pairs, 
+                                               <span class="dt">rolling_window =</span> rolling_window)) 
   <span class="kw">ggplot</span>(test, <span class="kw">aes</span>(<span class="dt">x =</span> date_time)) <span class="op">+</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">geom_line</span>(<span class="kw">aes</span>(<span class="dt">y =</span> return_strategy, <span class="dt">colour =</span> <span class="st">&quot;Strategy&quot;</span>), <span class="dt">size =</span> <span class="dv">1</span>) <span class="op">+</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">geom_line</span>(<span class="kw">aes</span>(<span class="dt">y =</span> USDT_BTC <span class="op">/</span><span class="st"> </span>USDT_BTC[<span class="dv">1</span>], <span class="dt">colour =</span> <span class="st">&quot;USDT_BTC&quot;</span>), <span class="dt">size =</span> <span class="fl">0.5</span>, <span class="dt">alpha =</span> <span class="fl">0.4</span>) <span class="op">+</span><span class="st"> </span>
@@ -610,11 +645,12 @@ test_window: A period object from lubridate package representing the length of t
 </div>
 <div id="set-parameters" class="section level1">
 <h1>14. Set Parameters</h1>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">quote_currency &lt;-<span class="st"> &quot;BTC&quot;</span> 
-time_resolution &lt;-<span class="st"> </span><span class="dv">900</span> 
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">time_resolution &lt;-<span class="st"> </span><span class="dv">900</span>
 train_window &lt;-<span class="st"> </span><span class="kw">days</span>(<span class="dv">32</span>) 
 test_window &lt;-<span class="st"> </span><span class="kw">days</span>(<span class="dv">16</span>) 
-window_length &lt;-<span class="st"> </span><span class="dv">86400</span> <span class="op">/</span><span class="st"> </span>time_resolution <span class="op">*</span><span class="st"> </span><span class="kw">as.numeric</span>(<span class="kw">days</span>(<span class="dv">2</span>)) <span class="op">/</span><span class="st"> </span><span class="dv">86400</span> 
+quote_currency &lt;-<span class="st"> &quot;BTC&quot;</span> 
+rolling_window &lt;-<span class="st"> </span><span class="dv">86400</span> <span class="op">/</span><span class="st"> </span>time_resolution <span class="op">*</span><span class="st"> </span><span class="kw">as.numeric</span>(<span class="kw">days</span>(<span class="dv">2</span>)) <span class="op">/</span><span class="st"> </span><span class="dv">86400</span> 
+number_pairs &lt;-<span class="st"> </span><span class="dv">3</span> 
 test_by &lt;-<span class="st"> &quot;16 days&quot;</span> </code></pre></div>
 </div>
 <div id="cross-validation-september-2017" class="section level1">
@@ -623,7 +659,10 @@ test_by &lt;-<span class="st"> &quot;16 days&quot;</span> </code></pre></div>
           <span class="dt">time_resolution =</span> time_resolution, 
           <span class="dt">cutoff_date =</span> <span class="st">&quot;2017-09-01&quot;</span>, 
           <span class="dt">train_window =</span> train_window, 
-          <span class="dt">test_window =</span> test_window) </code></pre></div>
+          <span class="dt">test_window =</span> test_window, 
+          <span class="dt">quote_currency =</span> quote_currency, 
+          <span class="dt">rolling_window =</span> rolling_window, 
+          <span class="dt">number_pairs =</span> number_pairs) </code></pre></div>
 <pre><code>## # A tibble: 11 x 3
 ##     coin_y  coin_x  adf_stat
 ##      &lt;chr&gt;   &lt;chr&gt;     &lt;dbl&gt;
@@ -646,7 +685,10 @@ test_by &lt;-<span class="st"> &quot;16 days&quot;</span> </code></pre></div>
           <span class="dt">time_resolution =</span> time_resolution, 
           <span class="dt">cutoff_date =</span> <span class="st">&quot;2017-08-01&quot;</span>, 
           <span class="dt">train_window =</span> train_window, 
-          <span class="dt">test_window =</span> test_window) </code></pre></div>
+          <span class="dt">test_window =</span> test_window, 
+          <span class="dt">quote_currency =</span> quote_currency, 
+          <span class="dt">rolling_window =</span> rolling_window, 
+          <span class="dt">number_pairs =</span> number_pairs) </code></pre></div>
 <pre><code>## # A tibble: 9 x 3
 ##     coin_y   coin_x  adf_stat
 ##      &lt;chr&gt;    &lt;chr&gt;     &lt;dbl&gt;
@@ -667,7 +709,10 @@ test_by &lt;-<span class="st"> &quot;16 days&quot;</span> </code></pre></div>
           <span class="dt">time_resolution =</span> time_resolution, 
           <span class="dt">cutoff_date =</span> <span class="st">&quot;2017-07-01&quot;</span>, 
           <span class="dt">train_window =</span> train_window, 
-          <span class="dt">test_window =</span> test_window) </code></pre></div>
+          <span class="dt">test_window =</span> test_window, 
+          <span class="dt">quote_currency =</span> quote_currency, 
+          <span class="dt">rolling_window =</span> rolling_window, 
+          <span class="dt">number_pairs =</span> number_pairs) </code></pre></div>
 <pre><code>## # A tibble: 3 x 3
 ##    coin_y  coin_x  adf_stat
 ##     &lt;chr&gt;   &lt;chr&gt;     &lt;dbl&gt;
@@ -682,7 +727,10 @@ test_by &lt;-<span class="st"> &quot;16 days&quot;</span> </code></pre></div>
           <span class="dt">time_resolution =</span> time_resolution, 
           <span class="dt">cutoff_date =</span> <span class="st">&quot;2017-06-01&quot;</span>, 
           <span class="dt">train_window =</span> train_window, 
-          <span class="dt">test_window =</span> test_window) </code></pre></div>
+          <span class="dt">test_window =</span> test_window, 
+          <span class="dt">quote_currency =</span> quote_currency, 
+          <span class="dt">rolling_window =</span> rolling_window, 
+          <span class="dt">number_pairs =</span> number_pairs) </code></pre></div>
 <pre><code>## # A tibble: 9 x 3
 ##     coin_y   coin_x  adf_stat
 ##      &lt;chr&gt;    &lt;chr&gt;     &lt;dbl&gt;
@@ -703,7 +751,10 @@ test_by &lt;-<span class="st"> &quot;16 days&quot;</span> </code></pre></div>
           <span class="dt">time_resolution =</span> time_resolution, 
           <span class="dt">cutoff_date =</span> <span class="st">&quot;2017-05-01&quot;</span>, 
           <span class="dt">train_window =</span> train_window, 
-          <span class="dt">test_window =</span> test_window) </code></pre></div>
+          <span class="dt">test_window =</span> test_window, 
+          <span class="dt">quote_currency =</span> quote_currency, 
+          <span class="dt">rolling_window =</span> rolling_window, 
+          <span class="dt">number_pairs =</span> number_pairs) </code></pre></div>
 <pre><code>## # A tibble: 18 x 3
 ##      coin_y   coin_x  adf_stat
 ##       &lt;chr&gt;    &lt;chr&gt;     &lt;dbl&gt;
@@ -731,9 +782,12 @@ test_by &lt;-<span class="st"> &quot;16 days&quot;</span> </code></pre></div>
 <h1>20. Cross Validation April 2017</h1>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">plot_many</span>(<span class="dt">pricing_data =</span> pricing_data,
           <span class="dt">time_resolution =</span> time_resolution,
-          <span class="dt">cutoff_date =</span> <span class="st">&quot;2017-04-01&quot;</span>,
-          <span class="dt">train_window =</span> train_window,
-          <span class="dt">test_window =</span> test_window)</code></pre></div>
+          <span class="dt">cutoff_date =</span> <span class="st">&quot;2017-04-01&quot;</span>, 
+          <span class="dt">train_window =</span> train_window, 
+          <span class="dt">test_window =</span> test_window, 
+          <span class="dt">quote_currency =</span> quote_currency, 
+          <span class="dt">rolling_window =</span> rolling_window, 
+          <span class="dt">number_pairs =</span> number_pairs) </code></pre></div>
 <pre><code>## # A tibble: 8 x 3
 ##     coin_y   coin_x  adf_stat
 ##      &lt;chr&gt;    &lt;chr&gt;     &lt;dbl&gt;
@@ -753,7 +807,10 @@ test_by &lt;-<span class="st"> &quot;16 days&quot;</span> </code></pre></div>
           <span class="dt">time_resolution =</span> time_resolution, 
           <span class="dt">cutoff_date =</span> <span class="st">&quot;2017-03-01&quot;</span>, 
           <span class="dt">train_window =</span> train_window, 
-          <span class="dt">test_window =</span> test_window) </code></pre></div>
+          <span class="dt">test_window =</span> test_window, 
+          <span class="dt">quote_currency =</span> quote_currency, 
+          <span class="dt">rolling_window =</span> rolling_window, 
+          <span class="dt">number_pairs =</span> number_pairs) </code></pre></div>
 <pre><code>## # A tibble: 2 x 3
 ##    coin_y  coin_x  adf_stat
 ##     &lt;chr&gt;   &lt;chr&gt;     &lt;dbl&gt;
@@ -767,7 +824,10 @@ test_by &lt;-<span class="st"> &quot;16 days&quot;</span> </code></pre></div>
           <span class="dt">time_resolution =</span> time_resolution, 
           <span class="dt">cutoff_date =</span> <span class="st">&quot;2017-02-01&quot;</span>, 
           <span class="dt">train_window =</span> train_window, 
-          <span class="dt">test_window =</span> test_window) </code></pre></div>
+          <span class="dt">test_window =</span> test_window, 
+          <span class="dt">quote_currency =</span> quote_currency, 
+          <span class="dt">rolling_window =</span> rolling_window, 
+          <span class="dt">number_pairs =</span> number_pairs) </code></pre></div>
 <pre><code>## # A tibble: 3 x 3
 ##    coin_y  coin_x  adf_stat
 ##     &lt;chr&gt;   &lt;chr&gt;     &lt;dbl&gt;
@@ -782,7 +842,10 @@ test_by &lt;-<span class="st"> &quot;16 days&quot;</span> </code></pre></div>
           <span class="dt">time_resolution =</span> time_resolution, 
           <span class="dt">cutoff_date =</span> <span class="st">&quot;2017-01-01&quot;</span>, 
           <span class="dt">train_window =</span> train_window, 
-          <span class="dt">test_window =</span> test_window) </code></pre></div>
+          <span class="dt">test_window =</span> test_window, 
+          <span class="dt">quote_currency =</span> quote_currency, 
+          <span class="dt">rolling_window =</span> rolling_window, 
+          <span class="dt">number_pairs =</span> number_pairs) </code></pre></div>
 <pre><code>## # A tibble: 5 x 3
 ##     coin_y   coin_x  adf_stat
 ##      &lt;chr&gt;    &lt;chr&gt;     &lt;dbl&gt;
@@ -795,86 +858,38 @@ test_by &lt;-<span class="st"> &quot;16 days&quot;</span> </code></pre></div>
 </div>
 <div id="cross-validation-full" class="section level1">
 <h1>24. Cross Validation Full</h1>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">registerDoParallel</span>(<span class="kw">makeCluster</span>(<span class="kw">detectCores</span>()), <span class="kw">detectCores</span>())
+<span class="kw">getDoParWorkers</span>()</code></pre></div>
+<pre><code>## [1] 4</code></pre>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">cutoff_dates &lt;-<span class="st"> </span><span class="kw">seq</span>(<span class="kw">ymd</span>(<span class="st">&quot;2017-01-01&quot;</span>), <span class="kw">ymd</span>(<span class="st">&quot;2017-10-01&quot;</span>), <span class="dt">by =</span> test_by)
-results &lt;-<span class="st"> </span><span class="kw">tibble</span>() 
-<span class="cf">for</span> (cutoff_date <span class="cf">in</span> cutoff_dates) { 
-  cutoff_date &lt;-<span class="st"> </span><span class="kw">as.Date</span>(cutoff_date) 
-  <span class="kw">print</span>(<span class="kw">str_c</span>(<span class="st">&quot;Cross validating strategy.&quot;</span>))
-  <span class="kw">print</span>(<span class="kw">str_c</span>(<span class="st">&quot;Using train set from &quot;</span>, cutoff_date <span class="op">-</span><span class="st"> </span>train_window , <span class="st">&quot; to &quot;</span>, cutoff_date, <span class="st">&quot;.&quot;</span>)) 
-  <span class="kw">print</span>(<span class="kw">str_c</span>(<span class="st">&quot;Using test set from &quot;</span>, cutoff_date, <span class="st">&quot; to &quot;</span>, cutoff_date <span class="op">+</span><span class="st"> </span>test_window, <span class="st">&quot;.&quot;</span>))  
-  train &lt;-<span class="st"> </span><span class="kw">prepare_data</span>(<span class="dt">pricing_data =</span> pricing_data, 
-                        <span class="dt">time_resolution =</span> time_resolution, 
-                        <span class="dt">start_date =</span> cutoff_date <span class="op">-</span><span class="st"> </span>train_window, 
-                        <span class="dt">end_date =</span> cutoff_date) 
-  test &lt;-<span class="st"> </span><span class="kw">prepare_data</span>(<span class="dt">pricing_data =</span> pricing_data, 
-                       <span class="dt">time_resolution =</span> time_resolution, 
-                       <span class="dt">start_date =</span> cutoff_date, 
-                       <span class="dt">end_date =</span> cutoff_date <span class="op">+</span><span class="st"> </span>test_window) 
-  test &lt;-<span class="st"> </span>test <span class="op">%&gt;%</span><span class="st"> </span>
-<span class="st">    </span><span class="kw">mutate</span>(<span class="dt">return_strategy =</span> 
-             <span class="kw">backtest_strategy</span>(<span class="dt">train =</span> train, 
-                               <span class="dt">test =</span> test, 
-                               <span class="dt">selected_pairs =</span> <span class="kw">select_pairs</span>(<span class="dt">train =</span> train, 
-                                                             <span class="dt">coin_pairs =</span> <span class="kw">create_pairs</span>(<span class="dt">quote_currency =</span> quote_currency))), 
-           <span class="dt">return_strategy_change =</span> return_strategy <span class="op">/</span><span class="st"> </span><span class="kw">lag</span>(return_strategy, <span class="dv">1</span>) <span class="op">-</span><span class="st"> </span><span class="dv">1</span>) <span class="op">%&gt;%</span><span class="st"> </span>
-<span class="st">    </span><span class="kw">mutate_all</span>(<span class="kw">funs</span>(<span class="kw">ifelse</span>(<span class="kw">is.na</span>(.), <span class="dv">0</span>, .)))
-  results &lt;-<span class="st"> </span><span class="kw">bind_rows</span>(results, test) 
-} </code></pre></div>
-<pre><code>## [1] &quot;Cross validating strategy.&quot;
-## [1] &quot;Using train set from 2016-11-30 to 2017-01-01.&quot;
-## [1] &quot;Using test set from 2017-01-01 to 2017-01-17.&quot;
-## [1] &quot;Cross validating strategy.&quot;
-## [1] &quot;Using train set from 2016-12-16 to 2017-01-17.&quot;
-## [1] &quot;Using test set from 2017-01-17 to 2017-02-02.&quot;
-## [1] &quot;Cross validating strategy.&quot;
-## [1] &quot;Using train set from 2017-01-01 to 2017-02-02.&quot;
-## [1] &quot;Using test set from 2017-02-02 to 2017-02-18.&quot;
-## [1] &quot;Cross validating strategy.&quot;
-## [1] &quot;Using train set from 2017-01-17 to 2017-02-18.&quot;
-## [1] &quot;Using test set from 2017-02-18 to 2017-03-06.&quot;
-## [1] &quot;Cross validating strategy.&quot;
-## [1] &quot;Using train set from 2017-02-02 to 2017-03-06.&quot;
-## [1] &quot;Using test set from 2017-03-06 to 2017-03-22.&quot;
-## [1] &quot;Cross validating strategy.&quot;
-## [1] &quot;Using train set from 2017-02-18 to 2017-03-22.&quot;
-## [1] &quot;Using test set from 2017-03-22 to 2017-04-07.&quot;
-## [1] &quot;Cross validating strategy.&quot;
-## [1] &quot;Using train set from 2017-03-06 to 2017-04-07.&quot;
-## [1] &quot;Using test set from 2017-04-07 to 2017-04-23.&quot;
-## [1] &quot;Cross validating strategy.&quot;
-## [1] &quot;Using train set from 2017-03-22 to 2017-04-23.&quot;
-## [1] &quot;Using test set from 2017-04-23 to 2017-05-09.&quot;
-## [1] &quot;Cross validating strategy.&quot;
-## [1] &quot;Using train set from 2017-04-07 to 2017-05-09.&quot;
-## [1] &quot;Using test set from 2017-05-09 to 2017-05-25.&quot;
-## [1] &quot;Cross validating strategy.&quot;
-## [1] &quot;Using train set from 2017-04-23 to 2017-05-25.&quot;
-## [1] &quot;Using test set from 2017-05-25 to 2017-06-10.&quot;
-## [1] &quot;Cross validating strategy.&quot;
-## [1] &quot;Using train set from 2017-05-09 to 2017-06-10.&quot;
-## [1] &quot;Using test set from 2017-06-10 to 2017-06-26.&quot;
-## [1] &quot;Cross validating strategy.&quot;
-## [1] &quot;Using train set from 2017-05-25 to 2017-06-26.&quot;
-## [1] &quot;Using test set from 2017-06-26 to 2017-07-12.&quot;
-## [1] &quot;Cross validating strategy.&quot;
-## [1] &quot;Using train set from 2017-06-10 to 2017-07-12.&quot;
-## [1] &quot;Using test set from 2017-07-12 to 2017-07-28.&quot;
-## [1] &quot;Cross validating strategy.&quot;
-## [1] &quot;Using train set from 2017-06-26 to 2017-07-28.&quot;
-## [1] &quot;Using test set from 2017-07-28 to 2017-08-13.&quot;
-## [1] &quot;Cross validating strategy.&quot;
-## [1] &quot;Using train set from 2017-07-12 to 2017-08-13.&quot;
-## [1] &quot;Using test set from 2017-08-13 to 2017-08-29.&quot;
-## [1] &quot;Cross validating strategy.&quot;
-## [1] &quot;Using train set from 2017-07-28 to 2017-08-29.&quot;
-## [1] &quot;Using test set from 2017-08-29 to 2017-09-14.&quot;
-## [1] &quot;Cross validating strategy.&quot;
-## [1] &quot;Using train set from 2017-08-13 to 2017-09-14.&quot;
-## [1] &quot;Using test set from 2017-09-14 to 2017-09-30.&quot;
-## [1] &quot;Cross validating strategy.&quot;
-## [1] &quot;Using train set from 2017-08-29 to 2017-09-30.&quot;
-## [1] &quot;Using test set from 2017-09-30 to 2017-10-16.&quot;</code></pre>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">results &lt;-<span class="st"> </span>results <span class="op">%&gt;%</span><span class="st"> </span>
+results &lt;-<span class="st"> </span>
+<span class="st">  </span><span class="kw">foreach</span>(<span class="dt">i =</span> cutoff_dates, 
+          <span class="dt">.packages =</span> <span class="kw">c</span>(<span class="st">&quot;tidyverse&quot;</span>, <span class="st">&quot;stringr&quot;</span>, <span class="st">&quot;zoo&quot;</span>, <span class="st">&quot;urca&quot;</span>, <span class="st">&quot;RcppRoll&quot;</span>)) <span class="op">%dopar%</span><span class="st"> </span>{ 
+            cutoff_date &lt;-<span class="st"> </span><span class="kw">as.Date</span>(i) 
+            <span class="kw">print</span>(<span class="kw">str_c</span>(<span class="st">&quot;Cross validating strategy.&quot;</span>))
+            <span class="kw">print</span>(<span class="kw">str_c</span>(<span class="st">&quot;Using train set from &quot;</span>, i <span class="op">-</span><span class="st"> </span>train_window , <span class="st">&quot; to &quot;</span>, i, <span class="st">&quot;.&quot;</span>)) 
+            <span class="kw">print</span>(<span class="kw">str_c</span>(<span class="st">&quot;Using test set from &quot;</span>, i, <span class="st">&quot; to &quot;</span>, i <span class="op">+</span><span class="st"> </span>test_window, <span class="st">&quot;.&quot;</span>))  
+            train &lt;-<span class="st"> </span><span class="kw">prepare_data</span>(<span class="dt">pricing_data =</span> pricing_data, 
+                                  <span class="dt">time_resolution =</span> time_resolution, 
+                                  <span class="dt">start_date =</span> i <span class="op">-</span><span class="st"> </span>train_window, 
+                                  <span class="dt">end_date =</span> i) 
+            test &lt;-<span class="st"> </span><span class="kw">prepare_data</span>(<span class="dt">pricing_data =</span> pricing_data, 
+                                 <span class="dt">time_resolution =</span> time_resolution, 
+                                 <span class="dt">start_date =</span> i, 
+                                 <span class="dt">end_date =</span> i <span class="op">+</span><span class="st"> </span>test_window) 
+            coin_pairs &lt;-<span class="st"> </span><span class="kw">create_pairs</span>(<span class="dt">quote_currency =</span> quote_currency) 
+            test &lt;-<span class="st"> </span>test <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">              </span><span class="kw">mutate</span>(<span class="dt">return_strategy =</span> <span class="kw">backtest_strategy</span>(<span class="dt">train =</span> train, 
+                                                         <span class="dt">test =</span> test, 
+                                                         <span class="dt">selected_pairs =</span> <span class="kw">select_pairs</span>(<span class="dt">train =</span> train, <span class="dt">coin_pairs =</span> coin_pairs), 
+                                                         <span class="dt">rolling_window =</span> rolling_window), 
+                     <span class="dt">return_strategy_change =</span> return_strategy <span class="op">/</span><span class="st"> </span><span class="kw">lag</span>(return_strategy, <span class="dv">1</span>) <span class="op">-</span><span class="st"> </span><span class="dv">1</span>) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">              </span><span class="kw">mutate_all</span>(<span class="kw">funs</span>(<span class="kw">ifelse</span>(<span class="kw">is.na</span>(.), <span class="dv">0</span>, .)))
+            <span class="kw">return</span>(test)
+          } 
+<span class="kw">stopImplicitCluster</span>()
+results &lt;-<span class="st"> </span>results <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">  </span><span class="kw">map_df</span>(bind_rows) <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">  </span><span class="kw">mutate</span>(<span class="dt">return_strategy_cumulative =</span> <span class="kw">cumprod</span>(<span class="dv">1</span> <span class="op">+</span><span class="st"> </span>return_strategy_change), 
          <span class="dt">date_time =</span> <span class="kw">as.POSIXct</span>(date_time, <span class="dt">origin =</span> <span class="st">&quot;1970-01-01&quot;</span>)) 
 <span class="kw">ggplot</span>(results, <span class="kw">aes</span>(<span class="dt">x =</span> date_time)) <span class="op">+</span><span class="st"> </span>
