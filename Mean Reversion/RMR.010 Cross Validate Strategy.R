@@ -215,21 +215,21 @@ generate_signals <- function(train, test, coin_y, coin_x, model) {
            signal_long = if_else(lag_spread_z <= -2.0 & lag_spread_z > -3.0, 0.75, signal_long), 
            signal_long = if_else(lag_spread_z <= -3.0 & lag_spread_z > -4.0, 1.00, signal_long), 
            signal_long = if_else(lag_spread_z <= -4.0 & lag_spread_z > -5.0, 1.00, signal_long), 
-           signal_long = if_else(lag_spread_z <= -5.0 & lag_spread_z > -6.0, 1.00, signal_long), 
+           signal_long = if_else(lag_spread_z <= -5.0 & lag_spread_z > -6.0, 0.00, signal_long), 
            signal_long = if_else(lag_spread_z <= -6.0 & lag_spread_z > -7.0, 0.00, signal_long), 
-           signal_long = if_else(lag_spread_z <= -6.0, 0, signal_long), 
+           signal_long = if_else(lag_spread_z <= -5.0, 0, signal_long), 
            signal_short = if_else(lag_spread_z >= 0.0 & lag_spread_z < 1.0, -0.25, 0), 
            signal_short = if_else(lag_spread_z >= 1.0 & lag_spread_z < 2.0, -0.50, signal_short), 
            signal_short = if_else(lag_spread_z >= 2.0 & lag_spread_z < 3.0, -0.75, signal_short), 
            signal_short = if_else(lag_spread_z >= 3.0 & lag_spread_z < 4.0, -1.00, signal_short), 
            signal_short = if_else(lag_spread_z >= 4.0 & lag_spread_z < 5.0, -1.00, signal_short), 
-           signal_short = if_else(lag_spread_z >= 5.0 & lag_spread_z < 6.0, -1.00, signal_short), 
+           signal_short = if_else(lag_spread_z >= 5.0 & lag_spread_z < 6.0, -0.00, signal_short), 
            signal_short = if_else(lag_spread_z >= 6.0 & lag_spread_z < 7.0, -0.00, signal_short), 
-           signal_short = if_else(lag_spread_z >= 6.0, 0, signal_short), 
+           signal_short = if_else(lag_spread_z >= 5.0, 0, signal_short), 
            signal = signal_long + signal_short, 
            signal = if_else(is.na(signal), 0, signal), 
-           signal = if_else(cummin(lag_spread_z) <= -6.0, 0, signal), 
-           signal = if_else(cummax(lag_spread_z) >=  6.0, 0, signal))  
+           signal = if_else(cummin(lag_spread_z) <= -5.0, 0, signal), 
+           signal = if_else(cummax(lag_spread_z) >=  5.0, 0, signal))  
   return(df_signals[["signal"]])
 } 
 
@@ -446,7 +446,7 @@ plot_many <- function(pricing_data, time_resolution, cutoff_date, train_window,
 time_resolution <- 900
 train_window <- days(32) 
 test_window <- days(16) 
-quote_currency <- "BTC" 
+quote_currency <- "USDT" 
 rolling_window <- 86400 / time_resolution * as.numeric(days(2)) / 86400 
 number_pairs <- 3 
 test_by <- "16 days" 
