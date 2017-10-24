@@ -446,7 +446,7 @@ plot_many <- function(pricing_data, time_resolution, cutoff_date, train_window,
 time_resolution <- 900
 train_window <- days(32) 
 test_window <- days(16) 
-quote_currency <- "USDT" 
+quote_currency <- "BTC" 
 rolling_window <- 86400 / time_resolution * as.numeric(days(2)) / 86400 
 number_pairs <- 3 
 test_by <- "16 days" 
