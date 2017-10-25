@@ -36,40 +36,43 @@ pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv", col_types
 #' number_pairs: The number of pairs to generate plots for.  
 
 #' # 4. Tune Parameters 
-set.seed(5) 
-results_all <- list()
-for (i in 1:10) { 
+set.seed(3) 
+results <- tibble()
+return <- list()
+for (i in 1:10000) { 
   print(str_c("Testing iteration ", i, "."))
   time_resolution <- sample(c(300, 900, 1800, 7200, 14400, 86400), 1) 
-  train_window <- days(sample(2:60, 1)) 
-  test_window <- days(sample(2:60, 1)) 
+  train_window <- days(sample(5:60, 1)) 
+  test_window <- days(sample(5:60, 1)) 
   quote_currency <- sample(c("USDT", "BTC"), 1)  
   adf_threshold <- sample(seq(-1, -4, -0.01), 1)
   rolling_window <- 86400 / time_resolution * min(as.numeric(days(sample(2:60, 1))) / 86400, as.numeric(train_window) / 86400)
   stop_threshold <- sample(seq(3, 7, 0.01), 1) 
   signal_logic <- sample(c("scaled", "discrete"), 1) 
   model_type <- sample(c("log", "raw"), 1) 
-  return <- backtest_strategy_full(pricing_data = pricing_data, 
-                                   time_resolution = time_resolution, 
-                                   train_window = train_window, 
-                                   test_window = test_window, 
-                                   quote_currency = quote_currency, 
-                                   adf_threshold = adf_threshold, 
-                                   rolling_window = rolling_window, 
-                                   stop_threshold = stop_threshold, 
-                                   signal_logic = signal_logic, 
-                                   model_type = model_type)  
-  results <- list(time_resolution = time_resolution, 
-                  train_window = train_window, 
-                  test_window = test_window, 
-                  quote_currency = quote_currency, 
-                  adf_threshold = adf_threshold, 
-                  rolling_window = rolling_window, 
-                  stop_threshold = stop_threshold, 
-                  signal_logic = signal_logic, 
-                  model_type = model_type, 
-                  overall_return = return[["return_strategy_cumulative"]][nrow(return)], 
-                  return_df = return) 
-  results_all <- c(results_all, results)
+  return[[i]] <- backtest_strategy_full(pricing_data = pricing_data, 
+                                        time_resolution = time_resolution, 
+                                        train_window = train_window, 
+                                        test_window = test_window, 
+                                        quote_currency = quote_currency, 
+                                        adf_threshold = adf_threshold, 
+                                        rolling_window = rolling_window, 
+                                        stop_threshold = stop_threshold, 
+                                        signal_logic = signal_logic, 
+                                        model_type = model_type)  
+  results <- bind_rows(results, 
+                       tibble(time_resolution = time_resolution, 
+                              train_window = as.character(train_window), 
+                              test_window = as.character(test_window), 
+                              quote_currency = quote_currency, 
+                              adf_threshold = adf_threshold, 
+                              rolling_window = rolling_window, 
+                              stop_threshold = stop_threshold, 
+                              signal_logic = signal_logic, 
+                              model_type = model_type, 
+                              overall_return = return[[i]][["return_strategy_cumulative"]][nrow(return[[i]])]))
 } 
+
+#' # 5. Examine Results
+print(results)
 

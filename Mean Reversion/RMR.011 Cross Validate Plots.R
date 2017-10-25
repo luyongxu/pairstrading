@@ -33,15 +33,16 @@ pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv", col_types
 #' signal_logic: A string indicating which logic to use to generate signals.  
 #' model_type: A string indicating whether raw prices or log prices should be used. Takes value "raw" or "log".  
 #' number_pairs: The number of pairs to generate plots for.  
-time_resolution <- 900 
-train_window <- days(32) 
-test_window <- days(16) 
-quote_currency <- "BTC" 
-adf_threshold <- -3.43 
-rolling_window <- 86400 / time_resolution * as.numeric(days(2)) / 86400 
-stop_threshold <- 7 
+time_resolution <- 300 
+train_window <- days(16) 
+test_window <- days(10) 
+quote_currency <- "USDT" 
+adf_threshold <- -2.96 
+# rolling_window <- 86400 / time_resolution * as.numeric(days(2)) / 86400 
+rolling_window <- 4608
+stop_threshold <- 3.51
 signal_logic <- "scaled" 
-model_type <- "log" 
+model_type <- "raw" 
 number_pairs <- 3 
 
 #' # 4. Cross Validation September 2017

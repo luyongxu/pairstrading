@@ -45,5 +45,9 @@ render_wrapper("RMR.006 Test Stationarity", "html_document")
 render_wrapper("RMR.007 Search Cointegration Combinations", "html_document")
 render_wrapper("RMR.008 Plot Cointegration Combinations", "html_document")
 render_wrapper("RMR.009 Test Optimal Cointegration", "html_document")
-render_wrapper("RMR.010 Cross Validate Strategy", "html_document")
+render_wrapper("RMR.010 Cross Validate Functions", "html_document") 
+render_wrapper("RMR.011 Cross Validate Plots", "html_document") 
+render_wrapper("RMR.012 Cross Validate Tune", "html_document")
+
+#' # 3. Beep 
 beepr::beep(1)
