@@ -43,7 +43,7 @@ rolling_window <- 4608
 stop_threshold <- 3.51
 signal_logic <- "scaled" 
 model_type <- "raw" 
-number_pairs <- 3 
+number_pairs <- 8 
 
 #' # 4. Cross Validation September 2017
 plot_many(pricing_data = pricing_data,
