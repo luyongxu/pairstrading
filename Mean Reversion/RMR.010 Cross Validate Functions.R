@@ -16,21 +16,37 @@
 #' # 1. Load Packages 
 source("./Mean Reversion/RMR.001 Load Packages.R") 
 
-#' # 2. Prepare Data Function 
+#' # 2. Parameter List 
+#' Description  
+#' A list of parameters passed to the functions below that describe the mean reversion pairs trading strategy.  
+#' 
+#' Arguments  
+#' time_resolution: The number of seconds that each observation spans. Takes values 300, 900, 1800, 7200, 14400, and 86400.  
+#' train_window: A lubridate period object representing the length of time the train set covers.  
+#' test_window: A lubridate period object representing the length of time the the test set covers. 
+#' model_type: A string indicating whether raw prices or log prices should be used. Takes value "raw" or "log".  
+#' quote_currency: A string indicating the quote currency of the currency pairs. Can take values "USDT" or "BTC".  
+#' adf_threshold: The threshold for the ADF test statistic. Pairs below this threshold are selected.   
+#' rolling_window: The number of observations used in each window of a rolling linear regression.  
+#' stop_threshold: A threshold for the spread z-score beyond which the strategy stops trading the coin pair.  
+#' signal_logic: A string indicating which logic to use to generate signals. Can take values "scaled" or "discrete". 
+
+#' # 3. Prepare Data Function 
 #' Description  
 #' Spreads Poloneix pricing data into wide format and filters data to a specified time resolution and time window.  
 #' 
 #' Arguments  
 #' pricing_data: A dataframe containing pricing data from Poloneix gathered in tidy format.  
-#' time_resolution: The number of seconds that each observation spans. Takes values 300, 900, 1800, 7200, 14400, and 86400.  
 #' start_date: The start date of the time window.  
 #' end_date: The end date of the time window.  
+#' params: A list of parameters passed to the functions below that describe the mean reversion pairs trading strategy.  
+#'   time_resolution: The number of seconds that each observation spans. Takes values 300, 900, 1800, 7200, 14400, and 86400.  
 #' 
 #' Value  
 #' Returns a dataframe consiting of the unix timestamp, date time, and the closing price of various currency pairs.  
-prepare_data <- function(pricing_data, time_resolution, start_date, end_date) { 
+prepare_data <- function(pricing_data, start_date, end_date, params) { 
   df <- pricing_data %>% 
-    filter(period == time_resolution, 
+    filter(period == params[["time_resolution"]], 
            date_time >= start_date, 
            date_time <= end_date) %>% 
     select(date_unix, date_time, close, currency_pair) %>% 
@@ -48,19 +64,23 @@ prepare_data <- function(pricing_data, time_resolution, start_date, end_date) {
 #' Arguments  
 #' coin_y: A vector containing the pricing data for the dependent coin in the regression.  
 #' coin_x: A vector containing the pricing data for the independent coin in the regression.  
-#' model_type: A string indicating whether raw prices or log prices should be used. Takes value "raw" or "log". 
+#' params: A list of parameters that describe the mean reversion pairs trading strategy.  
+#'   model_type: A string indicating whether raw prices or log prices should be used. Takes value "raw" or "log".  
 #' 
 #' Value  
 #' Returns the ADF test statistic for the given coin pair.  
-test_cointegration <- function(coin_y, coin_x, model_type) { 
-  if (model_type == "raw") 
-    lm_model <- lm.fit(y = coin_y, x = cbind(1, coin_x))   
-  if (model_type == "log") 
-    lm_model <- lm.fit(y = log(coin_y), x = cbind(1, log(coin_x))) 
-  lm_residuals <- lm_model[["residuals"]] 
-  adf_test <- ur.df(lm_residuals, type = "drift", lags = 1) 
-  df_stat = adf_test@testreg[["coefficients"]][2, 3]
-  return(df_stat) 
+test_cointegration <- function(coin_y, coin_x, params) { 
+  if (params[["cointegration_test"]] == "eg") { 
+    if (params[["model_type"]] == "raw") 
+      lm_model <- lm.fit(y = coin_y, x = cbind(1, coin_x))   
+    if (params[["model_type"]] == "log") 
+      lm_model <- lm.fit(y = log(coin_y), x = cbind(1, log(coin_x))) 
+    lm_residuals <- lm_model[["residuals"]] 
+    adf_test <- ur.df(lm_residuals, type = "drift", lags = 1) 
+    df_stat = adf_test@testreg[["coefficients"]][2, 3]
+    return(df_stat) 
+  }
+  
 } 
 
 #' # 4. Create Coin Pairs Function  
@@ -70,14 +90,15 @@ test_cointegration <- function(coin_y, coin_x, model_type) {
 #' of the coin with itself are removed.  
 #' 
 #' Arguments  
-#' quote_currency: A string indicating the quote currency of the currency pairs. Can take values USDT or BTC.  
+#' params: A list of parameters that describe the mean reversion pairs trading strategy.  
+#'   quote_currency: A string indicating the quote currency of the currency pairs. Can take values USDT or BTC.  
 #' 
 #' Value  
 #' Returns a dataframe containing the coin pairs.  
-create_pairs <- function(quote_currency) { 
-  if (quote_currency == "USDT") 
+create_pairs <- function(params) { 
+  if (params[["quote_currency"]] == "USDT") 
     coin_list <- c("USDT_BTC", "USDT_DASH", "USDT_ETH", "USDT_LTC", "USDT_REP", "USDT_XMR", "USDT_ZEC")
-  if (quote_currency == "BTC") 
+  if (params[["quote_currency"]] == "BTC") 
     coin_list <- c("BTC_DASH", "BTC_ETH", "BTC_LTC", "BTC_REP", "BTC_XEM", "BTC_XMR", "BTC_ZEC")
   coin_pairs <- expand.grid(coin_list, coin_list) %>% 
     rename(coin_y = Var1, 
@@ -96,19 +117,19 @@ create_pairs <- function(quote_currency) {
 #' Arguments  
 #' train: A dataframe generated by prepare_data() that represents the training set for the coin pairs.  
 #' coin_pairs: A dataframe generated by create_pairs().  
-#' model_type: A string indicating whether raw prices or log prices should be used. Takes value "raw" or "log". 
+#' params: A list of parameters that describe the mean reversion pairs trading strategy.  
 #' 
 #' Value  
 #' Returns a dataframe containing the coin pairs and the ADF test statistic resulting from testing cointegration 
 #' between each coin pair.  
-test_pairs <- function(train, coin_pairs, model_type) { 
+test_pairs <- function(train, coin_pairs, params) { 
   adf_stat <- numeric(nrow(coin_pairs))  
   for (n in 1:nrow(coin_pairs)) { 
     coin_y <- coin_pairs[[n, "coin_y"]] 
     coin_x <- coin_pairs[[n, "coin_x"]] 
     cointegration_results <- test_cointegration(coin_y = train[[coin_y]], 
                                                 coin_x = train[[coin_x]], 
-                                                model_type = model_type)
+                                                params = params)
     adf_stat[n] <- cointegration_results
   } 
   df <- coin_pairs %>% 
@@ -125,16 +146,16 @@ test_pairs <- function(train, coin_pairs, model_type) {
 #' Arguments  
 #' train: A dataframe generated by prepare_data() that represents the training set for the coin pair.  
 #' coin_pairs: A dataframe generated by create_pairs().  
-#' adf_threshold: The threshold for the ADF test statistic. Pairs below this threshold are selected.   
-#' model_type: A string indicating whether raw prices or log prices should be used. Takes value "raw" or "log". 
+#' params: A list of parameters that describe the mean reversion pairs trading strategy.  
+#'   adf_threshold: The threshold for the ADF test statistic. Pairs below this threshold are selected.   
 #' 
 #' Value  
 #' Returns a dataframe containing the coin pairs that were selected.  
-select_pairs <- function(train, coin_pairs, adf_threshold, model_type) { 
+select_pairs <- function(train, coin_pairs, params) { 
   df <- test_pairs(train = train, 
                    coin_pairs = coin_pairs, 
-                   model_type = model_type) %>% 
-    filter(adf_stat <= adf_threshold)
+                   params = params) %>% 
+    filter(adf_stat <= params[["adf_threshold"]])
   return(df) 
 } 
 
@@ -148,29 +169,33 @@ select_pairs <- function(train, coin_pairs, adf_threshold, model_type) {
 #' test: A dataframe generated by prepare_data() that represents the test set for the coin pair.  
 #' coin_y: A string indicating the dependent coin in the coin pair regression.  
 #' coin_x: A string indicating the independent coin in the coin pair regression.  
-#' rolling_window: The number of observations used in each iteration of a rolling linear regression.  
-#' model_type: A string indicating whether raw prices or log prices should be used. Takes value "raw" or "log". 
+#' params: A list of parameters passed to the functions below that describe the mean reversion pairs trading strategy.  
+#'   rolling_window: The number of observations used in each iteration of a rolling linear regression.  
+#'   model_type: A string indicating whether raw prices or log prices should be used. Takes value "raw" or "log". 
 #' 
 #' Value  
 #' Returns a list containing the intercept, hedge ratio, spread, and spread z-score calculated from a rolling 
 #' regression over the test set. 
-train_model <- function(train, test, coin_y, coin_x, rolling_window, model_type) { 
-  # Perform rolling linear regression for the test set  
-  if (model_type == "raw") { 
+train_model <- function(train, test, coin_y, coin_x, params) { 
+  
+  # Set y and x depending on model type
+  if (params[["model_type"]] == "raw") { 
     rolling_coef <- bind_rows(train, test) %>%  
       mutate(y = .[[coin_y]], 
              x = .[[coin_x]]) %>% 
       select(y, x)
   } 
-  if (model_type == "log") { 
+  if (params[["model_type"]] == "log") { 
     rolling_coef <- bind_rows(train, test) %>%  
       mutate(y = log(.[[coin_y]]), 
              x = log(.[[coin_x]])) %>% 
       select(y, x)
   } 
+  
+  # Perform rolling linear regression for the test set  
   rolling_coef <- rolling_coef %>% 
     rollapply(data = ., 
-              width = rolling_window, 
+              width = params[["rolling_window"]], 
               FUN = function(df) { 
                 df <- as_tibble(df)
                 model <- lm.fit(y = df[["y"]], x = cbind(1, df[["x"]]))
@@ -183,26 +208,29 @@ train_model <- function(train, test, coin_y, coin_x, rolling_window, model_type)
     rename(intercept = x1, 
            hedge_ratio = x2) %>% 
     filter(row_number() > nrow(train)) 
+  
   # Calculate spread in training and test set  
-  if (model_type == "raw") { 
+  if (params[["model_type"]] == "raw") { 
     train <- train %>% 
       mutate(spread = lm.fit(y = train[[coin_y]], x = cbind(1, train[[coin_x]]))[["residuals"]])
     test <- test %>% 
       mutate(spread = test[[coin_y]] - test[[coin_x]] * rolling_coef[["hedge_ratio"]] - rolling_coef[["intercept"]]) 
   } 
-  if (model_type == "log") { 
+  if (params[["model_type"]] == "log") { 
     train <- train %>% 
       mutate(spread = lm.fit(y = log(train[[coin_y]]), x = cbind(1, log(train[[coin_x]])))[["residuals"]]) 
     test <- test %>% 
       mutate(spread = log(test[[coin_y]]) - log(test[[coin_x]]) * rolling_coef[["hedge_ratio"]] - rolling_coef[["intercept"]]) 
-  }
+  } 
+  
   # Combine train and test to calculate rolling z-score for the test set  
   result <- bind_rows(train %>% mutate(source = "train"), 
                       test %>% mutate(source = "test")) %>% 
-    mutate(rolling_mean = roll_mean(spread, n = rolling_window, fill = NA, align = "right"), 
-           rolling_sd = roll_sd(spread, n = rolling_window, fill = NA, align = "right"), 
+    mutate(rolling_mean = roll_mean(spread, n = params[["rolling_window"]], fill = NA, align = "right"), 
+           rolling_sd = roll_sd(spread, n = params[["rolling_window"]], fill = NA, align = "right"), 
            spread_z = (spread - rolling_mean) / rolling_sd) %>% 
     filter(source == "test") 
+  
   # Return list of statistics for the test set  
   return(list(intercept = rolling_coef[["intercept"]], 
               hedge_ratio = rolling_coef[["hedge_ratio"]], 
@@ -223,13 +251,16 @@ train_model <- function(train, test, coin_y, coin_x, rolling_window, model_type)
 #' coin_y: A string indicating the dependent coin in the coin pair regression.  
 #' coin_x: A string indicating the independent coin in the coin pair regression.  
 #' model: A trained model generated by train_model(). 
-#' stop_threshold: A threshold for the spread z-score beyond which the strategy stops trading the coin pair.  
-#' signal_logic: A string indicating which logic to use to generate signals. 
+#' params: A list of parameters passed to the functions below that describe the mean reversion pairs trading strategy.  
+#'   stop_threshold: A threshold for the spread z-score beyond which the strategy stops trading the coin pair.  
+#'   signal_logic: A string indicating which logic to use to generate signals. 
 #' 
 #' Value  
 #' Returns a vector containing the trading signal over the test set.  
-generate_signals <- function(train, test, coin_y, coin_x, model, stop_threshold, signal_logic) { 
-  if (signal_logic == "scaled") { 
+generate_signals <- function(train, test, coin_y, coin_x, model, params) { 
+  
+  # Scaled signal logic in which signal can take continuous values depending on the spread z-score
+  if (params[["signal_logic"]] == "scaled") { 
     df_signals <- test %>% 
       mutate(spread = model[["spread"]], 
              spread_z = model[["spread_z"]], 
@@ -241,7 +272,7 @@ generate_signals <- function(train, test, coin_y, coin_x, model, stop_threshold,
              signal_long = if_else(lag_spread_z <= -4.0 & lag_spread_z > -5.0, 1.00, signal_long), 
              signal_long = if_else(lag_spread_z <= -5.0 & lag_spread_z > -6.0, 1.00, signal_long), 
              signal_long = if_else(lag_spread_z <= -6.0 & lag_spread_z > -7.0, 1.00, signal_long), 
-             signal_long = if_else(lag_spread_z <= -stop_threshold, 0, signal_long), 
+             signal_long = if_else(lag_spread_z <= -params[["stop_threshold"]], 0, signal_long), 
              signal_short = if_else(lag_spread_z >= 0.0 & lag_spread_z < 1.0, -0.25, 0), 
              signal_short = if_else(lag_spread_z >= 1.0 & lag_spread_z < 2.0, -0.50, signal_short), 
              signal_short = if_else(lag_spread_z >= 2.0 & lag_spread_z < 3.0, -0.75, signal_short), 
@@ -249,28 +280,30 @@ generate_signals <- function(train, test, coin_y, coin_x, model, stop_threshold,
              signal_short = if_else(lag_spread_z >= 4.0 & lag_spread_z < 5.0, -1.00, signal_short), 
              signal_short = if_else(lag_spread_z >= 5.0 & lag_spread_z < 6.0, -1.00, signal_short), 
              signal_short = if_else(lag_spread_z >= 6.0 & lag_spread_z < 7.0, -1.00, signal_short), 
-             signal_short = if_else(lag_spread_z >= stop_threshold, 0, signal_short), 
+             signal_short = if_else(lag_spread_z >= params[["stop_threshold"]], 0, signal_short), 
              signal = signal_long + signal_short, 
              signal = if_else(is.na(signal), 0, signal), 
-             signal = if_else(cummin(lag_spread_z) <= -stop_threshold, 0, signal), 
-             signal = if_else(cummax(lag_spread_z) >=  stop_threshold, 0, signal))  
+             signal = if_else(cummin(lag_spread_z) <= -params[["stop_threshold"]], 0, signal), 
+             signal = if_else(cummax(lag_spread_z) >=  params[["stop_threshold"]], 0, signal))  
     return(df_signals[["signal"]])
-  }
-  if (signal_logic == "discrete") { 
+  } 
+  
+  # Discrete signal logic in which signal can only take discrete values depending on the spread z-score 
+  if (params[["signal_logic"]] == "discrete") { 
     df_signals <- test %>% 
       mutate(spread = model[["spread"]], 
              spread_z = model[["spread_z"]], 
              lag_spread_z = lag(spread_z, 1, default = 0), 
              signal_long = if_else(lag_spread_z <= -2.0, 1, 0), 
              signal_long = if_else(lag_spread_z >= 0.0 , 0, signal_long), 
-             signal_long = if_else(lag_spread_z <= -stop_threshold, 0, signal_long), 
+             signal_long = if_else(lag_spread_z <= -params[["stop_threshold"]], 0, signal_long), 
              signal_short = if_else(lag_spread_z >= 2.0, -1, 0), 
              signal_short = if_else(lag_spread_z <= 0.0, 0, signal_short), 
-             signal_short = if_else(lag_spread_z >= stop_threshold, 0, signal_short), 
+             signal_short = if_else(lag_spread_z >= params[["stop_threshold"]], 0, signal_short), 
              signal = signal_long + signal_short, 
              signal = if_else(is.na(signal), 0, signal), 
-             signal = if_else(cummin(lag_spread_z) <= -stop_threshold, 0, signal), 
-             signal = if_else(cummax(lag_spread_z) >=  stop_threshold, 0, signal))  
+             signal = if_else(cummin(lag_spread_z) <= -params[["stop_threshold"]], 0, signal), 
+             signal = if_else(cummax(lag_spread_z) >=  params[["stop_threshold"]], 0, signal))  
     return(df_signals[["signal"]])
   }
 } 
@@ -291,29 +324,29 @@ generate_signals <- function(train, test, coin_y, coin_x, model, stop_threshold,
 #' test: A dataframe generated by prepare_data() that represents the test set for the coin pair.  
 #' coin_y: A string indicating the dependent coin in the coin pair regression.  
 #' coin_x: A string indicating the independent coin in the coin pair regression.  
-#' rolling_window: The number of observations used in each iteration of a rolling linear regression.  
-#' stop_threshold: A threshold for the spread z-score beyond which the strategy stops trading the coin pair.  
-#' signal_logic: A string indicating which logic to use to generate signals.  
-#' model_type: A string indicating whether raw prices or log prices should be used. Takes value "raw" or "log".  
+#' params: A list of parameters passed to the functions below that describe the mean reversion pairs trading strategy.  
+#'   model_type: A string indicating whether raw prices or log prices should be used. Takes value "raw" or "log".  
 #' 
 #' Value  
 #' Returns a vector containing the cumulative return of applying the trading strategy to the given coin pair.  
-backtest_pair <- function(train, test, coin_y, coin_x, rolling_window, stop_threshold, signal_logic, model_type) { 
+backtest_pair <- function(train, test, coin_y, coin_x, params) { 
+  
+  # Generate model for calculating spread z-score 
   model <- train_model(train = train, 
                        test = test, 
                        coin_y = coin_y, 
                        coin_x = coin_x, 
-                       rolling_window = rolling_window, 
-                       model_type = model_type) 
-  if (model_type == "raw") { 
+                       params = params)
+  
+  # Return calculations if model type uses raw prices to test for cointegration 
+  if (params[["model_type"]] == "raw") { 
     df_backtest <- test %>% 
       mutate(signal = generate_signals(train = train, 
                                        test = test, 
                                        coin_y = coin_y, 
                                        coin_x = coin_x, 
                                        model = model, 
-                                       stop_threshold = stop_threshold, 
-                                       signal_logic = signal_logic), 
+                                       params = params), 
              coin_y_return = test[[coin_y]] / lag(test[[coin_y]], 1) - 1, 
              coin_x_return = test[[coin_x]] / lag(test[[coin_x]], 1) - 1, 
              coin_y_position = test[[coin_y]] * signal * 1                      *  1, 
@@ -326,15 +359,16 @@ backtest_pair <- function(train, test, coin_y, coin_x, rolling_window, stop_thre
       mutate_all(funs(ifelse(is.na(.), 0, .))) %>% 
       mutate(return_pair = cumprod(1 + combined_return)) 
   } 
-  if (model_type == "log") { 
+  
+  # Return calculations if model uses log prices to test for cointegration 
+  if (params[["model_type"]] == "log") { 
     df_backtest <- test %>% 
       mutate(signal = generate_signals(train = train, 
                                        test = test, 
                                        coin_y = coin_y, 
                                        coin_x = coin_x, 
                                        model = model, 
-                                       stop_threshold = stop_threshold, 
-                                       signal_logic = signal_logic), 
+                                       params = params), 
              coin_y_return = test[[coin_y]] / lag(test[[coin_y]], 1) - 1, 
              coin_x_return = test[[coin_x]] / lag(test[[coin_x]], 1) - 1, 
              coin_y_position = signal * 1                      *  1, 
@@ -347,6 +381,8 @@ backtest_pair <- function(train, test, coin_y, coin_x, rolling_window, stop_thre
       mutate_all(funs(ifelse(is.na(.), 0, .))) %>% 
       mutate(return_pair = cumprod(1 + combined_return)) 
   } 
+  
+  # Return cumulative return of the trading strategy on a coin pair 
   return(df_backtest[["return_pair"]])
 } 
 
@@ -360,31 +396,31 @@ backtest_pair <- function(train, test, coin_y, coin_x, rolling_window, stop_thre
 #' train: A dataframe generated by prepare_data() that represents the training set for the coin pairs.  
 #' test: A dataframe generated by prepare_data() that represents the test set for the coin pairs.  
 #' selected_pairs: A dataframe generated by select_coins() that represents a set of cointegrated coin pairs.   
-#' rolling_window: The number of observations used in each iteration of a rolling linear regression.  
-#' stop_threshold: A threshold for the spread z-score beyond which the strategy stops trading the coin pair.  
-#' signal_logic: A string indicating which logic to use to generate signals.  
-#' model_type: A string indicating whether raw prices or log prices should be used. Takes value "raw" or "log".  
+#' params: A list of parameters passed to the functions below that describe the mean reversion pairs trading strategy.  
 #' 
 #' Value  
 #' A vector containing the cumulative return of the overall trading strategy for a given train and test split.  
-backtest_strategy <- function(train, test, selected_pairs, rolling_window, stop_threshold, signal_logic, 
-                              model_type) { 
-  if (nrow(selected_pairs) == 0) return(1) 
+backtest_strategy <- function(train, test, selected_pairs, params) { 
+  
+  # Return cumulative return of 1 if no pairs are selected 
+  if (nrow(selected_pairs) == 0) 
+    return(1) 
+  
+  # Iterate through each coin pair and calculate the return of the strategy on a coin pair 
   df <- tibble()  
   for (i in 1:nrow(selected_pairs)) { 
     single_pair <- tibble(return_pair = backtest_pair(train = train, 
                                                       test = test, 
                                                       coin_y = selected_pairs[["coin_y"]][i], 
                                                       coin_x = selected_pairs[["coin_x"]][i], 
-                                                      rolling_window = rolling_window, 
-                                                      stop_threshold = stop_threshold, 
-                                                      signal_logic = signal_logic, 
-                                                      model_type = model_type), 
+                                                      params = params), 
                           coin_y = selected_pairs[["coin_y"]][i], 
                           coin_x = selected_pairs[["coin_x"]][i], 
                           date_time = test[["date_time"]]) 
     df <- bind_rows(df, single_pair)
   } 
+  
+  # Calculate return of the strategy applied to a portfolio of coin pairs assuming equal allocation to each 
   df <- df %>% 
     group_by(date_time) %>% 
     summarise(return_strategy = mean(return_pair)) 
@@ -399,53 +435,57 @@ backtest_strategy <- function(train, test, selected_pairs, rolling_window, stop_
 #' 
 #' Arguments  
 #' pricing_data: A dataframe containing pricing data from Poloneix gathered in tidy format.  
-#' time_resolution: The number of seconds that each observation spans. Takes values 300, 900, 1800, 7200, 14400, and 86400.  
-#' train_window: A period object from lubridate representing the length of time the train set covers.  
-#' test_window: A period object from lubridate representing the length of time the the test set covers. 
-#' quote_currency: A string indicating the quote currency of the currency pairs. Can take values USDT or BTC.  
-#' adf_threshold: The threshold for the ADF test statistic. Pairs below this threshold are selected.   
-#' rolling_window: The number of observations used in each iteration of a rolling linear regression.  
-#' signal_logic: A string indicating which logic to use to generate signals.  
-#' model_type: A string indicating whether raw prices or log prices should be used. Takes value "raw" or "log".  
+#' params: A list of parameters passed to the functions below that describe the mean reversion pairs trading strategy.  
+#'   time_resolution: The number of seconds that each observation spans. Takes values 300, 900, 1800, 7200, 14400, and 86400.  
+#'   train_window: A period object from lubridate representing the length of time the train set covers.  
+#'   test_window: A period object from lubridate representing the length of time the the test set covers. 
 #' 
 #' Value   
 #' A dataframe containing the cumulative return of the overall trading strategy calculated in using a timeseries 
 #' cross validation method. 
-backtest_strategy_full <- function(pricing_data, time_resolution, train_window, test_window, 
-                                   quote_currency, adf_threshold, rolling_window, stop_threshold, 
-                                   signal_logic, model_type) { 
-  cutoff_dates <- seq(ymd("2017-01-01"), ymd("2017-10-01"), by = str_c(day(test_window), " days"))
+backtest_strategy_full <- function(pricing_data, params) { 
+  
+  # Create vector of cutoff dates for train and test sets over time using a time series cross validation approach 
+  cutoff_dates <- seq(ymd("2017-01-01"), ymd("2017-10-01"), by = str_c(day(params[["test_window"]]), " days"))
+  
+  # Iterate through each cutoff date and calculate the strategy return for each test set 
   results <- tibble() 
   for (cutoff_date in cutoff_dates) {  
+    
+    # Print dates that train and test sets cover 
     cutoff_date <- as.Date(cutoff_date) 
     print(str_c("Cross validating strategy."))
-    print(str_c("Using train set from ", cutoff_date - train_window , " to ", cutoff_date, ".")) 
-    print(str_c("Using test set from ", cutoff_date, " to ", cutoff_date + test_window, "."))  
+    print(str_c("Using train set from ", cutoff_date - params[["train_window"]] , " to ", cutoff_date, ".")) 
+    print(str_c("Using test set from ", cutoff_date, " to ", cutoff_date + params[["test_window"]], "."))  
+    
+    # Create train and test sets 
     train <- prepare_data(pricing_data = pricing_data, 
-                          time_resolution = time_resolution, 
-                          start_date = cutoff_date - train_window, 
-                          end_date = cutoff_date) 
+                          start_date = cutoff_date - params[["train_window"]], 
+                          end_date = cutoff_date, 
+                          params = params) 
     test <- prepare_data(pricing_data = pricing_data, 
-                         time_resolution = time_resolution, 
                          start_date = cutoff_date, 
-                         end_date = cutoff_date + test_window) 
-    coin_pairs <- create_pairs(quote_currency = quote_currency) 
+                         end_date = cutoff_date + params[["test_window"]], 
+                         params = params) 
+    
+    # Select cointegrated coin pairs 
+    coin_pairs <- create_pairs(params = params) 
     selected_pairs <- select_pairs(train = train, 
                                    coin_pairs = coin_pairs, 
-                                   adf_threshold = adf_threshold, 
-                                   model_type = model_type) 
+                                   params = params) 
+    
+    # Calculate strategy return over single test set 
     test <- test %>% 
       mutate(return_strategy = backtest_strategy(train = train, 
                                                  test = test, 
                                                  selected_pairs = selected_pairs, 
-                                                 rolling_window = rolling_window, 
-                                                 stop_threshold = stop_threshold, 
-                                                 signal_logic = signal_logic, 
-                                                 model_type = model_type), 
+                                                 params = params), 
              return_strategy_change = return_strategy / lag(return_strategy, 1) - 1) %>% 
       mutate_all(funs(ifelse(is.na(.), 0, .)))
     results <- bind_rows(results, test) 
   } 
+  
+  # Calculate strategy return using all test sets 
   results <- results %>% 
     mutate(return_strategy_cumulative = cumprod(1 + return_strategy_change), 
            date_time = as.POSIXct(date_time, origin = "1970-01-01")) %>% 
@@ -465,21 +505,21 @@ backtest_strategy_full <- function(pricing_data, time_resolution, train_window, 
 #' train: A dataframe generated by prepare_data() that represents the training set for the coin pair.  
 #' test: A dataframe generated by prepare_data() that represents the test set for the coin pair.  
 #' coin_y: A string indicating the dependent coin in the coin pair regression.  
-#' coin_x: A string indicating the independent coin in the coin pair regression.  
-#' rolling_window: The number of observations used in each iteration of a rolling linear regression.  
-#' stop_threshold: A threshold for the spread z-score beyond which the strategy stops trading the coin pair.  
-#' signal_logic: A string indicating which logic to use to generate signals.  
-#' model_type: A string indicating whether raw prices or log prices should be used. Takes value "raw" or "log".  
+#' coin_x: A string indicating the independent coin in the coin pair regression. 
+#' params: A list of parameters passed to the functions below that describe the mean reversion pairs trading strategy.  
 #' 
 #' Value  
 #' Prints the plots described above.  
-plot_single <- function(train, test, coin_y, coin_x, rolling_window, stop_threshold, signal_logic, model_type) { 
+plot_single <- function(train, test, coin_y, coin_x, params) { 
+  
+  # Generate model for calculating spread z-score 
   model <- train_model(train = train, 
                        test = test, 
                        coin_y = coin_y, 
                        coin_x = coin_x, 
-                       rolling_window = rolling_window, 
-                       model_type = model_type)
+                       params = params) 
+  
+  # Calculate signal and strategy return for the coin pair 
   df_plot <- test %>% 
     mutate(spread = model[["spread"]], 
            spread_z = model[["spread_z"]], 
@@ -488,18 +528,16 @@ plot_single <- function(train, test, coin_y, coin_x, rolling_window, stop_thresh
                                      coin_y = coin_y, 
                                      coin_x = coin_x, 
                                      model = model, 
-                                     stop_threshold = stop_threshold, 
-                                     signal_logic = signal_logic), 
+                                     params = params), 
            return_pair = backtest_pair(train = train, 
                                        test = test, 
                                        coin_y = coin_y, 
                                        coin_x = coin_x, 
-                                       rolling_window = rolling_window, 
-                                       stop_threshold = stop_threshold, 
-                                       signal_logic = signal_logic, 
-                                       model_type = model_type), 
+                                       params = params), 
            return_buyhold_y = test[[coin_y]] / test[[coin_y]][1], 
-           return_buyhold_x = test[[coin_x]] / test[[coin_x]][1])
+           return_buyhold_x = test[[coin_x]] / test[[coin_x]][1]) 
+  
+  # This plot plots the spread z-score and signal 
   print(ggplot(df_plot, aes(x = date_time)) + 
           geom_line(aes(y = spread_z, colour = "Spread Z"), size = 1) + 
           geom_line(aes(y = signal, colour = "Signal"), size = 0.5) + 
@@ -509,6 +547,8 @@ plot_single <- function(train, test, coin_y, coin_x, rolling_window, stop_thresh
           scale_color_manual(name = "Series", values = c("Spread Z" = "blue", "Signal" = "green")) + 
           labs(title = "Spread vs Trading Signal", subtitle = str_c(coin_y, " and ", coin_x), 
                x = "Date", y = "Spread and Signal")) 
+  
+  # This plot plots the return of the strategy versus the buy-and-hold return of each coin 
   print(ggplot(df_plot, aes(x = date_time)) + 
           geom_line(aes(y = return_pair, colour = "Model"), size = 1) + 
           geom_line(aes(y = return_buyhold_y, colour = "Coin Y"), size = 0.5, alpha = 0.4) + 
@@ -527,57 +567,51 @@ plot_single <- function(train, test, coin_y, coin_x, rolling_window, stop_thresh
 #' 
 #' Arguments   
 #' pricing_data: A dataframe containing pricing data from Poloneix gathered in tidy format.  
-#' time_resolution: The number of seconds that each observation spans. Takes values 300, 900, 1800, 7200, 14400, and 86400.  
 #' cutoff_date: A data representing the cutoff date between the train and test sets.  
-#' train_window: A period object from lubridate representing the length of time the train set covers.  
-#' test_window: A period object from lubridate representing the length of time the the test set covers. 
-#' quote_currency: A string indicating the quote currency of the currency pairs. Can take values USDT or BTC.  
-#' adf_threshold: The threshold for the ADF test statistic. Pairs below this threshold are selected.   
-#' rolling_window: The number of observations used in each iteration of a rolling linear regression.  
-#' stop_threshold: A threshold for the spread z-score beyond which the strategy stops trading the coin pair.  
-#' signal_logic: A string indicating which logic to use to generate signals.  
-#' model_type: A string indicating whether raw prices or log prices should be used. Takes value "raw" or "log".  
+#' params: A list of parameters passed to the functions below that describe the mean reversion pairs trading strategy.  
+#'   time_resolution: The number of seconds that each observation spans. Takes values 300, 900, 1800, 7200, 14400, and 86400.  
 #' number_pairs: The number of pairs to generate plots for.  
 #' 
 #' Value  
 #' Prints the plots described above.  
-plot_many <- function(pricing_data, time_resolution, cutoff_date, train_window, test_window, 
-                      quote_currency, adf_threshold, rolling_window, stop_threshold, signal_logic, 
-                      model_type, number_pairs) { 
+plot_many <- function(pricing_data, cutoff_date, params, number_pairs) { 
+  
+  # Create train and test sets based on the cutoff date 
   train <- prepare_data(pricing_data = pricing_data, 
-                        time_resolution = time_resolution, 
-                        start_date = as.Date(cutoff_date) - train_window, 
-                        end_date = as.Date(cutoff_date)) 
+                        start_date = as.Date(cutoff_date) - params[["train_window"]], 
+                        end_date = as.Date(cutoff_date), 
+                        params = params) 
   test <- prepare_data(pricing_data = pricing_data, 
-                       time_resolution = time_resolution, 
                        start_date = as.Date(cutoff_date), 
-                       end_date = as.Date(cutoff_date) + test_window) 
-  coin_pairs <- create_pairs(quote_currency = quote_currency)
+                       end_date = as.Date(cutoff_date) + params[["test_window"]], 
+                       params = params) 
+  
+  # Select coin pairs 
+  coin_pairs <- create_pairs(params = params)
   selected_pairs <- select_pairs(train = train, 
                                  coin_pairs = coin_pairs, 
-                                 adf_threshold = adf_threshold, 
-                                 model_type = model_type) 
+                                 params = params) 
+  
+  # Create no plots if no coin pairs are selected 
   if (nrow(selected_pairs) == 0) 
     return("No coin pairs selected.")
+  
+  # For each coin pair, generate plots by calling plot_single()
   print(selected_pairs) 
   for (i in 1:min(number_pairs, nrow(selected_pairs))) { 
     plot_single(train = train, 
                 test = test, 
                 coin_y = selected_pairs[["coin_y"]][i], 
                 coin_x = selected_pairs[["coin_x"]][i], 
-                rolling_window = rolling_window, 
-                stop_threshold = stop_threshold, 
-                signal_logic = signal_logic, 
-                model_type = model_type)
+                params = params)
   } 
+  
+  # Calculate overall return of strategy over this single test set and plot the cumulative return 
   test <- test %>% 
     mutate(return_strategy = backtest_strategy(train = train, 
                                                test = ., 
                                                selected_pairs = selected_pairs, 
-                                               rolling_window = rolling_window, 
-                                               stop_threshold = stop_threshold, 
-                                               signal_logic = signal_logic, 
-                                               model_type = model_type)) 
+                                               params = params)) 
   print(ggplot(test, aes(x = date_time)) + 
           geom_line(aes(y = return_strategy, colour = "Strategy"), size = 1) + 
           geom_line(aes(y = USDT_BTC / USDT_BTC[1], colour = "USDT_BTC"), size = 0.5, alpha = 0.4) + 
