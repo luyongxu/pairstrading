@@ -21,15 +21,30 @@ source("./Mean Reversion/RMR.001 Load Packages.R")
 #' A list of parameters passed to the functions below that describe the mean reversion pairs trading strategy.  
 #' 
 #' Arguments  
-#' time_resolution: The number of seconds that each observation spans. Takes values 300, 900, 1800, 7200, 14400, and 86400.  
+#' time_resolution: The number of seconds that each observation spans. Takes values 300, 900, 1800, 7200, 14400, 
+#'   and 86400.   
+#' quote_currency: A string indicating the quote currency of the currency pairs. Takes values "USDT" or "BTC".  
+#' cointegration_test: A string indicating whether the Engle-Granger method or distance method is used to test for 
+#'   cointegration. Takes values "eg" or "distance".  
+#' adf_threshold: The threshold for the ADF test statistic. Pairs below this threshold are selected when using 
+#'   the Engle-Granger method.  
+#' distance_threshold: The number of coin pairs to select when using the distance method.  
 #' train_window: A lubridate period object representing the length of time the train set covers.  
-#' test_window: A lubridate period object representing the length of time the the test set covers. 
+#' test_window: A lubridate period object representing the length of time the the test set covers.  
 #' model_type: A string indicating whether raw prices or log prices should be used. Takes value "raw" or "log".  
-#' quote_currency: A string indicating the quote currency of the currency pairs. Can take values "USDT" or "BTC".  
-#' adf_threshold: The threshold for the ADF test statistic. Pairs below this threshold are selected.   
+#' spread_type: A string indicating whether the regression uses a rolling or fixed window. Takes value "rolling" or 
+#'   "fixed".  
 #' rolling_window: The number of observations used in each window of a rolling linear regression.  
-#' stop_threshold: A threshold for the spread z-score beyond which the strategy stops trading the coin pair.  
-#' signal_logic: A string indicating which logic to use to generate signals. Can take values "scaled" or "discrete". 
+#' signal_logic: A string indicating which logic to use to generate signals. Takes values "scaled" or "discrete".  
+#' signal_scaled_enter: The z-score threshold indicating the z-score that the signal is fully scaled in when the 
+#'   signal logic is scaled.  
+#' signal_discrete_enter: The z-score threshold for entering a position when the signal logic is discrete.  
+#' signal_discrete_exit: The z-score threshold for exiting a position when the signal logic is discrete.  
+#' signal_stop: A threshold for the spread z-score beyond which the strategy stops trading the coin pair.  
+#' signal_reenter: A string indicating whether the strategy should reenter positions after exceeding the 
+#'   signal_stop threshold once the spread z-score returns to a reasonable range.    
+#' pair_allocation: A string indicating whether the capital allocation to the coin pairs should be equal or weighted. Takes values 
+#'   "equal" and "weighted".   
 
 #' # 3. Prepare Data Function 
 #' Description  
@@ -56,20 +71,25 @@ prepare_data <- function(pricing_data, start_date, end_date, params) {
 
 #' # 3. Test Cointegration Function  
 #' Description  
-#' The Engle-Granger method is used to test for cointegration. This method is comprised of two steps:  (1) Perform a linear 
-#' regression of log(coin_y) on log(coin_x). (2) Perform an Augmented Dickey-Fuller test on the residuals from the linear 
-#' regression estimated in (1). The ADF test specification is of a non-zero mean, no time-based trend, and one autoregressive 
-#' lag. 
+#' Cointegration is tested using either the distance method or the Engle-Granger two step method. The Engle-Granger consists 
+#' of two steps:  (1) Perform a linear regression of log(coin_y) on log(coin_x). (2) Perform an Augmented Dickey-Fuller test 
+#' on the residuals from the linear regression estimated in (1). The ADF test specification is of a non-zero mean, no 
+#' time-based trend, and one autoregressive lag. The distance method calculates the sum of squared differences between the 
+#' two coins's normalized prices.  
 #' 
 #' Arguments  
 #' coin_y: A vector containing the pricing data for the dependent coin in the regression.  
 #' coin_x: A vector containing the pricing data for the independent coin in the regression.  
 #' params: A list of parameters that describe the mean reversion pairs trading strategy.  
+#'   cointegration_test: A string indicating whether the Engle-Granger method or distance method is used to test for 
+#'     cointegration. Takes values "eg" or "distance". 
 #'   model_type: A string indicating whether raw prices or log prices should be used. Takes value "raw" or "log".  
 #' 
 #' Value  
-#' Returns the ADF test statistic for the given coin pair.  
+#' Returns the cointegration test statistic for the given coin pair.  
 test_cointegration <- function(coin_y, coin_x, params) { 
+  
+  # Test for cointegration using the Engle-Granger two step method
   if (params[["cointegration_test"]] == "eg") { 
     if (params[["model_type"]] == "raw") 
       lm_model <- lm.fit(y = coin_y, x = cbind(1, coin_x))   
@@ -77,8 +97,16 @@ test_cointegration <- function(coin_y, coin_x, params) {
       lm_model <- lm.fit(y = log(coin_y), x = cbind(1, log(coin_x))) 
     lm_residuals <- lm_model[["residuals"]] 
     adf_test <- ur.df(lm_residuals, type = "drift", lags = 1) 
-    df_stat = adf_test@testreg[["coefficients"]][2, 3]
-    return(df_stat) 
+    adf_stat = adf_test@testreg[["coefficients"]][2, 3]
+    return(adf_stat) 
+  } 
+  
+  # Test for cointegration using the distance method 
+  if (params[["cointegration_test"]] == "distance") { 
+    coin_y <- coin_y / coin_y[1] 
+    coin_x <- coin_x / coin_x[1] 
+    ssd = sum((coin_y - coin_x)^2) 
+    return(ssd) 
   }
   
 } 
@@ -123,40 +151,56 @@ create_pairs <- function(params) {
 #' Returns a dataframe containing the coin pairs and the ADF test statistic resulting from testing cointegration 
 #' between each coin pair.  
 test_pairs <- function(train, coin_pairs, params) { 
-  adf_stat <- numeric(nrow(coin_pairs))  
-  for (n in 1:nrow(coin_pairs)) { 
-    coin_y <- coin_pairs[[n, "coin_y"]] 
-    coin_x <- coin_pairs[[n, "coin_x"]] 
-    cointegration_results <- test_cointegration(coin_y = train[[coin_y]], 
+  cointegration_stat <- numeric(nrow(coin_pairs))  
+  for (i in 1:nrow(coin_pairs)) { 
+    coin_y <- coin_pairs[[i, "coin_y"]] 
+    coin_x <- coin_pairs[[i, "coin_x"]] 
+    cointegration_stat[i] <- test_cointegration(coin_y = train[[coin_y]], 
                                                 coin_x = train[[coin_x]], 
                                                 params = params)
-    adf_stat[n] <- cointegration_results
   } 
   df <- coin_pairs %>% 
-    mutate(adf_stat = adf_stat) %>% 
-    arrange(adf_stat)
+    mutate(cointegration_stat = cointegration_stat) %>% 
+    arrange(cointegration_stat)
   return(df) 
 } 
 
 #' # 6. Select Coin Pairs Function 
 #' Description  
 #' Select cointegrated coin pairs to be used in a mean reversion strategy. Coin pairs are tested for cointegration 
-#' using test_pairs(). Coin pairs with an ADF test statistic below a certain threshold are selected.  
+#' using test_pairs(). Coin pairs below a certain threshold are selected.  
 #' 
 #' Arguments  
 #' train: A dataframe generated by prepare_data() that represents the training set for the coin pair.  
 #' coin_pairs: A dataframe generated by create_pairs().  
 #' params: A list of parameters that describe the mean reversion pairs trading strategy.  
-#'   adf_threshold: The threshold for the ADF test statistic. Pairs below this threshold are selected.   
+#'   adf_threshold: The threshold for the ADF test statistic. Pairs below this threshold are selected when using 
+#'     the Engle-Granger method. 
+#'   distance_threshold: The number of coin pairs to select when using the distance method. 
 #' 
 #' Value  
 #' Returns a dataframe containing the coin pairs that were selected.  
 select_pairs <- function(train, coin_pairs, params) { 
+  
+  # Test for cointegration for all coin pairs
   df <- test_pairs(train = train, 
                    coin_pairs = coin_pairs, 
-                   params = params) %>% 
-    filter(adf_stat <= params[["adf_threshold"]])
-  return(df) 
+                   params = params)
+  
+  # If cointegration test uesd the Engle-Granger method, filter by adf threshold 
+  if (params[["cointegration_test"]] == "eg") { 
+    df <- df %>% 
+      filter(cointegration_stat <= params[["adf_threshold"]]) 
+    return(df) 
+  }
+
+  # If cointegration used the distance method, filter by number of coins to select 
+  if (params[["cointegration_test"]] == "distance") { 
+    df <- df %>% 
+      filter(row_number() <= params[["distance_threshold"]]) 
+    return(df)
+  }
+  
 } 
 
 #' # 7. Train Model Function 
@@ -172,70 +216,105 @@ select_pairs <- function(train, coin_pairs, params) {
 #' params: A list of parameters passed to the functions below that describe the mean reversion pairs trading strategy.  
 #'   rolling_window: The number of observations used in each iteration of a rolling linear regression.  
 #'   model_type: A string indicating whether raw prices or log prices should be used. Takes value "raw" or "log". 
+#'   spread_type: A string indicating whether the regression uses a rolling or fixed window. Takes value "rolling" or "fixed".  
 #' 
 #' Value  
 #' Returns a list containing the intercept, hedge ratio, spread, and spread z-score calculated from a rolling 
 #' regression over the test set. 
 train_model <- function(train, test, coin_y, coin_x, params) { 
   
-  # Set y and x depending on model type
-  if (params[["model_type"]] == "raw") { 
-    rolling_coef <- bind_rows(train, test) %>%  
-      mutate(y = .[[coin_y]], 
-             x = .[[coin_x]]) %>% 
-      select(y, x)
-  } 
-  if (params[["model_type"]] == "log") { 
-    rolling_coef <- bind_rows(train, test) %>%  
-      mutate(y = log(.[[coin_y]]), 
-             x = log(.[[coin_x]])) %>% 
-      select(y, x)
-  } 
+  # If calculation of spread uses a rolling regression 
+  if (params[["spread_type"]] == "rolling") { 
+    
+    # Set y and x depending on model type
+    if (params[["model_type"]] == "raw") { 
+      rolling_coef <- bind_rows(train, test) %>%  
+        mutate(y = .[[coin_y]], 
+               x = .[[coin_x]]) %>% 
+        select(y, x)
+    } 
+    if (params[["model_type"]] == "log") { 
+      rolling_coef <- bind_rows(train, test) %>%  
+        mutate(y = log(.[[coin_y]]), 
+               x = log(.[[coin_x]])) %>% 
+        select(y, x)
+    } 
+    
+    # Perform rolling linear regression over the test set  
+    rolling_coef <- rolling_coef %>% 
+      rollapply(data = ., 
+                width = params[["rolling_window"]], 
+                FUN = function(df) { 
+                  df <- as_tibble(df)
+                  model <- lm.fit(y = df[["y"]], x = cbind(1, df[["x"]]))
+                  return(model[["coefficients"]])
+                }, 
+                by.column = FALSE, 
+                fill = NA, 
+                align = "right") %>% 
+      as_tibble() %>% 
+      rename(intercept = x1, 
+             hedge_ratio = x2) %>% 
+      filter(row_number() > nrow(train)) 
+    
+    # Calculate spread in training and test set  
+    if (params[["model_type"]] == "raw") { 
+      train <- train %>% 
+        mutate(spread = lm.fit(y = train[[coin_y]], x = cbind(1, train[[coin_x]]))[["residuals"]])
+      test <- test %>% 
+        mutate(spread = test[[coin_y]] - test[[coin_x]] * rolling_coef[["hedge_ratio"]] - rolling_coef[["intercept"]]) 
+    } 
+    if (params[["model_type"]] == "log") { 
+      train <- train %>% 
+        mutate(spread = lm.fit(y = log(train[[coin_y]]), x = cbind(1, log(train[[coin_x]])))[["residuals"]]) 
+      test <- test %>% 
+        mutate(spread = log(test[[coin_y]]) - log(test[[coin_x]]) * rolling_coef[["hedge_ratio"]] - rolling_coef[["intercept"]]) 
+    } 
+    
+    # Combine train and test to calculate rolling z-score for the test set  
+    result <- bind_rows(train %>% mutate(source = "train"), 
+                        test %>% mutate(source = "test")) %>% 
+      mutate(rolling_mean = roll_mean(spread, n = params[["rolling_window"]], fill = NA, align = "right"), 
+             rolling_sd = roll_sd(spread, n = params[["rolling_window"]], fill = NA, align = "right"), 
+             spread_z = (spread - rolling_mean) / rolling_sd) %>% 
+      filter(source == "test") 
+    
+    # Return list of statistics for the test set  
+    return(list(intercept = rolling_coef[["intercept"]], 
+                hedge_ratio = rolling_coef[["hedge_ratio"]], 
+                spread = result[["spread"]], 
+                spread_z = result[["spread_z"]]))
+  }
   
-  # Perform rolling linear regression for the test set  
-  rolling_coef <- rolling_coef %>% 
-    rollapply(data = ., 
-              width = params[["rolling_window"]], 
-              FUN = function(df) { 
-                df <- as_tibble(df)
-                model <- lm.fit(y = df[["y"]], x = cbind(1, df[["x"]]))
-                return(model[["coefficients"]])
-              }, 
-              by.column = FALSE, 
-              fill = NA, 
-              align = "right") %>% 
-    as_tibble() %>% 
-    rename(intercept = x1, 
-           hedge_ratio = x2) %>% 
-    filter(row_number() > nrow(train)) 
-  
-  # Calculate spread in training and test set  
-  if (params[["model_type"]] == "raw") { 
-    train <- train %>% 
-      mutate(spread = lm.fit(y = train[[coin_y]], x = cbind(1, train[[coin_x]]))[["residuals"]])
-    test <- test %>% 
-      mutate(spread = test[[coin_y]] - test[[coin_x]] * rolling_coef[["hedge_ratio"]] - rolling_coef[["intercept"]]) 
-  } 
-  if (params[["model_type"]] == "log") { 
-    train <- train %>% 
-      mutate(spread = lm.fit(y = log(train[[coin_y]]), x = cbind(1, log(train[[coin_x]])))[["residuals"]]) 
-    test <- test %>% 
-      mutate(spread = log(test[[coin_y]]) - log(test[[coin_x]]) * rolling_coef[["hedge_ratio"]] - rolling_coef[["intercept"]]) 
-  } 
-  
-  # Combine train and test to calculate rolling z-score for the test set  
-  result <- bind_rows(train %>% mutate(source = "train"), 
-                      test %>% mutate(source = "test")) %>% 
-    mutate(rolling_mean = roll_mean(spread, n = params[["rolling_window"]], fill = NA, align = "right"), 
-           rolling_sd = roll_sd(spread, n = params[["rolling_window"]], fill = NA, align = "right"), 
-           spread_z = (spread - rolling_mean) / rolling_sd) %>% 
-    filter(source == "test") 
-  
-  # Return list of statistics for the test set  
-  return(list(intercept = rolling_coef[["intercept"]], 
-              hedge_ratio = rolling_coef[["hedge_ratio"]], 
-              spread = result[["spread"]], 
-              spread_z = result[["spread_z"]]))
+  # If calculation of spread uses a model with fixed coefficients estimated over the training set 
+  if (params[["spread_type"]] == "fixed") { 
+    
+    # If regression uses raw prices 
+    if (params[["model_type"]] == "raw") { 
+      model <- lm.fit(y = train[[coin_y]], x = cbind(1, train[[coin_x]])) 
+      intercept <- coef(model)[1] 
+      hedge_ratio <- coef(model)[2] 
+      result <- test %>% 
+        mutate(spread = test[[coin_y]] - test[[coin_x]] * hedge_ratio - intercept, 
+               spread_z = (spread - mean(model[["residuals"]])) / sd(model[["residuals"]]))
+    }
+    
+    # If regression uses log prices 
+    if (params[["model_type"]] == "log") { 
+      model <- lm.fit(y = log(train[[coin_y]]), x = cbind(1, log(train[[coin_x]]))) 
+      intercept <- coef(model)[1] 
+      hedge_ratio <- coef(model)[2] 
+      result <- test %>% 
+        mutate(spread = log(test[[coin_y]]) - log(test[[coin_x]]) * hedge_ratio - intercept, 
+               spread_z = (spread - mean(model[["residuals"]])) / sd(model[["residuals"]]))
+    }
+    
+    # Return list of statistics for the test set  
+    return(list(intercept = intercept, 
+                hedge_ratio = hedge_ratio, 
+                spread = result[["spread"]], 
+                spread_z = result[["spread_z"]]))
+  }
 } 
 
 #' # 8. Generate Signals Function 
@@ -252,8 +331,14 @@ train_model <- function(train, test, coin_y, coin_x, params) {
 #' coin_x: A string indicating the independent coin in the coin pair regression.  
 #' model: A trained model generated by train_model(). 
 #' params: A list of parameters passed to the functions below that describe the mean reversion pairs trading strategy.  
-#'   stop_threshold: A threshold for the spread z-score beyond which the strategy stops trading the coin pair.  
-#'   signal_logic: A string indicating which logic to use to generate signals. 
+#'   signal_logic: A string indicating which logic to use to generate signals. Takes values "scaled" or "discrete".   
+#'   signal_scaled_enter: The z-score threshold indicating the z-score that the signal is fully scaled in when the 
+#'     signal logic is scaled.  
+#'   signal_discrete_enter: The z-score threshold for entering a position when the signal logic is discrete.   
+#'   signal_discrete_exit: The z-score threshold for exiting a position when the signal logic is discrete.  
+#'   signal_stop: A threshold for the spread z-score beyond which the strategy stops trading the coin pair. 
+#'   signal_reenter: A boolean indicating whether the strategy should reenter positions after exceeding the 
+#'     signal_stop threshold once the spread z-score returns to a reasonable range.    
 #' 
 #' Value  
 #' Returns a vector containing the trading signal over the test set.  
@@ -261,51 +346,77 @@ generate_signals <- function(train, test, coin_y, coin_x, model, params) {
   
   # Scaled signal logic in which signal can take continuous values depending on the spread z-score
   if (params[["signal_logic"]] == "scaled") { 
+    
+    # Create signal strength depending on signal_scaled_enter parameter. Creates a signal strength vector 
+    # that represents the signal at every increment in the spread z-score below.  
+    if (params[["signal_scaled_enter"]] == 2.0) ss <- c(0.25, 0.50, 0.75, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00)
+    if (params[["signal_scaled_enter"]] == 3.0) ss <- c(0.33, 0.33, 0.67, 0.67, 1.00, 1.00, 1.00, 1.00, 1.00)
+    if (params[["signal_scaled_enter"]] == 4.0) ss <- c(0.25, 0.25, 0.50, 0.50, 0.75, 1.00, 1.00, 1.00, 1.00)
+    
+    # calculate signal 
     df_signals <- test %>% 
       mutate(spread = model[["spread"]], 
              spread_z = model[["spread_z"]], 
              lag_spread_z = lag(spread_z, 1, default = 0), 
-             signal_long = if_else(lag_spread_z <=  0.0 & lag_spread_z > -1.0, 0.25, 0), 
-             signal_long = if_else(lag_spread_z <= -1.0 & lag_spread_z > -2.0, 0.50, signal_long), 
-             signal_long = if_else(lag_spread_z <= -2.0 & lag_spread_z > -3.0, 0.75, signal_long), 
-             signal_long = if_else(lag_spread_z <= -3.0 & lag_spread_z > -4.0, 1.00, signal_long), 
-             signal_long = if_else(lag_spread_z <= -4.0 & lag_spread_z > -5.0, 1.00, signal_long), 
-             signal_long = if_else(lag_spread_z <= -5.0 & lag_spread_z > -6.0, 1.00, signal_long), 
-             signal_long = if_else(lag_spread_z <= -6.0 & lag_spread_z > -7.0, 1.00, signal_long), 
-             signal_long = if_else(lag_spread_z <= -params[["stop_threshold"]], 0, signal_long), 
-             signal_short = if_else(lag_spread_z >= 0.0 & lag_spread_z < 1.0, -0.25, 0), 
-             signal_short = if_else(lag_spread_z >= 1.0 & lag_spread_z < 2.0, -0.50, signal_short), 
-             signal_short = if_else(lag_spread_z >= 2.0 & lag_spread_z < 3.0, -0.75, signal_short), 
-             signal_short = if_else(lag_spread_z >= 3.0 & lag_spread_z < 4.0, -1.00, signal_short), 
-             signal_short = if_else(lag_spread_z >= 4.0 & lag_spread_z < 5.0, -1.00, signal_short), 
-             signal_short = if_else(lag_spread_z >= 5.0 & lag_spread_z < 6.0, -1.00, signal_short), 
-             signal_short = if_else(lag_spread_z >= 6.0 & lag_spread_z < 7.0, -1.00, signal_short), 
-             signal_short = if_else(lag_spread_z >= params[["stop_threshold"]], 0, signal_short), 
-             signal = signal_long + signal_short, 
-             signal = if_else(is.na(signal), 0, signal), 
-             signal = if_else(cummin(lag_spread_z) <= -params[["stop_threshold"]], 0, signal), 
-             signal = if_else(cummax(lag_spread_z) >=  params[["stop_threshold"]], 0, signal))  
-    return(df_signals[["signal"]])
+             signal_long = if_else(lag_spread_z <=  0.0 & lag_spread_z > -0.5, ss[1], 0), 
+             signal_long = if_else(lag_spread_z <= -0.5 & lag_spread_z > -1.0, ss[2], signal_long), 
+             signal_long = if_else(lag_spread_z <= -1.0 & lag_spread_z > -1.5, ss[3], signal_long), 
+             signal_long = if_else(lag_spread_z <= -1.5 & lag_spread_z > -2.0, ss[4], signal_long), 
+             signal_long = if_else(lag_spread_z <= -2.0 & lag_spread_z > -3.0, ss[5], signal_long), 
+             signal_long = if_else(lag_spread_z <= -3.0 & lag_spread_z > -4.0, ss[6], signal_long), 
+             signal_long = if_else(lag_spread_z <= -4.0 & lag_spread_z > -5.0, ss[7], signal_long), 
+             signal_long = if_else(lag_spread_z <= -5.0 & lag_spread_z > -6.0, ss[8], signal_long), 
+             signal_long = if_else(lag_spread_z <= -6.0 & lag_spread_z > -7.0, ss[9], signal_long), 
+             signal_long = if_else(lag_spread_z <= -params[["signal_stop"]], 0, signal_long), 
+             signal_short = if_else(lag_spread_z >= 0.0 & lag_spread_z < 0.5, -ss[1], 0), 
+             signal_short = if_else(lag_spread_z >= 0.5 & lag_spread_z < 1.0, -ss[2], signal_short), 
+             signal_short = if_else(lag_spread_z >= 1.0 & lag_spread_z < 1.5, -ss[3], signal_short), 
+             signal_short = if_else(lag_spread_z >= 1.5 & lag_spread_z < 2.0, -ss[4], signal_short), 
+             signal_short = if_else(lag_spread_z >= 2.0 & lag_spread_z < 3.0, -ss[5], signal_short), 
+             signal_short = if_else(lag_spread_z >= 3.0 & lag_spread_z < 4.0, -ss[6], signal_short), 
+             signal_short = if_else(lag_spread_z >= 4.0 & lag_spread_z < 5.0, -ss[7], signal_short), 
+             signal_short = if_else(lag_spread_z >= 5.0 & lag_spread_z < 6.0, -ss[8], signal_short), 
+             signal_short = if_else(lag_spread_z >= 6.0 & lag_spread_z < 7.0, -ss[9], signal_short), 
+             signal_short = if_else(lag_spread_z >= params[["signal_stop"]], 0, signal_short), 
+             signal = signal_long + signal_short)
   } 
   
   # Discrete signal logic in which signal can only take discrete values depending on the spread z-score 
   if (params[["signal_logic"]] == "discrete") { 
+    
     df_signals <- test %>% 
       mutate(spread = model[["spread"]], 
              spread_z = model[["spread_z"]], 
              lag_spread_z = lag(spread_z, 1, default = 0), 
-             signal_long = if_else(lag_spread_z <= -2.0, 1, 0), 
-             signal_long = if_else(lag_spread_z >= 0.0 , 0, signal_long), 
-             signal_long = if_else(lag_spread_z <= -params[["stop_threshold"]], 0, signal_long), 
-             signal_short = if_else(lag_spread_z >= 2.0, -1, 0), 
-             signal_short = if_else(lag_spread_z <= 0.0, 0, signal_short), 
-             signal_short = if_else(lag_spread_z >= params[["stop_threshold"]], 0, signal_short), 
-             signal = signal_long + signal_short, 
+             signal_long = if_else(lag_spread_z <= -params[["signal_discrete_enter"]], 1, NA_real_), 
+             signal_long = if_else(lag_spread_z >= -params[["signal_discrete_exit"]] , 0, signal_long), 
+             signal_long = if_else(lag_spread_z <= -params[["signal_stop"]], 0, signal_long), 
+             signal_long = na.locf(signal_long, na.rm = FALSE), 
+             signal_short = if_else(lag_spread_z >= params[["signal_discrete_enter"]], -1, NA_real_), 
+             signal_short = if_else(lag_spread_z <= params[["signal_discrete_exit"]], 0, signal_short), 
+             signal_short = if_else(lag_spread_z >= params[["signal_stop"]], 0, signal_short), 
+             signal_short = na.locf(signal_short, na.rm = FALSE), 
+             signal = signal_long + signal_short) 
+  } 
+  
+  # Set signal stopping logic 
+  if (params[["signal_reenter"]] == FALSE) { 
+    df_signals <- df_signals %>% 
+      mutate(signal = if_else(is.na(signal), 0, signal), 
+             signal = if_else(cummin(lag_spread_z) <= -params[["signal_stop"]], 0, signal), 
+             signal = if_else(cummax(lag_spread_z) >=  params[["signal_stop"]], 0, signal))
+  } 
+  if (params[["signal_reenter"]] == TRUE) { 
+    df_signals <- df_signals %>% 
+      mutate(reenter = if_else(cummax(abs(lag_spread_z)) >= params[["signal_stop"]] & abs(lag_spread_z) <= 1, 1, NA_real_), 
+             reenter = na.locf(reenter, na.rm = FALSE), 
              signal = if_else(is.na(signal), 0, signal), 
-             signal = if_else(cummin(lag_spread_z) <= -params[["stop_threshold"]], 0, signal), 
-             signal = if_else(cummax(lag_spread_z) >=  params[["stop_threshold"]], 0, signal))  
-    return(df_signals[["signal"]])
-  }
+             signal = if_else(cummin(lag_spread_z) <= -params[["signal_stop"]] & is.na(reenter), 0, signal), 
+             signal = if_else(cummax(lag_spread_z) >=  params[["signal_stop"]] & is.na(reenter), 0, signal))   
+  } 
+  
+  # Return signal over test set 
+  return(df_signals[["signal"]])
 } 
 
 #' # 9. Backtest Pair Function 
@@ -396,8 +507,11 @@ backtest_pair <- function(train, test, coin_y, coin_x, params) {
 #' train: A dataframe generated by prepare_data() that represents the training set for the coin pairs.  
 #' test: A dataframe generated by prepare_data() that represents the test set for the coin pairs.  
 #' selected_pairs: A dataframe generated by select_coins() that represents a set of cointegrated coin pairs.   
-#' params: A list of parameters passed to the functions below that describe the mean reversion pairs trading strategy.  
-#' 
+#' params: A list of parameters passed to the functions below that describe the mean reversion pairs trading strategy. 
+#'   pair_allocation: A string indicating whether the capital allocation to the coin pairs should be equal or weighted. Takes values 
+#'     "equal" and "weighted".   
+#'   cointegration_test: A string indicating whether the Engle-Granger method or distance method is used to test for 
+#'     cointegration. Takes values "eg" or "distance". 
 #' Value  
 #' A vector containing the cumulative return of the overall trading strategy for a given train and test split.  
 backtest_strategy <- function(train, test, selected_pairs, params) { 
@@ -416,14 +530,42 @@ backtest_strategy <- function(train, test, selected_pairs, params) {
                                                       params = params), 
                           coin_y = selected_pairs[["coin_y"]][i], 
                           coin_x = selected_pairs[["coin_x"]][i], 
-                          date_time = test[["date_time"]]) 
+                          date_time = test[["date_time"]], 
+                          cointegration_stat = selected_pairs[["cointegration_stat"]][i]) 
     df <- bind_rows(df, single_pair)
   } 
   
-  # Calculate return of the strategy applied to a portfolio of coin pairs assuming equal allocation to each 
-  df <- df %>% 
-    group_by(date_time) %>% 
-    summarise(return_strategy = mean(return_pair)) 
+  # Calculate return of the strategy applied to a portfolio of coin pairs assuming equal capital allocation 
+  # to each coin pair 
+  if (params[["pair_allocation"]] == "equal") { 
+    df <- df %>% 
+      group_by(date_time) %>% 
+      summarise(return_strategy = mean(return_pair)) 
+  } 
+  
+  # Calculate return of the strategy applied to a portfolio of coin pairs assuming weighted capital allocation 
+  # to each coin pair depending on how cointegrated they are 
+  if (params[["pair_allocation"]] == "weighted") { 
+    
+    # Calculate weights if cointegration test used Engle-Grange method 
+    if (params[["cointegration_test"]] == "eg") { 
+      df <- df %>% 
+        mutate(cointegration_stat = abs(cointegration_stat))
+    }
+    
+    # Calculate weights if cointegration test used distance method 
+    if (params[["cointegration_test"]] == "distance") { 
+      df <- df %>% 
+        mutate(cointegration_stat = 1 / cointegration_stat)
+    }
+    
+    # Calculate weighted average of the strategy return 
+    df <- df %>% 
+      group_by(date_time) %>% 
+      summarise(return_strategy = weighted.mean(x = return_pair, w = cointegration_stat)) 
+  }
+  
+  # Return the stratwgy return
   return(df[["return_strategy"]])
 } 
 
