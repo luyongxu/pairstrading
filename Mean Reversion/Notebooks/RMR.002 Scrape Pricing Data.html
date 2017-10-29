@@ -11,7 +11,7 @@
 
 <meta name="author" content="Kevin Lu" />
 
-<meta name="date" content="2017-10-09" />
+<meta name="date" content="2017-10-28" />
 
 <title>Scrape Pricing Data</title>
 
@@ -245,7 +245,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">Scrape Pricing Data</h1>
 <h4 class="author"><em>Kevin Lu</em></h4>
-<h4 class="date"><em>October 09, 2017</em></h4>
+<h4 class="date"><em>October 28, 2017</em></h4>
 
 </div>
 
@@ -273,7 +273,7 @@ div.tocify {
                        <span class="st">&quot;&amp;period=&quot;</span>, period)) <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">mutate</span>(<span class="dt">period =</span> period, 
            <span class="dt">currency_pair =</span> currency_pair, 
-           <span class="dt">date_time =</span> <span class="kw">as.POSIXct</span>(date, <span class="dt">origin=</span><span class="st">&quot;1970-01-01&quot;</span>)) <span class="op">%&gt;%</span><span class="st"> </span>
+           <span class="dt">date_time =</span> <span class="kw">as.POSIXct</span>(date, <span class="dt">origin =</span> <span class="st">&quot;1970-01-01&quot;</span>)) <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">select</span>(date, date_time, high, low, open, close, volume, 
            quoteVolume, weightedAverage, currency_pair, period) <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">as_tibble</span>()
@@ -400,45 +400,45 @@ periods &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st"
 <div id="summary" class="section level1">
 <h1>7. Summary</h1>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">print</span>(pricing_data)</code></pre></div>
-<pre><code>## # A tibble: 5,283,507 x 11
-##     date_unix           date_time  high   low  open close   volume
-##         &lt;int&gt;              &lt;dttm&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;    &lt;dbl&gt;
-##  1 1424373000 2015-02-19 14:10:00   225   225   225   225 0.999999
-##  2 1424373300 2015-02-19 14:15:00   225   225   225   225 0.000000
-##  3 1424373600 2015-02-19 14:20:00   225   225   225   225 0.000000
-##  4 1424373900 2015-02-19 14:25:00   225   225   225   225 0.000000
-##  5 1424374200 2015-02-19 14:30:00   225   225   225   225 0.000000
-##  6 1424374500 2015-02-19 14:35:00   225   225   225   225 0.000000
-##  7 1424374800 2015-02-19 14:40:00   225   225   225   225 0.000000
-##  8 1424375100 2015-02-19 14:45:00   225   225   225   225 0.000000
-##  9 1424375400 2015-02-19 14:50:00   225   225   225   225 0.000000
-## 10 1424375700 2015-02-19 14:55:00   225   225   225   225 0.000000
-## # ... with 5,283,497 more rows, and 4 more variables: quote_volume &lt;dbl&gt;,
+<pre><code>## # A tibble: 5,409,073 x 11
+##     date_unix           date_time   high   low   open close   volume
+##         &lt;int&gt;              &lt;dttm&gt;  &lt;dbl&gt; &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt;    &lt;dbl&gt;
+##  1 1424373000 2015-02-19 14:10:00   0.33   225   0.33   225 0.999999
+##  2 1424373300 2015-02-19 14:15:00 225.00   225 225.00   225 0.000000
+##  3 1424373600 2015-02-19 14:20:00 225.00   225 225.00   225 0.000000
+##  4 1424373900 2015-02-19 14:25:00 225.00   225 225.00   225 0.000000
+##  5 1424374200 2015-02-19 14:30:00 225.00   225 225.00   225 0.000000
+##  6 1424374500 2015-02-19 14:35:00 225.00   225 225.00   225 0.000000
+##  7 1424374800 2015-02-19 14:40:00 225.00   225 225.00   225 0.000000
+##  8 1424375100 2015-02-19 14:45:00 225.00   225 225.00   225 0.000000
+##  9 1424375400 2015-02-19 14:50:00 225.00   225 225.00   225 0.000000
+## 10 1424375700 2015-02-19 14:55:00 225.00   225 225.00   225 0.000000
+## # ... with 5,409,063 more rows, and 4 more variables: quote_volume &lt;dbl&gt;,
 ## #   weighted_average &lt;dbl&gt;, currency_pair &lt;chr&gt;, period &lt;chr&gt;</code></pre>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">summary</span>(pricing_data)</code></pre></div>
 <pre><code>##    date_unix            date_time                        high         
 ##  Min.   :1390003200   Min.   :2014-01-17 19:00:00   Min.   :   0.000  
-##  1st Qu.:1443961500   1st Qu.:2015-10-04 08:25:00   1st Qu.:   0.008  
-##  Median :1469266200   Median :2016-07-23 05:30:00   Median :   0.056  
-##  Mean   :1465179756   Mean   :2016-06-05 22:22:35   Mean   :  93.545  
-##  3rd Qu.:1489448700   3rd Qu.:2017-03-13 19:45:00   3rd Qu.:   9.400  
-##  Max.   :1507523100   Max.   :2017-10-09 00:25:00   Max.   :9000.000  
+##  1st Qu.:1444563000   1st Qu.:2015-10-11 07:30:00   1st Qu.:   0.008  
+##  Median :1470468900   Median :2016-08-06 03:35:00   Median :   0.057  
+##  Mean   :1466182658   Mean   :2016-06-17 12:57:38   Mean   : 102.264  
+##  3rd Qu.:1490737200   3rd Qu.:2017-03-28 17:40:00   3rd Qu.:  10.000  
+##  Max.   :1509241500   Max.   :2017-10-28 21:45:00   Max.   :9000.000  
 ##       low                open              close         
 ##  Min.   :   0.000   Min.   :   0.000   Min.   :   0.000  
 ##  1st Qu.:   0.008   1st Qu.:   0.008   1st Qu.:   0.008  
-##  Median :   0.055   Median :   0.055   Median :   0.055  
-##  Mean   :  92.933   Mean   :  93.242   Mean   :  93.250  
-##  3rd Qu.:   9.350   3rd Qu.:   9.375   3rd Qu.:   9.375  
+##  Median :   0.056   Median :   0.056   Median :   0.056  
+##  Mean   : 101.604   Mean   : 101.938   Mean   : 101.945  
+##  3rd Qu.:   9.950   3rd Qu.:   9.990   3rd Qu.:   9.990  
 ##  Max.   :6414.729   Max.   :9000.000   Max.   :6414.729  
 ##      volume           quote_volume       weighted_average  
 ##  Min.   :        0   Min.   :        0   Min.   :   0.000  
 ##  1st Qu.:        0   1st Qu.:        0   1st Qu.:   0.008  
-##  Median :        0   Median :        7   Median :   0.055  
-##  Mean   :    13812   Mean   :    33571   Mean   :  93.243  
-##  3rd Qu.:       30   3rd Qu.:      238   3rd Qu.:   9.374  
+##  Median :        1   Median :        7   Median :   0.056  
+##  Mean   :    14453   Mean   :    32998   Mean   : 101.937  
+##  3rd Qu.:       33   3rd Qu.:      239   3rd Qu.:   9.990  
 ##  Max.   :139231790   Max.   :495536294   Max.   :6844.175  
 ##  currency_pair         period         
-##  Length:5283507     Length:5283507    
+##  Length:5409073     Length:5409073    
 ##  Class :character   Class :character  
 ##  Mode  :character   Mode  :character  
 ##                                       
