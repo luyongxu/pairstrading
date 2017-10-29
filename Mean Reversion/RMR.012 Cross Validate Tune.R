@@ -55,61 +55,40 @@ pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv", col_types
 #'   
 
 #' # 4. Tune Parameters 
-set.seed(1) 
+set.seed(3) 
 results <- tibble()
 return <- list()
 for (i in 1:10000) { 
-  print(str_c("Testing iteration ", i, "."))
+  print(str_c("Testing iteration ", i, ".")) 
   time_resolution <- sample(c(300, 900, 1800, 7200, 14400, 86400), 1) 
-  quote_currency <- sample(c("USDT", "BTC"), 1)  
-  cointegration_test <- sample(c("eg", "distance"), 1) 
-  adf_threshold <- sample(seq(-1, -4, -0.05), 1) 
-  distance_threshold <- sample(seq(4, 30, 2), 1) 
-  train_window <- days(sample(5:60, 1)) 
-  test_window <- days(sample(5:60, 1)) 
-  model_type <- sample(c("log", "raw"), 1) 
-  spread_type <- sample(c("rolling", "fixed"), 1) 
-  rolling_window <- 86400 / time_resolution * min(as.numeric(days(sample(2:60, 1))) / 86400, as.numeric(train_window) / 86400) 
-  signal_logic <- sample(c("scaled", "discrete"), 1) 
-  signal_scaled_enter <- sample(c(2, 3, 4), 1) 
-  signal_discrete_enter <- sample(seq(1, 3, 0.05), 1) 
-  signal_discrete_exit <- sample(seq(0, 1, 0.05), 1) 
-  signal_stop <- sample(seq(3, 7, 0.05), 1) 
-  signal_reenter <- sample(c(TRUE, FALSE), 1) 
-  signal_reenter_threshold <- sample(seq(0, 2, 0.05), 1) 
-  pair_allocation <- sample(c("equal", "weighted", "scaled"), 1) 
-  pair_allocation_scaling <- sample(seq(1, 2, 0.05), 1) 
+  train_window <- days(sample(3:60, 1)) 
+  params <- list(time_resolution = time_resolution, 
+                 quote_currency = sample(c("USDT", "BTC"), 1), 
+                 cointegration_test = sample(c("eg", "distance"), 1), 
+                 adf_threshold = sample(seq(-1, -4, -0.05), 1), 
+                 distance_threshold = sample(seq(4, 30, 2), 1), 
+                 train_window = train_window, 
+                 test_window = days(sample(3:60, 1)), 
+                 model_type = sample(c("log", "raw"), 1), 
+                 spread_type = sample(c("rolling", "fixed"), 1), 
+                 rolling_window = 86400 / time_resolution * 
+                   min(as.numeric(days(sample(2:60, 1))) / 86400, as.numeric(train_window) / 86400), 
+                 signal_logic = sample(c("scaled", "discrete"), 1), 
+                 signal_scaled_enter = sample(c(2, 3, 4), 1), 
+                 signal_discrete_enter = sample(seq(1, 3, 0.05), 1), 
+                 signal_discrete_exit = sample(seq(0, 1, 0.05), 1), 
+                 signal_stop = sample(seq(3, 7, 0.05), 1), 
+                 signal_reenter = sample(c(TRUE, FALSE), 1), 
+                 signal_reenter_threshold = sample(seq(0, 2, 0.05), 1), 
+                 pair_allocation = sample(c("equal", "weighted", "scaled"), 1), 
+                 pair_allocation_scaling = sample(seq(1, 2, 0.05), 1))
   return[[i]] <- backtest_strategy_full(pricing_data = pricing_data, 
-                                        time_resolution = time_resolution, 
-                                        quote_currency = quote_currency, 
-                                        cointegration_test = cointegration_test, 
-                                        adf_threshold = adf_threshold, 
-                                        distance_threshold = distance_threshold, 
-                                        train_window = train_window, 
-                                        test_window = test_window, 
-                                        model_type = model_type, 
-                                        spread_type = spread_type, 
-                                        rolling_window = rolling_window, 
-                                        signal_logic = signal_logic, 
-                                        signal_scaled_enter = signal_scaled_enter, 
-                                        signal_discrete_enter = signal_discrete_enter, 
-                                        signal_discrete_exit = signal_discrete_exit, 
-                                        signal_stop = signal_stop, 
-                                        signal_reenter = signal_reenter, 
-                                        signal_reenter_threshold = signal_reenter_threshold, 
-                                        pair_allocation = pair_allocation, 
-                                        pair_allocation_scaling = pair_allocation_scaling)
-  results <- bind_rows(results, 
-                       tibble(time_resolution = time_resolution, 
-                              train_window = as.character(train_window), 
-                              test_window = as.character(test_window), 
-                              quote_currency = quote_currency, 
-                              adf_threshold = adf_threshold, 
-                              rolling_window = rolling_window, 
-                              stop_threshold = stop_threshold, 
-                              signal_logic = signal_logic, 
-                              model_type = model_type, 
-                              overall_return = return[[i]][["return_strategy_cumulative"]][nrow(return[[i]])]))
+                                        params = params) 
+  results_temp <- bind_cols(params %>% as_tibble(), 
+                            overall_return = return[[i]][["return_strategy_cumulative"]][nrow(return[[i]])]) %>% 
+    mutate(train_window = as.character(train_window), 
+           test_window = as.character(test_window))
+  results <- bind_rows(results, results_temp)
 } 
 
 #' # 5. Examine Results
