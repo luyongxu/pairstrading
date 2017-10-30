@@ -48,6 +48,7 @@ render_wrapper("RMR.009 Test Optimal Cointegration", "html_document")
 render_wrapper("RMR.010 Cross Validate Functions", "html_document") 
 render_wrapper("RMR.011 Cross Validate Plots", "html_document") 
 render_wrapper("RMR.012 Cross Validate Tune", "html_document")
+render_wrapper("RMR.013 Examine Tuning Parameters", "html_document")
 
 #' # 3. Beep 
 beepr::beep(1)

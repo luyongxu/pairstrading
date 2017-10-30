@@ -28,7 +28,8 @@ source("./Mean Reversion/RMR.001 Load Packages.R")
 #'   cointegration. Takes values "eg" or "distance".  
 #' adf_threshold: The threshold for the ADF test statistic. Pairs below this threshold are selected when using 
 #'   the Engle-Granger method.  
-#' distance_threshold: The number of coin pairs to select when using the distance method.  
+#' distance_threshold: The threshold for the rmse of the coins normalized prices. Pairs below this threshold are 
+#'   selected when using the distance method.  
 #' train_window: A lubridate period object representing the length of time the train set covers.  
 #' test_window: A lubridate period object representing the length of time the the test set covers.  
 #' model_type: A string indicating whether raw prices or log prices should be used. Takes value "raw" or "log".  
@@ -109,7 +110,7 @@ test_cointegration <- function(coin_y, coin_x, params) {
   if (params[["cointegration_test"]] == "distance") { 
     coin_y <- coin_y / coin_y[1] 
     coin_x <- coin_x / coin_x[1] 
-    rmse = mean(sum((coin_y - coin_x)^2)^0.5) 
+    rmse = mean((coin_y - coin_x)^2)^0.5 
     return(rmse) 
   }
   
@@ -180,7 +181,8 @@ test_pairs <- function(train, coin_pairs, params) {
 #' params: A list of parameters that describe the mean reversion pairs trading strategy.  
 #'   adf_threshold: The threshold for the ADF test statistic. Pairs below this threshold are selected when using 
 #'     the Engle-Granger method. 
-#'   distance_threshold: The number of coin pairs to select when using the distance method. 
+#'   distance_threshold: The threshold for the rmse of the coins normalized prices. Pairs below this threshold are 
+#'     selected when using the distance method. 
 #' 
 #' Value  
 #' Returns a dataframe containing the coin pairs that were selected.  
@@ -191,19 +193,20 @@ select_pairs <- function(train, coin_pairs, params) {
                    coin_pairs = coin_pairs, 
                    params = params)
   
-  # If cointegration test uesd the Engle-Granger method, filter by adf threshold 
+  # If cointegration test uses the Engle-Granger method, filter by adf threshold 
   if (params[["cointegration_test"]] == "eg") { 
     df <- df %>% 
       filter(cointegration_stat <= params[["adf_threshold"]]) 
-    return(df) 
   }
 
-  # If cointegration used the distance method, filter by number of coins to select 
+  # If cointegration uses the distance method, filter by rmse distance threshold  
   if (params[["cointegration_test"]] == "distance") { 
     df <- df %>% 
-      filter(row_number() <= params[["distance_threshold"]]) 
-    return(df)
+      filter(cointegration_stat <= params[["distance_threshold"]]) 
   }
+  
+  # Return selected coin pairs 
+  return(df)
 } 
 
 #' # 8. Train Model Function 
@@ -403,13 +406,16 @@ generate_signals <- function(train, test, coin_y, coin_x, model, params) {
              signal = signal_long + signal_short) 
   } 
   
-  # Set signal stopping logic 
+  # Set signal stopping logic. If signal_reenter is FALSE, the strategy permanently exits the pair if 
+  # the stop loss threshold is reached. 
   if (params[["signal_reenter"]] == FALSE) { 
     df_signals <- df_signals %>% 
       mutate(signal = if_else(is.na(signal), 0, signal), 
              signal = if_else(cummin(lag_spread_z) <= -params[["signal_stop"]], 0, signal), 
              signal = if_else(cummax(lag_spread_z) >=  params[["signal_stop"]], 0, signal))
   } 
+  
+  # If signal_reenter is TRUE, the strategy reenters the pair if the spread z-score returns to a reasonable level. 
   if (params[["signal_reenter"]] == TRUE) { 
     df_signals <- df_signals %>% 
       mutate(reenter = if_else(cummax(abs(lag_spread_z)) >= params[["signal_stop"]] & 
@@ -455,7 +461,8 @@ backtest_pair <- function(train, test, coin_y, coin_x, params) {
                        coin_x = coin_x, 
                        params = params)
   
-  # Return calculations if model type uses raw prices to test for cointegration 
+  # Return calculations if model type uses raw prices to test for cointegration. The position and combined 
+  # return calculations differ compared to using log prices. 
   if (params[["model_type"]] == "raw") { 
     df_backtest <- test %>% 
       mutate(signal = generate_signals(train = train, 
@@ -477,7 +484,8 @@ backtest_pair <- function(train, test, coin_y, coin_x, params) {
       mutate(return_pair = cumprod(1 + combined_return)) 
   } 
   
-  # Return calculations if model uses log prices to test for cointegration 
+  # Return calculations if model uses log prices to test for cointegration. The combined return calculation 
+  # is calculated relative to the maximum capital allocation to the coin pair.  
   if (params[["model_type"]] == "log") { 
     df_backtest <- test %>% 
       mutate(signal = generate_signals(train = train, 
@@ -592,8 +600,7 @@ backtest_strategy <- function(train, test, selected_pairs, params) {
     # Calculate weights if cointegration test used distance method 
     if (params[["cointegration_test"]] == "distance") { 
       df <- df %>% 
-        mutate(cointegration_stat_scaled = (cointegration_stat - mean(cointegration_stat)) * 
-                 params[["pair_allocation_scaling"]] + mean(cointegration_stat), 
+        mutate(cointegration_stat_scaled = cointegration_stat ^ params[["pair_allocation_scaling"]], 
                weight = 1 / cointegration_stat_scaled) %>% 
         group_by(date_time) %>% 
         summarise(return_strategy = weighted.mean(x = return_pair, w = weight))
