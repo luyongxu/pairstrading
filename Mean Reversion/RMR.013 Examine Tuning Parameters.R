@@ -20,8 +20,9 @@ source("./Mean Reversion/RMR.001 Load Packages.R")
 params <- read_csv("./Mean Reversion/Output/parameter tuning 20171030.csv")
 
 #' # 3. Remove Bug and Outliers
-#' This set of parameters had a bug that affected runs where the pair allocation was set to scaled. 
-params <- params %>% 
+#' This set of parameters had a bug that affected runs where the pair allocation was set to scaled. These 
+#' observations are removed. 
+single <- params %>% 
   filter(pair_allocation != "scaled", 
          overall_return <= 5, 
          overall_return >= 0) %>% 
@@ -32,61 +33,77 @@ params <- params %>%
          time_resolution = factor(time_resolution), 
          signal_scaled_enter = factor(signal_scaled_enter))
 
-#' # 4. Plot Function 
-plot_boxplot <- function(df, x) { 
+#' # 4. Plot Functions
+#' 
+
+plot_boxplot <- function(df, x, ylim_low, ylim_high) { 
   ggplot(df, aes_string(x = x, fill = x)) + 
     geom_boxplot(aes(y = overall_return)) + 
-    coord_cartesian(ylim = c(0, 2))
-} 
-plot_scatter <- function(df, x) { 
-  ggplot(df, aes_string(x = x)) + 
-    geom_point(aes(y = overall_return), colour = "blue") + 
-    geom_smooth(aes(y = overall_return), colour = "red") + 
-    coord_cartesian(ylim = c(0, 2))
+    coord_cartesian(ylim = c(ylim_low, ylim_high)) + 
+    facet_wrap(~ quote_currency, ncol = 1)
 } 
 
-#' # 4. Time Resolution 
+plot_scatter <- function(df, x, ylim_low, ylim_high, smooth) { 
+  if (smooth == TRUE) { 
+    return(ggplot(df, aes_string(x = x)) + 
+             geom_point(aes(y = overall_return), colour = "blue") + 
+             geom_smooth(aes(y = overall_return), colour = "red") + 
+             coord_cartesian(ylim = c(ylim_low, ylim_high)) + 
+             facet_wrap(~ quote_currency, ncol = 1))
+  } 
+  if (smooth == FALSE) { 
+    return(ggplot(df, aes_string(x = x)) + 
+             geom_point(aes(y = overall_return), colour = "blue") + 
+             coord_cartesian(ylim = c(ylim_low, ylim_high)) + 
+             facet_wrap(~ quote_currency, ncol = 1)) 
+  }
+} 
+
+#' # 5. Examine Single Parameters
+#' This section creates plots that examine only one parameter at a time.  
+#' 
+
+#' ## 5.1 Time Resolution 
 #' Time resolution of 300 is the best performing time resolution. 
-plot_boxplot(params, "time_resolution")
+plot_boxplot(single, "time_resolution", 0, 2)
 
-#' # 5. Quote Currency 
+#' ## 5.2 Quote Currency 
 #' Similar cumulative return for BTC quote-denominated and USDT quote-denominated coin pairs except that 
 #' BTC coin pairs have a return relative to the buy-and-hold return of holindg BTC. 
-plot_boxplot(params, "quote_currency")
+plot_boxplot(single, "quote_currency", 0, 2)
 
-#' # 6. Cointegration Test 
+#' ## 5.3 Cointegration Test 
 #' Similar cumulative return for both types of cointegration tests. 
-plot_boxplot(params, "cointegration_test")
+plot_boxplot(single, "cointegration_test", 0, 2)
 
-#' # 7. ADF and Distance Threshold 
+#' ## 5.4 ADF and Distance Threshold 
 #' Higher returns associated with more restrictive ADF threshold.  
 #' Higher returns associated with more restrictive distance threshold.
-params %>% 
+single %>% 
   filter(cointegration_test == "eg") %>% 
-  plot_scatter("adf_threshold")
-params %>% 
+  plot_scatter("adf_threshold", 0, 2, TRUE)
+single %>% 
   filter(cointegration_test == "distance") %>% 
-  plot_scatter("distance_threshold")
+  plot_scatter("distance_threshold", 0, 2, TRUE)
 
-#' # 9. Train and Test Window 
+#' ## 5.5 Train and Test Window 
 #' Slightly better performance with shorter test window.  
-plot_scatter(params, "train_window")
-plot_scatter(params, "test_window")
+plot_scatter(single, "train_window", 0, 2, TRUE)
+plot_scatter(single, "test_window", 0, 2, TRUE)
 
-#' # 10. Model and Spread Type 
+#' ## 5.6 Model and Spread Type 
 #' Higher returns associated with log model type.  
 #' Higher returns associated with rolling spread type.  
-plot_boxplot(params, "model_type")
-plot_boxplot(params, "spread_type")
-plot_boxplot(params, "model_spread_type")
+plot_boxplot(single, "model_type", 0, 2)
+plot_boxplot(single, "spread_type", 0, 2)
 
-#' # 11. Rolling Window 
+#' ## 5.7 Rolling Window 
 #' Higher returns associated with shorter rolling windows.  
-params %>% 
+single %>% 
   filter(spread_type == "rolling") %>% 
-  plot_scatter("rolling_window_days")
+  plot_scatter("rolling_window_days", 0, 2, TRUE)
 
-#' # 12. Signal Logic 
+#' ## 5.8 Signal Logic 
 #' Higher returns associated with scaled signal logic.  
 #' Slightly higher returns associated with signal scaled enter of 3.  
 #' Slightly higher returns associated with higher signal discrete enter. 
@@ -94,22 +111,154 @@ params %>%
 #' No pattern associated with signal stop.  
 #' Higher returns associated with signal reenter of FALSE.  
 #' Slightly higher returns associated with a lower signal reenter threshold.  
-plot_boxplot(params, "signal_logic")
-params %>% 
+plot_boxplot(single, "signal_logic", 0, 2)
+single %>% 
   filter(signal_logic == "scaled") %>% 
-  plot_boxplot("signal_scaled_enter")
-params %>% 
+  plot_boxplot("signal_scaled_enter", 0, 2)
+single %>% 
   filter(signal_logic == "discrete") %>% 
-  plot_scatter("signal_discrete_enter")
-params %>% 
+  plot_scatter("signal_discrete_enter", 0, 2, TRUE)
+single %>% 
   filter(signal_logic == "discrete") %>% 
-  plot_scatter("signal_discrete_exit")
-plot_scatter(params, "signal_stop") 
-plot_boxplot(params, "signal_reenter") 
-params %>% 
+  plot_scatter("signal_discrete_exit", 0, 2, TRUE)
+plot_scatter(single, "signal_stop", 0, 2, TRUE) 
+plot_boxplot(single, "signal_reenter", 0, 2)
+single %>% 
   filter(signal_reenter == TRUE) %>% 
-  plot_scatter("signal_reenter_threshold")
+  plot_scatter("signal_reenter_threshold", 0, 2, TRUE)
 
-#' # 13. Pair Allocation 
+#' ## 5.9 Pair Allocation 
 #' Slightly higher returns associated with a weighted pair allocation.  
-plot_boxplot(params, "pair_allocation") 
+plot_boxplot(single, "pair_allocation", 0, 2) 
+
+#' # 6. Examine Multiple Parameters 
+#' This section creates plots that examines multiple parameters at a time for iterations where the 
+#' time resolution is 300, the spread type is rolling, and the signal logic is scaled. These parameters 
+#' have shown to have produced good results.   
+#' 
+
+#' ## 6.1 Filter Results 
+multiple <- params %>% 
+  filter(time_resolution == 300, 
+         spread_type == "rolling", 
+         signal_logic == "scaled", 
+         pair_allocation != "scaled") %>% 
+  mutate(train_window = as.numeric(str_match(train_window, "(\\d*)d*")[, 2]), 
+         test_window = as.numeric(str_match(test_window, "(\\d*)d*")[, 2]), 
+         model_spread_type = str_c(model_type, " ", spread_type), 
+         rolling_window_days = rolling_window * time_resolution / 60 / 60 / 24, 
+         time_resolution = factor(time_resolution), 
+         signal_scaled_enter = factor(signal_scaled_enter))
+
+#' ## 6.2 Cointegration Test 
+plot_boxplot(multiple, "cointegration_test", 1, 15) 
+
+#' ## 6.3 ADF and Distance Threshold 
+plot_scatter(multiple, "adf_threshold", 1, 15, FALSE) 
+plot_scatter(multiple, "distance_threshold", 1, 15, FALSE) 
+multiple %>% 
+  filter(cointegration_test == "eg") %>% 
+  ggplot(aes(x = adf_threshold, y = overall_return, colour = pair_allocation)) + 
+  coord_cartesian(ylim = c(1, 15)) + 
+  geom_point() + 
+  facet_wrap(~ quote_currency, ncol = 1)
+multiple %>% 
+  filter(cointegration_test == "distance") %>% 
+  ggplot(aes(x = adf_threshold, y = overall_return, colour = pair_allocation)) + 
+  coord_cartesian(ylim = c(1, 15)) + 
+  geom_point() + 
+  facet_wrap(~ quote_currency, ncol = 1)
+
+
+#' ## 6.4 Train and Test Window
+plot_scatter(multiple, "train_window", 1, 15, FALSE)
+plot_scatter(multiple, "test_window", 1, 15, FALSE) 
+multiple %>% 
+  filter(overall_return >= 0, 
+         overall_return <= 15) %>% 
+  ggplot(aes(x = train_window, y = test_window, colour = overall_return)) + 
+  geom_point() + 
+  scale_colour_gradient(low = "red", high = "blue") + 
+  facet_wrap(~ quote_currency, ncol = 1)
+
+#' ## 6.5 Model Type and ADF Threshold and Distance Threshold 
+plot_boxplot(multiple, "model_type", 1, 15) 
+multiple %>% 
+  filter(cointegration_test == "eg") %>% 
+  ggplot(aes(x = adf_threshold, y = overall_return, colour = model_type)) + 
+  coord_cartesian(ylim = c(1, 15)) + 
+  geom_point() + 
+  facet_wrap(~ quote_currency, ncol = 1)
+multiple %>% 
+  filter(cointegration_test == "distance") %>% 
+  ggplot(aes(x = distance_threshold, y = overall_return, colour = model_type)) + 
+  coord_cartesian(ylim = c(1, 15)) + 
+  geom_point() + 
+  facet_wrap(~ quote_currency, ncol = 1)
+
+#' ## 6.6 Signal Scaled Enter  
+plot_boxplot(multiple, "signal_scaled_enter", 1, 15)
+ggplot(multiple, aes(x = signal_scaled_enter, fill = cointegration_test)) + 
+  geom_boxplot(aes(y = overall_return)) + 
+  coord_cartesian(ylim = c(1, 15)) + 
+  facet_wrap(~ quote_currency, ncol = 1)
+ggplot(multiple, aes(x = signal_scaled_enter, fill = model_type)) + 
+  geom_boxplot(aes(y = overall_return)) + 
+  coord_cartesian(ylim = c(1, 15)) + 
+  facet_wrap(~ quote_currency, ncol = 1)
+
+#' ## 6.7 Signal Stop 
+plot_scatter(multiple, "signal_stop", 1, 15, FALSE)
+multiple %>% 
+  ggplot(aes(x = signal_stop, y = overall_return, colour = cointegration_test)) + 
+  coord_cartesian(ylim = c(1, 15)) + 
+  geom_point() + 
+  facet_wrap(~ quote_currency, ncol = 1)
+multiple %>% 
+  ggplot(aes(x = signal_stop, y = overall_return, colour = model_type)) + 
+  coord_cartesian(ylim = c(1, 15)) + 
+  geom_point() + 
+  facet_wrap(~ quote_currency, ncol = 1)
+
+#' ## 6.8 Signal Reenter 
+plot_boxplot(multiple, "signal_reenter", 1, 15)
+ggplot(multiple, aes(x = signal_reenter, fill = cointegration_test)) + 
+  geom_boxplot(aes(y = overall_return)) + 
+  coord_cartesian(ylim = c(1, 15)) + 
+  facet_wrap(~ quote_currency, ncol = 1)
+ggplot(multiple, aes(x = signal_reenter, fill = model_type)) + 
+  geom_boxplot(aes(y = overall_return)) + 
+  coord_cartesian(ylim = c(1, 15)) + 
+  facet_wrap(~ quote_currency, ncol = 1)
+
+#' ## 6.9 Signal Reenter Threshold
+plot_scatter(multiple, "signal_reenter_threshold", 1, 15, FALSE)
+multiple %>% 
+  ggplot(aes(x = signal_reenter_threshold, y = overall_return, colour = cointegration_test)) + 
+  coord_cartesian(ylim = c(1, 15)) + 
+  geom_point() + 
+  facet_wrap(~ quote_currency, ncol = 1)
+multiple %>% 
+  ggplot(aes(x = signal_reenter_threshold, y = overall_return, colour = model_type)) + 
+  coord_cartesian(ylim = c(1, 15)) + 
+  geom_point() + 
+  facet_wrap(~ quote_currency, ncol = 1)
+
+#' ## 6.7 Pair Allocation 
+plot_boxplot(multiple, "pair_allocation", 1, 15)
+ggplot(multiple, aes(x = pair_allocation, fill = cointegration_test)) + 
+  geom_boxplot(aes(y = overall_return)) + 
+  coord_cartesian(ylim = c(1, 15)) + 
+  facet_wrap(~ quote_currency, ncol = 1)
+ggplot(multiple, aes(x = pair_allocation, fill = model_type)) + 
+  geom_boxplot(aes(y = overall_return)) + 
+  coord_cartesian(ylim = c(1, 15)) + 
+  facet_wrap(~ quote_currency, ncol = 1)
+ggplot(multiple, aes(x = pair_allocation, fill = cointegration_test)) + 
+  geom_boxplot(aes(y = overall_return)) + 
+  coord_cartesian(ylim = c(1, 15)) + 
+  facet_wrap(~ quote_currency, ncol = 1)
+ggplot(multiple, aes(x = pair_allocation, fill = signal_scaled_enter)) + 
+  geom_boxplot(aes(y = overall_return)) + 
+  coord_cartesian(ylim = c(1, 15)) + 
+  facet_wrap(~ quote_currency, ncol = 1)
