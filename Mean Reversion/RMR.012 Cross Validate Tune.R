@@ -60,7 +60,7 @@ results <- tibble()
 return <- list()
 for (i in 1:10000) { 
   print(str_c("Testing iteration ", i, ".")) 
-  time_resolution <- sample(c(300), 1) 
+  time_resolution <- 300  
   train_window <- days(sample(3:60, 1)) 
   params <- list(time_resolution = time_resolution, 
                  quote_currency = sample(c("USDT", "BTC"), 1), 
