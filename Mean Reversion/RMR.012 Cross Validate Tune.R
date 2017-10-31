@@ -55,12 +55,12 @@ pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv", col_types
 #'   
 
 #' # 4. Tune Parameters 
-set.seed(3) 
+set.seed(1) 
 results <- tibble()
 return <- list()
 for (i in 1:10000) { 
   print(str_c("Testing iteration ", i, ".")) 
-  time_resolution <- sample(c(300, 900, 1800, 7200, 14400, 86400), 1) 
+  time_resolution <- sample(c(300), 1) 
   train_window <- days(sample(3:60, 1)) 
   params <- list(time_resolution = time_resolution, 
                  quote_currency = sample(c("USDT", "BTC"), 1), 
@@ -70,10 +70,10 @@ for (i in 1:10000) {
                  train_window = train_window, 
                  test_window = days(sample(3:60, 1)), 
                  model_type = sample(c("log", "raw"), 1), 
-                 spread_type = sample(c("rolling", "fixed"), 1), 
+                 spread_type = sample(c("rolling"), 1), 
                  rolling_window = 86400 / time_resolution * 
                    min(as.numeric(days(sample(2:60, 1))) / 86400, as.numeric(train_window) / 86400), 
-                 signal_logic = sample(c("scaled", "discrete"), 1), 
+                 signal_logic = sample(c("scaled"), 1), 
                  signal_scaled_enter = sample(c(2, 3, 4), 1), 
                  signal_discrete_enter = sample(seq(1, 3, 0.05), 1), 
                  signal_discrete_exit = sample(seq(0, 1, 0.05), 1), 
