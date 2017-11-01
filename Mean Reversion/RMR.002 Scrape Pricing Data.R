@@ -47,10 +47,10 @@ return_chartdata <- function(currency_pair, start_unix, end_unix, period) {
 
 #' # 4. Create List of Tickers and Periods 
 #' The following tickers are of interest: USDT_BTC, USDT_ETH, USDT_LTC, USDT_DASH, USDT_XMR, USDT_ZEC, USDT_REP, BTC_XEM, 
-#' BTC_ETH, BTC_LTC, BTC_DASH, BTC_XMR, BTC_ZEC, BTC_REP, BTC_XEM.
+#' BTC_ETH, BTC_LTC, BTC_DASH, BTC_XMR, BTC_ZEC, BTC_REP, BTC_XEM, BTC_DCR, BTC_FCT, BTC_LSK.
 #' The following periods are of interest: 5-minute, 15-minute, 30-minute, 2-hour, 4-hour, 1-day.
 tickers <- c("USDT_BTC", "USDT_ETH", "USDT_LTC", "USDT_DASH", "USDT_XMR", "USDT_ZEC", "USDT_REP", 
-             "BTC_ETH", "BTC_LTC", "BTC_DASH", "BTC_XMR", "BTC_ZEC", "BTC_REP", "BTC_XEM")
+             "BTC_ETH", "BTC_LTC", "BTC_DASH", "BTC_XMR", "BTC_ZEC", "BTC_REP", "BTC_XEM", "BTC_DCR", "BTC_FCT", "BTC_LSK")
 periods <- c("300", "900", "1800", "7200", "14400", "86400")
 
 #' # 5. Download Pricing Data 

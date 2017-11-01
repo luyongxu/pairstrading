@@ -29,13 +29,15 @@ pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv", col_types
 #'   and 86400.   
 #' quote_currency: A string indicating the quote currency of the currency pairs. Takes values "USDT" or "BTC".  
 #' cointegration_test: A string indicating whether the Engle-Granger method or distance method is used to test for 
-#'   cointegration. Takes values "eg" or "distance".  
+#'   cointegration. Takes values "eg", "tls", or "distance".  
 #' adf_threshold: The threshold for the ADF test statistic. Pairs below this threshold are selected when using 
 #'   the Engle-Granger method.  
-#' distance_threshold: The number of coin pairs to select when using the distance method.  
+#' distance_threshold: The threshold for the rmse of the coins normalized prices. Pairs below this threshold are 
+#'   selected when using the distance method.  
 #' train_window: A lubridate period object representing the length of time the train set covers.  
 #' test_window: A lubridate period object representing the length of time the the test set covers.  
 #' model_type: A string indicating whether raw prices or log prices should be used. Takes value "raw" or "log".  
+#' regression_type: A string indicating whether OLS or TLS regression should be used. Takes values "ols" or "tls".  
 #' spread_type: A string indicating whether the regression uses a rolling or fixed window. Takes value "rolling" or 
 #'   "fixed".  
 #' rolling_window: The number of observations used in each window of a rolling linear regression.  
@@ -57,12 +59,13 @@ pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv", col_types
 #' # 4. Set Parameters 
 params <- list(time_resolution = 300, 
                quote_currency = "USDT", 
-               cointegration_test = "eg", 
+               cointegration_test = "tls", 
                adf_threshold = -3.55, 
                distance_threshold = 0.40, 
                train_window = days(25), 
                test_window = days(20), 
                model_type = "raw", 
+               regression_type = "tls", 
                spread_type = "rolling", 
                rolling_window = 576, 
                signal_logic = "scaled", 

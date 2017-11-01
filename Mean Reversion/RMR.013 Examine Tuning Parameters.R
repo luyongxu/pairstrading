@@ -34,13 +34,13 @@ single <- params %>%
          signal_scaled_enter = factor(signal_scaled_enter))
 
 #' # 4. Plot Functions
-#' 
 
 plot_boxplot <- function(df, x, ylim_low, ylim_high) { 
   ggplot(df, aes_string(x = x, fill = x)) + 
     geom_boxplot(aes(y = overall_return)) + 
     coord_cartesian(ylim = c(ylim_low, ylim_high)) + 
-    facet_wrap(~ quote_currency, ncol = 1)
+    facet_wrap(~ quote_currency, ncol = 1) + 
+    geom_hline(yintercept = 1)
 } 
 
 plot_scatter <- function(df, x, ylim_low, ylim_high, smooth) { 
@@ -49,13 +49,15 @@ plot_scatter <- function(df, x, ylim_low, ylim_high, smooth) {
              geom_point(aes(y = overall_return), colour = "blue") + 
              geom_smooth(aes(y = overall_return), colour = "red") + 
              coord_cartesian(ylim = c(ylim_low, ylim_high)) + 
-             facet_wrap(~ quote_currency, ncol = 1))
+             facet_wrap(~ quote_currency, ncol = 1) + 
+             geom_hline(yintercept = 1))
   } 
   if (smooth == FALSE) { 
     return(ggplot(df, aes_string(x = x)) + 
              geom_point(aes(y = overall_return), colour = "blue") + 
              coord_cartesian(ylim = c(ylim_low, ylim_high)) + 
-             facet_wrap(~ quote_currency, ncol = 1)) 
+             facet_wrap(~ quote_currency, ncol = 1) + 
+             geom_hline(yintercept = 1)) 
   }
 } 
 
@@ -136,6 +138,7 @@ plot_boxplot(single, "pair_allocation", 0, 2)
 #' time resolution is 300, the spread type is rolling, and the signal logic is scaled. These parameters 
 #' have shown to have produced good results.   
 #' 
+params <- read_csv("./Mean Reversion/Output/parameter tuning 20171101.csv")
 
 #' ## 6.1 Filter Results 
 multiple <- params %>% 
@@ -151,114 +154,139 @@ multiple <- params %>%
          signal_scaled_enter = factor(signal_scaled_enter))
 
 #' ## 6.2 Cointegration Test 
-plot_boxplot(multiple, "cointegration_test", 1, 15) 
+plot_boxplot(multiple, "cointegration_test", 1, 10) 
 
 #' ## 6.3 ADF and Distance Threshold 
-plot_scatter(multiple, "adf_threshold", 1, 15, FALSE) 
-plot_scatter(multiple, "distance_threshold", 1, 15, FALSE) 
+plot_scatter(multiple, "adf_threshold", 1, 10, TRUE) 
+plot_scatter(multiple, "distance_threshold", 1, 10, TRUE) 
 multiple %>% 
   filter(cointegration_test == "eg") %>% 
   ggplot(aes(x = adf_threshold, y = overall_return, colour = pair_allocation)) + 
-  coord_cartesian(ylim = c(1, 15)) + 
+  coord_cartesian(ylim = c(1, 10)) + 
   geom_point() + 
+  geom_smooth() + 
+  geom_hline(yintercept = 1) + 
   facet_wrap(~ quote_currency, ncol = 1)
 multiple %>% 
   filter(cointegration_test == "distance") %>% 
   ggplot(aes(x = adf_threshold, y = overall_return, colour = pair_allocation)) + 
-  coord_cartesian(ylim = c(1, 15)) + 
+  coord_cartesian(ylim = c(1, 10)) + 
   geom_point() + 
+  geom_smooth() + 
+  geom_hline(yintercept = 1) + 
   facet_wrap(~ quote_currency, ncol = 1)
 
 
 #' ## 6.4 Train and Test Window
-plot_scatter(multiple, "train_window", 1, 15, FALSE)
-plot_scatter(multiple, "test_window", 1, 15, FALSE) 
+plot_scatter(multiple, "train_window", 1, 15, TRUE)
+plot_scatter(multiple, "test_window", 1, 15, TRUE) 
 multiple %>% 
   filter(overall_return >= 0, 
-         overall_return <= 15) %>% 
+         overall_return <= 10) %>% 
   ggplot(aes(x = train_window, y = test_window, colour = overall_return)) + 
   geom_point() + 
   scale_colour_gradient(low = "red", high = "blue") + 
+  geom_hline(yintercept = 1) + 
   facet_wrap(~ quote_currency, ncol = 1)
 
 #' ## 6.5 Model Type and ADF Threshold and Distance Threshold 
-plot_boxplot(multiple, "model_type", 1, 15) 
+plot_boxplot(multiple, "model_type", 1, 10) 
 multiple %>% 
   filter(cointegration_test == "eg") %>% 
   ggplot(aes(x = adf_threshold, y = overall_return, colour = model_type)) + 
-  coord_cartesian(ylim = c(1, 15)) + 
+  coord_cartesian(ylim = c(1, 10)) + 
   geom_point() + 
+  geom_smooth() + 
+  geom_hline(yintercept = 1) + 
   facet_wrap(~ quote_currency, ncol = 1)
 multiple %>% 
   filter(cointegration_test == "distance") %>% 
   ggplot(aes(x = distance_threshold, y = overall_return, colour = model_type)) + 
-  coord_cartesian(ylim = c(1, 15)) + 
+  coord_cartesian(ylim = c(1, 10)) + 
   geom_point() + 
+  geom_smooth() + 
+  geom_hline(yintercept = 1) + 
   facet_wrap(~ quote_currency, ncol = 1)
 
 #' ## 6.6 Signal Scaled Enter  
-plot_boxplot(multiple, "signal_scaled_enter", 1, 15)
+plot_boxplot(multiple, "signal_scaled_enter", 1, 10)
 ggplot(multiple, aes(x = signal_scaled_enter, fill = cointegration_test)) + 
   geom_boxplot(aes(y = overall_return)) + 
-  coord_cartesian(ylim = c(1, 15)) + 
+  coord_cartesian(ylim = c(1, 10)) + 
+  geom_hline(yintercept = 1) + 
   facet_wrap(~ quote_currency, ncol = 1)
 ggplot(multiple, aes(x = signal_scaled_enter, fill = model_type)) + 
   geom_boxplot(aes(y = overall_return)) + 
-  coord_cartesian(ylim = c(1, 15)) + 
+  coord_cartesian(ylim = c(1, 10)) + 
+  geom_hline(yintercept = 1) + 
   facet_wrap(~ quote_currency, ncol = 1)
 
 #' ## 6.7 Signal Stop 
-plot_scatter(multiple, "signal_stop", 1, 15, FALSE)
+plot_scatter(multiple, "signal_stop", 1, 10, TRUE)
 multiple %>% 
   ggplot(aes(x = signal_stop, y = overall_return, colour = cointegration_test)) + 
-  coord_cartesian(ylim = c(1, 15)) + 
+  coord_cartesian(ylim = c(1, 10)) + 
   geom_point() + 
+  geom_smooth() + 
+  geom_hline(yintercept = 1) + 
   facet_wrap(~ quote_currency, ncol = 1)
 multiple %>% 
   ggplot(aes(x = signal_stop, y = overall_return, colour = model_type)) + 
-  coord_cartesian(ylim = c(1, 15)) + 
+  coord_cartesian(ylim = c(1, 10)) + 
   geom_point() + 
+  geom_smooth() + 
+  geom_hline(yintercept = 1) + 
   facet_wrap(~ quote_currency, ncol = 1)
 
 #' ## 6.8 Signal Reenter 
-plot_boxplot(multiple, "signal_reenter", 1, 15)
+plot_boxplot(multiple, "signal_reenter", 1, 10)
 ggplot(multiple, aes(x = signal_reenter, fill = cointegration_test)) + 
   geom_boxplot(aes(y = overall_return)) + 
-  coord_cartesian(ylim = c(1, 15)) + 
+  coord_cartesian(ylim = c(1, 10)) + 
+  geom_hline(yintercept = 1) + 
   facet_wrap(~ quote_currency, ncol = 1)
 ggplot(multiple, aes(x = signal_reenter, fill = model_type)) + 
   geom_boxplot(aes(y = overall_return)) + 
-  coord_cartesian(ylim = c(1, 15)) + 
+  coord_cartesian(ylim = c(1, 10)) + 
+  geom_hline(yintercept = 1) + 
   facet_wrap(~ quote_currency, ncol = 1)
 
 #' ## 6.9 Signal Reenter Threshold
-plot_scatter(multiple, "signal_reenter_threshold", 1, 15, FALSE)
+plot_scatter(multiple, "signal_reenter_threshold", 1, 10, TRUE)
 multiple %>% 
   ggplot(aes(x = signal_reenter_threshold, y = overall_return, colour = cointegration_test)) + 
-  coord_cartesian(ylim = c(1, 15)) + 
+  coord_cartesian(ylim = c(1, 10)) + 
   geom_point() + 
+  geom_smooth() + 
+  geom_hline(yintercept = 1) + 
   facet_wrap(~ quote_currency, ncol = 1)
 multiple %>% 
   ggplot(aes(x = signal_reenter_threshold, y = overall_return, colour = model_type)) + 
-  coord_cartesian(ylim = c(1, 15)) + 
+  coord_cartesian(ylim = c(1, 10)) + 
   geom_point() + 
+  geom_smooth() + 
+  geom_hline(yintercept = 1) + 
   facet_wrap(~ quote_currency, ncol = 1)
 
-#' ## 6.7 Pair Allocation 
-plot_boxplot(multiple, "pair_allocation", 1, 15)
+#' ## 6.10 Pair Allocation 
+plot_boxplot(multiple, "pair_allocation", 1, 10)
 ggplot(multiple, aes(x = pair_allocation, fill = cointegration_test)) + 
   geom_boxplot(aes(y = overall_return)) + 
-  coord_cartesian(ylim = c(1, 15)) + 
+  coord_cartesian(ylim = c(1, 10)) + 
+  geom_hline(yintercept = 1) + 
   facet_wrap(~ quote_currency, ncol = 1)
 ggplot(multiple, aes(x = pair_allocation, fill = model_type)) + 
   geom_boxplot(aes(y = overall_return)) + 
-  coord_cartesian(ylim = c(1, 15)) + 
+  coord_cartesian(ylim = c(1, 10)) + 
+  geom_hline(yintercept = 1) + 
   facet_wrap(~ quote_currency, ncol = 1)
 ggplot(multiple, aes(x = pair_allocation, fill = cointegration_test)) + 
   geom_boxplot(aes(y = overall_return)) + 
-  coord_cartesian(ylim = c(1, 15)) + 
+  coord_cartesian(ylim = c(1, 10)) + 
+  geom_hline(yintercept = 1) + 
   facet_wrap(~ quote_currency, ncol = 1)
 ggplot(multiple, aes(x = pair_allocation, fill = signal_scaled_enter)) + 
   geom_boxplot(aes(y = overall_return)) + 
-  coord_cartesian(ylim = c(1, 15)) + 
+  coord_cartesian(ylim = c(1, 10)) + 
+  geom_hline(yintercept = 1) + 
   facet_wrap(~ quote_currency, ncol = 1)

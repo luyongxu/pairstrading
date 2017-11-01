@@ -25,7 +25,7 @@ source("./Mean Reversion/RMR.001 Load Packages.R")
 #'   and 86400.   
 #' quote_currency: A string indicating the quote currency of the currency pairs. Takes values "USDT" or "BTC".  
 #' cointegration_test: A string indicating whether the Engle-Granger method or distance method is used to test for 
-#'   cointegration. Takes values "eg" or "distance".  
+#'   cointegration. Takes values "eg", "tls", or "distance".  
 #' adf_threshold: The threshold for the ADF test statistic. Pairs below this threshold are selected when using 
 #'   the Engle-Granger method.  
 #' distance_threshold: The threshold for the rmse of the coins normalized prices. Pairs below this threshold are 
@@ -33,6 +33,7 @@ source("./Mean Reversion/RMR.001 Load Packages.R")
 #' train_window: A lubridate period object representing the length of time the train set covers.  
 #' test_window: A lubridate period object representing the length of time the the test set covers.  
 #' model_type: A string indicating whether raw prices or log prices should be used. Takes value "raw" or "log".  
+#' regression_type: A string indicating whether OLS or TLS regression should be used. Takes values "ols" or "tls".  
 #' spread_type: A string indicating whether the regression uses a rolling or fixed window. Takes value "rolling" or 
 #'   "fixed".  
 #' rolling_window: The number of observations used in each window of a rolling linear regression.  
@@ -87,7 +88,7 @@ prepare_data <- function(pricing_data, start_date, end_date, params) {
 #' coin_x: A vector containing the pricing data for the independent coin in the regression.  
 #' params: A list of parameters that describe the mean reversion pairs trading strategy.  
 #'   cointegration_test: A string indicating whether the Engle-Granger method or distance method is used to test for 
-#'     cointegration. Takes values "eg" or "distance".  
+#'     cointegration. Takes values "eg", "tls", or "distance".  
 #'   model_type: A string indicating whether raw prices or log prices should be used. Takes value "raw" or "log".  
 #' 
 #' Value  
@@ -106,14 +107,32 @@ test_cointegration <- function(coin_y, coin_x, params) {
     return(adf_stat) 
   } 
   
+  # Test for cointegration using the total least squares method
+  if (params[["cointegration_test"]] == "tls") { 
+    if (params[["model_type"]] == "raw") { 
+      pca_model <- prcomp(formula = ~ coin_y + coin_x) 
+      pca_beta <- pca_model[["rotation"]][1, 1] / pca_model[["rotation"]][2, 1] 
+      pca_intercept <- pca_model[["center"]][1] - pca_beta * pca_model[["center"]][2] 
+      pca_residuals <- coin_y - pca_beta * coin_x - pca_intercept 
+    } 
+    if (params[["model_type"]] == "log") { 
+      pca_model <- prcomp(formula = ~ log(coin_y) + log(coin_x))  
+      pca_beta <- pca_model[["rotation"]][1, 1] / pca_model[["rotation"]][2, 1] 
+      pca_intercept <- pca_model[["center"]][1] - pca_beta * pca_model[["center"]][2] 
+      pca_residuals <- log(coin_y) - pca_beta * log(coin_x) - pca_intercept 
+    } 
+    adf_test <- ur.df(pca_residuals, type = "drift", lags = 1) 
+    adf_stat = adf_test@testreg[["coefficients"]][2, 3]
+    return(adf_stat) 
+  }
+  
   # Test for cointegration using the distance method 
   if (params[["cointegration_test"]] == "distance") { 
     coin_y <- coin_y / coin_y[1] 
     coin_x <- coin_x / coin_x[1] 
     rmse = mean((coin_y - coin_x)^2)^0.5 
     return(rmse) 
-  }
-  
+  } 
 } 
 
 #' # 5. Create Coin Pairs Function  
@@ -132,7 +151,7 @@ create_pairs <- function(params) {
   if (params[["quote_currency"]] == "USDT") 
     coin_list <- c("USDT_BTC", "USDT_DASH", "USDT_ETH", "USDT_LTC", "USDT_REP", "USDT_XMR", "USDT_ZEC")
   if (params[["quote_currency"]] == "BTC") 
-    coin_list <- c("BTC_DASH", "BTC_ETH", "BTC_LTC", "BTC_REP", "BTC_XEM", "BTC_XMR", "BTC_ZEC")
+    coin_list <- c("BTC_DASH", "BTC_ETH", "BTC_LTC", "BTC_REP", "BTC_XEM", "BTC_XMR", "BTC_ZEC", "BTC_DCR", "BTC_FCT", "BTC_LSK") 
   coin_pairs <- expand.grid(coin_list, coin_list) %>% 
     rename(coin_y = Var1, 
            coin_x = Var2) %>% 
@@ -197,8 +216,14 @@ select_pairs <- function(train, coin_pairs, params) {
   if (params[["cointegration_test"]] == "eg") { 
     df <- df %>% 
       filter(cointegration_stat <= params[["adf_threshold"]]) 
+  } 
+  
+  # If cointegration test uses the total least squares method, filter by adf threshold 
+  if (params[["cointegration_test"]] == "tls") { 
+    df <- df %>% 
+      filter(cointegration_stat <= params[["adf_threshold"]]) 
   }
-
+  
   # If cointegration uses the distance method, filter by rmse distance threshold  
   if (params[["cointegration_test"]] == "distance") { 
     df <- df %>% 
@@ -223,6 +248,7 @@ select_pairs <- function(train, coin_pairs, params) {
 #'   rolling_window: The number of observations used in each iteration of a rolling linear regression.  
 #'   model_type: A string indicating whether raw prices or log prices should be used. Takes value "raw" or "log". 
 #'   spread_type: A string indicating whether the regression uses a rolling or fixed window. Takes value "rolling" or "fixed".  
+#'   regression_type: A string indicating whether OLS or TLS regression should be used. Takes values "ols" or "tls". 
 #' 
 #' Value  
 #' Returns a list containing the intercept, hedge ratio, spread, and spread z-score calculated from a rolling 
@@ -246,36 +272,77 @@ train_model <- function(train, test, coin_y, coin_x, params) {
         select(y, x)
     } 
     
-    # Perform rolling linear regression over the test set  
-    rolling_coef <- rolling_coef %>% 
-      rollapply(data = ., 
-                width = params[["rolling_window"]], 
-                FUN = function(df) { 
-                  df <- as_tibble(df)
-                  model <- lm.fit(y = df[["y"]], x = cbind(1, df[["x"]]))
-                  return(model[["coefficients"]])
-                }, 
-                by.column = FALSE, 
-                fill = NA, 
-                align = "right") %>% 
-      as_tibble() %>% 
-      rename(intercept = x1, 
-             hedge_ratio = x2) %>% 
-      filter(row_number() > nrow(train)) 
+    # Perform rolling linear regression over the test set using OLS or TLS
+    if (params[["regression_type"]] == "ols") { 
+      rolling_coef <- rolling_coef %>% 
+        rollapply(data = ., 
+                  width = params[["rolling_window"]], 
+                  FUN = function(df) { 
+                    df <- as_tibble(df)
+                    lm_model <- lm.fit(y = df[["y"]], x = cbind(1, df[["x"]]))
+                    return(lm_model[["coefficients"]])
+                  }, 
+                  by.column = FALSE, 
+                  fill = NA, 
+                  align = "right") %>% 
+        as_tibble() %>% 
+        rename(intercept = x1, 
+               hedge_ratio = x2) %>% 
+        filter(row_number() > nrow(train)) 
+    } 
+    if (params[["regression_type"]] == "tls") { 
+      rolling_coef <- rolling_coef %>% 
+        rollapply(data = ., 
+                  width = params[["rolling_window"]], 
+                  FUN = function(df) { 
+                    df <- as_tibble(df) 
+                    pca_model <- prcomp(x = cbind(df[["y"]], df[["x"]]))  
+                    pca_beta <- pca_model[["rotation"]][1, 1] / pca_model[["rotation"]][2, 1] 
+                    pca_intercept <- pca_model[["center"]][1] - pca_beta * pca_model[["center"]][2] 
+                    return(tibble(intercept = pca_intercept, hedge_ratio = pca_beta))
+                  }, 
+                  by.column = FALSE, 
+                  fill = NA, 
+                  align = "right") %>% 
+        as_tibble() %>% 
+        filter(row_number() > nrow(train)) 
+    } 
     
-    # Calculate spread in training and test set  
-    if (params[["model_type"]] == "raw") { 
-      train <- train %>% 
-        mutate(spread = lm.fit(y = train[[coin_y]], x = cbind(1, train[[coin_x]]))[["residuals"]])
-      test <- test %>% 
-        mutate(spread = test[[coin_y]] - test[[coin_x]] * rolling_coef[["hedge_ratio"]] - rolling_coef[["intercept"]]) 
-    } 
-    if (params[["model_type"]] == "log") { 
-      train <- train %>% 
-        mutate(spread = lm.fit(y = log(train[[coin_y]]), x = cbind(1, log(train[[coin_x]])))[["residuals"]]) 
-      test <- test %>% 
-        mutate(spread = log(test[[coin_y]]) - log(test[[coin_x]]) * rolling_coef[["hedge_ratio"]] - rolling_coef[["intercept"]]) 
-    } 
+    # Calculate spread in training and test set using OLS or TLS. 
+    if (params[["regression_type"]] == "ols") { 
+      if (params[["model_type"]] == "raw") { 
+        train <- train %>% 
+          mutate(spread = lm.fit(y = train[[coin_y]], x = cbind(1, train[[coin_x]]))[["residuals"]])
+        test <- test %>% 
+          mutate(spread = test[[coin_y]] - test[[coin_x]] * rolling_coef[["hedge_ratio"]] - rolling_coef[["intercept"]]) 
+      } 
+      if (params[["model_type"]] == "log") { 
+        train <- train %>% 
+          mutate(spread = lm.fit(y = log(train[[coin_y]]), x = cbind(1, log(train[[coin_x]])))[["residuals"]]) 
+        test <- test %>% 
+          mutate(spread = log(test[[coin_y]]) - log(test[[coin_x]]) * rolling_coef[["hedge_ratio"]] - rolling_coef[["intercept"]]) 
+      } 
+    }
+    if (params[["regression_type"]] == "tls") { 
+      if (params[["model_type"]] == "raw") { 
+        pca_model <- prcomp(formula = ~ train[[coin_y]] + train[[coin_x]]) 
+        pca_beta <- pca_model[["rotation"]][1, 1] / pca_model[["rotation"]][2, 1] 
+        pca_intercept <- pca_model[["center"]][1] - pca_beta * pca_model[["center"]][2] 
+        train <- train %>% 
+          mutate(spread = train[[coin_y]] - pca_beta * train[[coin_x]] - pca_intercept) 
+        test <- test %>% 
+          mutate(spread = test[[coin_y]] - test[[coin_x]] * rolling_coef[["hedge_ratio"]] - rolling_coef[["intercept"]]) 
+      } 
+      if (params[["model_type"]] == "log") { 
+        pca_model <- prcomp(formula = ~ log(train[[coin_y]]) + log(train[[coin_x]]), data = train) 
+        pca_beta <- pca_model[["rotation"]][1, 1] / pca_model[["rotation"]][2, 1] 
+        pca_intercept <- pca_model[["center"]][1] - pca_beta * pca_model[["center"]][2] 
+        train <- train %>% 
+          mutate(spread = log(train[[coin_y]]) - pca_beta * log(train[[coin_x]]) - pca_intercept) 
+        test <- test %>% 
+          mutate(spread = log(test[[coin_y]]) - log(test[[coin_x]]) * rolling_coef[["hedge_ratio"]] - rolling_coef[["intercept"]]) 
+      } 
+    }
     
     # Combine train and test to calculate rolling z-score for the test set  
     result <- bind_rows(train %>% mutate(source = "train"), 
@@ -295,25 +362,48 @@ train_model <- function(train, test, coin_y, coin_x, params) {
   # If calculation of spread uses a model with fixed coefficients estimated over the training set 
   if (params[["spread_type"]] == "fixed") { 
     
-    # If regression uses raw prices 
-    if (params[["model_type"]] == "raw") { 
-      model <- lm.fit(y = train[[coin_y]], x = cbind(1, train[[coin_x]])) 
-      intercept <- coef(model)[1] 
-      hedge_ratio <- coef(model)[2] 
-      result <- test %>% 
-        mutate(spread = test[[coin_y]] - test[[coin_x]] * hedge_ratio - intercept, 
-               spread_z = (spread - mean(model[["residuals"]])) / sd(model[["residuals"]]))
+    # If regression uses OLS 
+    if (params[["regression_type"]] == "ols") { 
+      if (params[["model_type"]] == "raw") { 
+        model <- lm.fit(y = train[[coin_y]], x = cbind(1, train[[coin_x]])) 
+        intercept <- coef(model)[1] 
+        hedge_ratio <- coef(model)[2] 
+        result <- test %>% 
+          mutate(spread = test[[coin_y]] - test[[coin_x]] * hedge_ratio - intercept, 
+                 spread_z = (spread - mean(model[["residuals"]])) / sd(model[["residuals"]]))
+      }
+      if (params[["model_type"]] == "log") { 
+        model <- lm.fit(y = log(train[[coin_y]]), x = cbind(1, log(train[[coin_x]]))) 
+        intercept <- coef(model)[1] 
+        hedge_ratio <- coef(model)[2] 
+        result <- test %>% 
+          mutate(spread = log(test[[coin_y]]) - log(test[[coin_x]]) * hedge_ratio - intercept, 
+                 spread_z = (spread - mean(model[["residuals"]])) / sd(model[["residuals"]]))
+      }
     }
     
-    # If regression uses log prices 
-    if (params[["model_type"]] == "log") { 
-      model <- lm.fit(y = log(train[[coin_y]]), x = cbind(1, log(train[[coin_x]]))) 
-      intercept <- coef(model)[1] 
-      hedge_ratio <- coef(model)[2] 
-      result <- test %>% 
-        mutate(spread = log(test[[coin_y]]) - log(test[[coin_x]]) * hedge_ratio - intercept, 
-               spread_z = (spread - mean(model[["residuals"]])) / sd(model[["residuals"]]))
-    }
+    # If regression uses TLS 
+    if (params[["regression_type"]] == "tls") { 
+      if (params[["model_type"]] == "raw") { 
+        pca_model <- prcomp(formula = ~ train[[coin_y]] + train[[coin_x]]) 
+        pca_beta <- pca_model[["rotation"]][1, 1] / pca_model[["rotation"]][2, 1] 
+        pca_intercept <- pca_model[["center"]][1] - pca_beta * pca_model[["center"]][2] 
+        pca_residuals <- train[[coin_y]] - pca_beta * train[[coin_x]] - pca_intercept 
+        result <- test %>% 
+          mutate(spread = test[[coin_y]] - test[[coin_x]] * pca_beta - pca_intercept, 
+                 spread_z = (spread - mean(pca_residuals)) / sd(pca_residuals))
+      } 
+      if (params[["model_type"]] == "log") { 
+        pca_model <- prcomp(formula = ~ log(train[[coin_y]]) + log(train[[coin_x]]))  
+        pca_beta <- pca_model[["rotation"]][1, 1] / pca_model[["rotation"]][2, 1] 
+        pca_intercept <- pca_model[["center"]][1] - pca_beta * pca_model[["center"]][2] 
+        pca_residuals <- log(train[[coin_y]]) - pca_beta * log(train[[coin_x]]) - pca_intercept 
+        result <- test %>% 
+          mutate(spread = log(test[[coin_y]]) - log(test[[coin_x]]) * hedge_ratio - intercept, 
+                 spread_z = (spread - mean(pca_residuals)) / sd(pca_residuals))
+      } 
+    } 
+    
     
     # Return list of statistics for the test set  
     return(list(intercept = intercept, 
