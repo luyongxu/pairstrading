@@ -258,13 +258,15 @@ train_model <- function(train, test, coin_y, coin_x, params) {
   # If calculation of spread uses a rolling regression 
   if (params[["spread_type"]] == "rolling") { 
     
-    # Set y and x depending on model type
+    # Set y and x if model type is raw 
     if (params[["model_type"]] == "raw") { 
       rolling_coef <- bind_rows(train, test) %>%  
         mutate(y = .[[coin_y]], 
                x = .[[coin_x]]) %>% 
         select(y, x)
     } 
+    
+    # Set y and x if model type is log
     if (params[["model_type"]] == "log") { 
       rolling_coef <- bind_rows(train, test) %>%  
         mutate(y = log(.[[coin_y]]), 
@@ -272,7 +274,7 @@ train_model <- function(train, test, coin_y, coin_x, params) {
         select(y, x)
     } 
     
-    # Perform rolling linear regression over the test set using OLS or TLS
+    # Perform rolling linear regression over the test set if regression type is OLS 
     if (params[["regression_type"]] == "ols") { 
       rolling_coef <- rolling_coef %>% 
         rollapply(data = ., 
@@ -290,6 +292,8 @@ train_model <- function(train, test, coin_y, coin_x, params) {
                hedge_ratio = x2) %>% 
         filter(row_number() > nrow(train)) 
     } 
+    
+    # Perform rolling linear regression over the test set if regression type is TLS
     if (params[["regression_type"]] == "tls") { 
       rolling_coef <- rolling_coef %>% 
         rollapply(data = ., 
@@ -308,7 +312,7 @@ train_model <- function(train, test, coin_y, coin_x, params) {
         filter(row_number() > nrow(train)) 
     } 
     
-    # Calculate spread in training and test set using OLS or TLS. 
+    # Calculate spread in training and test set if regression type is OLS
     if (params[["regression_type"]] == "ols") { 
       if (params[["model_type"]] == "raw") { 
         train <- train %>% 
@@ -323,6 +327,8 @@ train_model <- function(train, test, coin_y, coin_x, params) {
           mutate(spread = log(test[[coin_y]]) - log(test[[coin_x]]) * rolling_coef[["hedge_ratio"]] - rolling_coef[["intercept"]]) 
       } 
     }
+    
+    # Calculate spread in training and test set if regression type is TLS  
     if (params[["regression_type"]] == "tls") { 
       if (params[["model_type"]] == "raw") { 
         pca_model <- prcomp(formula = ~ train[[coin_y]] + train[[coin_x]]) 
@@ -402,6 +408,21 @@ train_model <- function(train, test, coin_y, coin_x, params) {
           mutate(spread = log(test[[coin_y]]) - log(test[[coin_x]]) * hedge_ratio - intercept, 
                  spread_z = (spread - mean(pca_residuals)) / sd(pca_residuals))
       } 
+    } 
+    
+    # If model is non-parametric 
+    if (params[["regression_type"]] == "non-parametric") { 
+      train <- train %>% 
+        mutate(coin_y_normalized = train[[coin_y]] / train[[coin_y]][1], 
+               coin_x_normalized = train[[coin_x]] / train[[coin_x]][1], 
+               spread = coin_y_normalized - coin_x_normalized) 
+      result <- test %>% 
+        mutate(coin_y_normalized = test[[coin_y]] / test[[coin_y]][1], 
+               coin_x_normalized = test[[coin_x]] / test[[coin_x]][1], 
+               spread = coin_y_normalized - coin_x_normalized, 
+               spread_z = spread / sd(train[["spread"]]))
+      intercept = NA
+      hedge_ratio = 1 
     } 
     
     
@@ -679,9 +700,7 @@ backtest_strategy <- function(train, test, selected_pairs, params) {
     # Calculate weights if cointegration test used Engle-Grange method 
     if (params[["cointegration_test"]] == "eg") { 
       df <- df %>% 
-        mutate(cointegration_stat = abs(cointegration_stat), 
-               cointegration_stat_scaled = (cointegration_stat - mean(cointegration_stat)) * 
-                 params[["pair_allocation_scaling"]] + mean(cointegration_stat), 
+        mutate(cointegration_stat_scaled = abs(cointegration_stat) ^ params[["pair_allocation_scaling"]], 
                weight = cointegration_stat_scaled) %>% 
         group_by(date_time) %>% 
         summarise(return_strategy = weighted.mean(x = return_pair, w = weight))

@@ -55,7 +55,7 @@ pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv", col_types
 #'   
 
 #' # 4. Tune Parameters 
-set.seed(4) 
+set.seed(7) 
 results <- tibble()
 return <- list()
 for (i in 1:10000) { 
@@ -70,6 +70,7 @@ for (i in 1:10000) {
                  train_window = train_window, 
                  test_window = days(sample(3:60, 1)), 
                  model_type = sample(c("log", "raw"), 1), 
+                 regression_type = "ols", 
                  spread_type = sample(c("rolling"), 1), 
                  rolling_window = 86400 / time_resolution * 
                    min(as.numeric(days(sample(2:60, 1))) / 86400, as.numeric(train_window) / 86400), 

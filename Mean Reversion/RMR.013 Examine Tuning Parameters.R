@@ -34,7 +34,6 @@ single <- params %>%
          signal_scaled_enter = factor(signal_scaled_enter))
 
 #' # 4. Plot Functions
-
 plot_boxplot <- function(df, x, ylim_low, ylim_high) { 
   ggplot(df, aes_string(x = x, fill = x)) + 
     geom_boxplot(aes(y = overall_return)) + 
@@ -138,22 +137,24 @@ plot_boxplot(single, "pair_allocation", 0, 2)
 #' time resolution is 300, the spread type is rolling, and the signal logic is scaled. These parameters 
 #' have shown to have produced good results.   
 #' 
-params <- read_csv("./Mean Reversion/Output/parameter tuning 20171101.csv")
+params <- bind_rows(read_csv("./Mean Reversion/Output/parameter tuning 20171101.csv"), 
+                    read_csv("./Mean Reversion/Output/parameter tuning 20171102.csv"))
 
 #' ## 6.1 Filter Results 
 multiple <- params %>% 
   filter(time_resolution == 300, 
          spread_type == "rolling", 
-         signal_logic == "scaled", 
-         pair_allocation != "scaled") %>% 
+         signal_logic == "scaled") %>% 
   mutate(train_window = as.numeric(str_match(train_window, "(\\d*)d*")[, 2]), 
          test_window = as.numeric(str_match(test_window, "(\\d*)d*")[, 2]), 
          model_spread_type = str_c(model_type, " ", spread_type), 
          rolling_window_days = rolling_window * time_resolution / 60 / 60 / 24, 
          time_resolution = factor(time_resolution), 
          signal_scaled_enter = factor(signal_scaled_enter))
+print(multiple)
 
 #' ## 6.2 Cointegration Test 
+#' Higher returns associated with the engle-granger cointegration test.  
 plot_boxplot(multiple, "cointegration_test", 1, 10) 
 
 #' ## 6.3 ADF and Distance Threshold 
@@ -164,7 +165,7 @@ multiple %>%
   ggplot(aes(x = adf_threshold, y = overall_return, colour = pair_allocation)) + 
   coord_cartesian(ylim = c(1, 10)) + 
   geom_point() + 
-  geom_smooth() + 
+  geom_smooth(se = FALSE) + 
   geom_hline(yintercept = 1) + 
   facet_wrap(~ quote_currency, ncol = 1)
 multiple %>% 
@@ -172,14 +173,14 @@ multiple %>%
   ggplot(aes(x = adf_threshold, y = overall_return, colour = pair_allocation)) + 
   coord_cartesian(ylim = c(1, 10)) + 
   geom_point() + 
-  geom_smooth() + 
+  geom_smooth(se = FALSE) + 
   geom_hline(yintercept = 1) + 
   facet_wrap(~ quote_currency, ncol = 1)
 
 
 #' ## 6.4 Train and Test Window
-plot_scatter(multiple, "train_window", 1, 15, TRUE)
-plot_scatter(multiple, "test_window", 1, 15, TRUE) 
+plot_scatter(multiple, "train_window", 1, 10, TRUE)
+plot_scatter(multiple, "test_window", 1, 10, TRUE) 
 multiple %>% 
   filter(overall_return >= 0, 
          overall_return <= 10) %>% 
