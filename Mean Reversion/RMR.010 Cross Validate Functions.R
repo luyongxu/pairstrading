@@ -348,15 +348,32 @@ train_model <- function(train, test, coin_y, coin_x, params) {
         test <- test %>% 
           mutate(spread = log(test[[coin_y]]) - log(test[[coin_x]]) * rolling_coef[["hedge_ratio"]] - rolling_coef[["intercept"]]) 
       } 
-    }
+    } 
     
     # Combine train and test to calculate rolling z-score for the test set  
-    result <- bind_rows(train %>% mutate(source = "train"), 
-                        test %>% mutate(source = "test")) %>% 
-      mutate(rolling_mean = roll_mean(spread, n = params[["rolling_window"]], fill = NA, align = "right"), 
-             rolling_sd = roll_sd(spread, n = params[["rolling_window"]], fill = NA, align = "right"), 
-             spread_z = (spread - rolling_mean) / rolling_sd) %>% 
-      filter(source == "test") 
+    if (params[["regression_type"]] == "ols" | params[["regression_type"]] == "tls") { 
+      result <- bind_rows(train %>% mutate(source = "train"), 
+                          test %>% mutate(source = "test")) %>% 
+        mutate(rolling_mean = roll_mean(spread, n = params[["rolling_window"]], fill = NA, align = "right"), 
+               rolling_sd = roll_sd(spread, n = params[["rolling_window"]], fill = NA, align = "right"), 
+               spread_z = (spread - rolling_mean) / rolling_sd) %>% 
+        filter(source == "test") 
+    }
+    
+    # Calculate spread in training and test set if regression type is non-parametric 
+    if (params[["regression_type"]] == "non-parametric") { 
+      combined <- bind_rows(train %>% mutate(source == "train"), 
+                            test %>% mutate(source == "test")) 
+      result <- combined %>%  
+        mutate(coin_y_normalized = combined[[coin_y]] / lag(combined[[coin_y]], params[["rolling_window"]]), 
+               coin_x_normalized = combined[[coin_x]] / lag(combined[[coin_x]], params[["rolling_window"]]), 
+               sd = roll_sdr(coin_y_normalized - coin_x_normalized, n = params[["rolling_window"]]), 
+               spread = coin_y_normalized - coin_x_normalized, 
+               spread_z = spread / sd) %>% 
+        filter(source == "test")
+      rolling_coef[["intercept"]] <- NA 
+      rolling_coef[["hedge_ratio"]] <- 1 
+    } 
     
     # Return list of statistics for the test set  
     return(list(intercept = rolling_coef[["intercept"]], 
