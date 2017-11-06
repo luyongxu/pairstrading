@@ -380,7 +380,7 @@ train_model <- function(train, test, coin_y, coin_x, params) {
                 hedge_ratio = rolling_coef[["hedge_ratio"]], 
                 spread = result[["spread"]], 
                 spread_z = result[["spread_z"]]))
-  }
+  } 
   
   # If calculation of spread uses a model with fixed coefficients estimated over the training set 
   if (params[["spread_type"]] == "fixed") { 

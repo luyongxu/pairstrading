@@ -138,7 +138,8 @@ plot_boxplot(single, "pair_allocation", 0, 2)
 #' have shown to have produced good results.   
 #' 
 params <- bind_rows(read_csv("./Mean Reversion/Output/parameter tuning 20171101.csv"), 
-                    read_csv("./Mean Reversion/Output/parameter tuning 20171102.csv"))
+                    read_csv("./Mean Reversion/Output/parameter tuning 20171102.csv"), 
+                    read_csv("./Mean Reversion/Output/parameter tuning 20171106.csv"))
 
 #' ## 6.1 Filter Results 
 multiple <- params %>% 

@@ -55,7 +55,7 @@ pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv", col_types
 #'   
 
 #' # 4. Tune Parameters 
-set.seed(7) 
+set.seed(53) 
 results <- tibble()
 return <- list()
 for (i in 1:10000) { 
