@@ -23,7 +23,8 @@ suppressWarnings(suppressMessages({
   library(zoo) 
   library(RcppRoll) 
   library(foreach) 
-  library(doParallel)
+  library(doParallel) 
+  library(feather)
 }))
 
 #' # 2. Options

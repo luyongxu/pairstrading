@@ -577,10 +577,11 @@ generate_signals <- function(train, test, coin_y, coin_x, model, params) {
 #' coin_x: A string indicating the independent coin in the coin pair regression.  
 #' params: A list of parameters passed to the functions below that describe the mean reversion pairs trading strategy.  
 #'   model_type: A string indicating whether raw prices or log prices should be used. Takes value "raw" or "log".  
+#' featuer: A boolean indicating whether to export the data in feather format.  
 #' 
 #' Value  
 #' Returns a vector containing the cumulative return of applying the trading strategy to the given coin pair.  
-backtest_pair <- function(train, test, coin_y, coin_x, params) { 
+backtest_pair <- function(train, test, coin_y, coin_x, params, feather) {  
   
   # Generate model for calculating spread z-score 
   model <- train_model(train = train, 
@@ -599,6 +600,9 @@ backtest_pair <- function(train, test, coin_y, coin_x, params) {
                                        coin_x = coin_x, 
                                        model = model, 
                                        params = params), 
+             coin_y_price = test[[coin_y]], 
+             coin_x_price = test[[coin_x]], 
+             hedge_ratio = model[["hedge_ratio"]], 
              coin_y_return = test[[coin_y]] / lag(test[[coin_y]], 1) - 1, 
              coin_x_return = test[[coin_x]] / lag(test[[coin_x]], 1) - 1, 
              coin_y_position = test[[coin_y]] * signal * 1                      *  1, 
@@ -622,6 +626,9 @@ backtest_pair <- function(train, test, coin_y, coin_x, params) {
                                        coin_x = coin_x, 
                                        model = model, 
                                        params = params), 
+             coin_y_price = test[[coin_y]], 
+             coin_x_price = test[[coin_x]], 
+             hedge_ratio = model[["hedge_ratio"]], 
              coin_y_return = test[[coin_y]] / lag(test[[coin_y]], 1) - 1, 
              coin_x_return = test[[coin_x]] / lag(test[[coin_x]], 1) - 1, 
              coin_y_position = signal * 1                      *  1, 
@@ -636,7 +643,8 @@ backtest_pair <- function(train, test, coin_y, coin_x, params) {
   } 
   
   # Return cumulative return of the trading strategy on a coin pair 
-  return(df_backtest[["return_pair"]])
+  if (feather == FALSE) return(df_backtest[["return_pair"]]) 
+  if (feather == TRUE)  return(df_backtest)
 } 
 
 #' # 11. Backtest Strategy Function 

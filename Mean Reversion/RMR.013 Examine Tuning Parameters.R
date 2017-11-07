@@ -137,9 +137,9 @@ plot_boxplot(single, "pair_allocation", 0, 2)
 #' time resolution is 300, the spread type is rolling, and the signal logic is scaled. These parameters 
 #' have shown to have produced good results.   
 #' 
-params <- bind_rows(read_csv("./Mean Reversion/Output/parameter tuning 20171101.csv"), 
-                    read_csv("./Mean Reversion/Output/parameter tuning 20171102.csv"), 
-                    read_csv("./Mean Reversion/Output/parameter tuning 20171106.csv"))
+params <- bind_rows(read_csv("./Mean Reversion/Output/Parameter Tuning/parameter tuning 20171101.csv"), 
+                    read_csv("./Mean Reversion/Output/Parameter Tuning/parameter tuning 20171102.csv"), 
+                    read_csv("./Mean Reversion/Output/Parameter Tuning/parameter tuning 20171106.csv"))
 
 #' ## 6.1 Filter Results 
 #' Iterations with an overall return greater than 20 are removed. This removes 21 out of the 549 iterations 
