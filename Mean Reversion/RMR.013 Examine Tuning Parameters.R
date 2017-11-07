@@ -142,6 +142,8 @@ params <- bind_rows(read_csv("./Mean Reversion/Output/parameter tuning 20171101.
                     read_csv("./Mean Reversion/Output/parameter tuning 20171106.csv"))
 
 #' ## 6.1 Filter Results 
+#' Iterations with an overall return greater than 20 are removed. This removes 21 out of the 549 iterations 
+#' but makes the smoothing much more interpretable. 
 multiple <- params %>% 
   filter(time_resolution == 300, 
          spread_type == "rolling", 
@@ -211,7 +213,9 @@ multiple %>%
   geom_hline(yintercept = 1) + 
   facet_wrap(~ quote_currency, ncol = 1)
 
-#' ## 6.6 Signal Scaled Enter  
+#' ## 6.6 Rolling Window 
+
+#' ## 6.7 Signal Scaled Enter  
 plot_boxplot(multiple, "signal_scaled_enter", 0, 20)
 ggplot(multiple, aes(x = signal_scaled_enter, fill = cointegration_test)) + 
   geom_boxplot(aes(y = overall_return)) + 
@@ -224,7 +228,7 @@ ggplot(multiple, aes(x = signal_scaled_enter, fill = model_type)) +
   geom_hline(yintercept = 1) + 
   facet_wrap(~ quote_currency, ncol = 1)
 
-#' ## 6.7 Signal Stop 
+#' ## 6.8 Signal Stop 
 plot_scatter(multiple, "signal_stop", 0, 20, TRUE)
 multiple %>% 
   ggplot(aes(x = signal_stop, y = overall_return, colour = cointegration_test)) + 
@@ -241,7 +245,7 @@ multiple %>%
   geom_hline(yintercept = 1) + 
   facet_wrap(~ quote_currency, ncol = 1)
 
-#' ## 6.8 Signal Reenter 
+#' ## 6.9 Signal Reenter 
 plot_boxplot(multiple, "signal_reenter", 0, 20)
 ggplot(multiple, aes(x = signal_reenter, fill = cointegration_test)) + 
   geom_boxplot(aes(y = overall_return)) + 
@@ -254,7 +258,7 @@ ggplot(multiple, aes(x = signal_reenter, fill = model_type)) +
   geom_hline(yintercept = 1) + 
   facet_wrap(~ quote_currency, ncol = 1)
 
-#' ## 6.9 Signal Reenter Threshold
+#' ## 6.10 Signal Reenter Threshold
 plot_scatter(multiple, "signal_reenter_threshold", 0, 20, TRUE)
 multiple %>% 
   ggplot(aes(x = signal_reenter_threshold, y = overall_return, colour = cointegration_test)) + 
@@ -271,7 +275,7 @@ multiple %>%
   geom_hline(yintercept = 1) + 
   facet_wrap(~ quote_currency, ncol = 1)
 
-#' ## 6.10 Pair Allocation 
+#' ## 6.11 Pair Allocation 
 plot_boxplot(multiple, "pair_allocation", 0, 20)
 ggplot(multiple, aes(x = pair_allocation, fill = cointegration_test)) + 
   geom_boxplot(aes(y = overall_return)) + 

@@ -17,7 +17,7 @@
 source("./Mean Reversion/RMR.001 Load Packages.R")
 
 #' # 2. Load Data
-pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data clean.csv")
+pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv")
 
 #' # 3. Filter Data 
 pricing_data_a <- pricing_data %>% 

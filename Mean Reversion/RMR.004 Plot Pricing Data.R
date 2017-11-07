@@ -17,7 +17,7 @@
 source("./Mean Reversion/RMR.001 Load Packages.R")
 
 #' # 2. Load Data
-pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data clean.csv")
+pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv")
 
 #' # 3. Plot Data 
 #' Plots were compared visually with data on CoinMarketCap.com. Overall data quality for daily time resolution is good. 

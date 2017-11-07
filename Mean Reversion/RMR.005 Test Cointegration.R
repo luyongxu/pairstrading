@@ -107,7 +107,7 @@ plot_coins <- function(coin_y, coin_x) {
   print(summary(m))
   print(ggplot(pricing_data_a, aes(x = date_time)) + 
     geom_line(aes(y = coin_y), colour = "blue") + 
-    geom_line(aes(y = coin_x * coef(m)[2]), colour = "red"))
+    geom_line(aes(y = coef(m)[1] + coin_x * coef(m)[2]), colour = "red"))
   print(ggplot(pricing_data_a, aes(x = date_time)) + 
     geom_line(aes(y = m[["residuals"]]), colour = "blue") + 
     geom_hline(yintercept = 0))

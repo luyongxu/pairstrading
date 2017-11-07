@@ -11,7 +11,7 @@
 
 <meta name="author" content="Kevin Lu" />
 
-<meta name="date" content="2017-10-28" />
+<meta name="date" content="2017-11-06" />
 
 <title>Clean Pricing Data</title>
 
@@ -245,7 +245,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">Clean Pricing Data</h1>
 <h4 class="author"><em>Kevin Lu</em></h4>
-<h4 class="date"><em>October 28, 2017</em></h4>
+<h4 class="date"><em>November 06, 2017</em></h4>
 
 </div>
 
@@ -274,7 +274,7 @@ div.tocify {
 </div>
 <div id="convert-currency-pairs-to-usd" class="section level1">
 <h1>3. Convert Currency Pairs to USD</h1>
-<p>Pricing data was downloaded for the following currency pairs: USDT_BTC, USDT_ETH, USDT_LTC, USDT_DASH, USDT_XMR, USDT_ZEC, USDT_REP, BTC_XEM. This section converts all currency pairs to use USDT as the quote currency. BTC_XEM is converted to USDT_XEM.</p>
+<p>This section converts the BTC_XEM currency pair to USDT_XEM.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">usdt_xem &lt;-<span class="st"> </span>pricing_data <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">  </span><span class="kw">filter</span>(currency_pair <span class="op">==</span><span class="st"> &quot;BTC_XEM&quot;</span>) <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">  </span><span class="kw">left_join</span>(pricing_data <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">filter</span>(currency_pair <span class="op">==</span><span class="st"> &quot;USDT_BTC&quot;</span>), <span class="dt">by =</span> <span class="kw">c</span>(<span class="st">&quot;date_unix&quot;</span> =<span class="st"> &quot;date_unix&quot;</span>, <span class="st">&quot;period&quot;</span> =<span class="st"> &quot;period&quot;</span>)) <span class="op">%&gt;%</span><span class="st"> </span>
@@ -311,7 +311,7 @@ div.tocify {
 <div id="summary" class="section level1">
 <h1>6. Summary</h1>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">print</span>(pricing_data)</code></pre></div>
-<pre><code>## # A tibble: 5,834,046 x 11
+<pre><code>## # A tibble: 6,722,604 x 11
 ##     date_unix           date_time   high   low   open close   volume
 ##         &lt;int&gt;              &lt;dttm&gt;  &lt;dbl&gt; &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt;    &lt;dbl&gt;
 ##  1 1424373000 2015-02-19 19:10:00   0.33   225   0.33   225 0.999999
@@ -324,37 +324,41 @@ div.tocify {
 ##  8 1424375100 2015-02-19 19:45:00 225.00   225 225.00   225 0.000000
 ##  9 1424375400 2015-02-19 19:50:00 225.00   225 225.00   225 0.000000
 ## 10 1424375700 2015-02-19 19:55:00 225.00   225 225.00   225 0.000000
-## # ... with 5,834,036 more rows, and 4 more variables: quote_volume &lt;dbl&gt;,
+## # ... with 6,722,594 more rows, and 4 more variables: quote_volume &lt;dbl&gt;,
 ## #   weighted_average &lt;dbl&gt;, currency_pair &lt;chr&gt;, period &lt;int&gt;</code></pre>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">summary</span>(pricing_data)</code></pre></div>
 <pre><code>##    date_unix            date_time                        high         
 ##  Min.   :1390003200   Min.   :2014-01-18 00:00:00   Min.   :   0.000  
-##  1st Qu.:1444891800   1st Qu.:2015-10-15 06:50:00   1st Qu.:   0.006  
-##  Median :1470293100   Median :2016-08-04 06:45:00   Median :   0.036  
-##  Mean   :1466353994   Mean   :2016-06-19 16:33:14   Mean   :  94.817  
-##  3rd Qu.:1490614200   3rd Qu.:2017-03-27 11:30:00   3rd Qu.:   7.911  
-##  Max.   :1509241500   Max.   :2017-10-29 01:45:00   Max.   :9000.000  
+##  1st Qu.:1448364300   1st Qu.:2015-11-24 11:25:00   1st Qu.:   0.004  
+##  Median :1473559200   Median :2016-09-11 02:00:00   Median :   0.016  
+##  Mean   :1468767224   Mean   :2016-07-17 14:53:43   Mean   :  86.960  
+##  3rd Qu.:1492131600   3rd Qu.:2017-04-14 01:00:00   3rd Qu.:   4.411  
+##  Max.   :1510019100   Max.   :2017-11-07 01:45:00   Max.   :9000.000  
+##                                                     NA's   :1         
 ##       low                open              close         
 ##  Min.   :   0.000   Min.   :   0.000   Min.   :   0.000  
-##  1st Qu.:   0.006   1st Qu.:   0.006   1st Qu.:   0.006  
-##  Median :   0.035   Median :   0.035   Median :   0.035  
-##  Mean   :  94.206   Mean   :  94.515   Mean   :  94.522  
-##  3rd Qu.:   7.873   3rd Qu.:   7.896   3rd Qu.:   7.897  
-##  Max.   :6414.729   Max.   :9000.000   Max.   :6414.729  
+##  1st Qu.:   0.004   1st Qu.:   0.004   1st Qu.:   0.004  
+##  Median :   0.016   Median :   0.016   Median :   0.016  
+##  Mean   :  86.403   Mean   :  86.685   Mean   :  86.692  
+##  3rd Qu.:   4.391   3rd Qu.:   4.400   3rd Qu.:   4.400  
+##  Max.   :7585.000   Max.   :9000.000   Max.   :7591.000  
+##  NA's   :1          NA's   :1          NA's   :1         
 ##      volume           quote_volume       weighted_average  
 ##  Min.   :        0   Min.   :        0   Min.   :   0.000  
-##  1st Qu.:        0   1st Qu.:        0   1st Qu.:   0.006  
-##  Median :        1   Median :        9   Median :   0.035  
-##  Mean   :    14553   Mean   :    59987   Mean   :  94.515  
-##  3rd Qu.:       46   3rd Qu.:      341   3rd Qu.:   7.895  
-##  Max.   :139231790   Max.   :495536294   Max.   :6844.175  
+##  1st Qu.:        0   1st Qu.:        0   1st Qu.:   0.004  
+##  Median :        1   Median :       16   Median :   0.016  
+##  Mean   :    13056   Mean   :    53239   Mean   :  86.685  
+##  3rd Qu.:       28   3rd Qu.:      483   3rd Qu.:   4.400  
+##  Max.   :139231790   Max.   :495536294   Max.   :7595.215  
+##  NA's   :1                               NA's   :1         
 ##  currency_pair          period     
-##  Length:5834046     Min.   :  300  
+##  Length:6722604     Min.   :  300  
 ##  Class :character   1st Qu.:  300  
 ##  Mode  :character   Median :  300  
 ##                     Mean   : 1150  
 ##                     3rd Qu.:  900  
-##                     Max.   :86400</code></pre>
+##                     Max.   :86400  
+## </code></pre>
 </div>
 <div id="clean" class="section level1">
 <h1>7. Clean</h1>

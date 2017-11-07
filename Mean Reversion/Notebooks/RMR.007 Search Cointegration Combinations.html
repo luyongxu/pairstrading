@@ -11,7 +11,7 @@
 
 <meta name="author" content="Kevin Lu" />
 
-<meta name="date" content="2017-10-28" />
+<meta name="date" content="2017-11-06" />
 
 <title>Search Cointegration Combinations</title>
 
@@ -245,7 +245,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">Search Cointegration Combinations</h1>
 <h4 class="author"><em>Kevin Lu</em></h4>
-<h4 class="date"><em>October 28, 2017</em></h4>
+<h4 class="date"><em>November 06, 2017</em></h4>
 
 </div>
 
@@ -256,7 +256,7 @@ div.tocify {
 </div>
 <div id="load-data" class="section level1">
 <h1>2. Load Data</h1>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">pricing_data &lt;-<span class="st"> </span><span class="kw">read_csv</span>(<span class="st">&quot;./Mean Reversion/Raw Data/pricing data clean.csv&quot;</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">pricing_data &lt;-<span class="st"> </span><span class="kw">read_csv</span>(<span class="st">&quot;./Mean Reversion/Raw Data/pricing data.csv&quot;</span>)</code></pre></div>
 <pre><code>## Parsed with column specification:
 ## cols(
 ##   date_unix = col_integer(),
@@ -304,7 +304,7 @@ div.tocify {
 <h1>5. Create Coin Combinations Function</h1>
 <p>Two sets of currency pairs are examined: currency pairs where USDT is the quote currency and currency pairs where BTC is the quote currency. All combinations of coins within each set of currency pairs are created. Combinations that consist of the coin with itself are removed. There are a total of 98 coin combinations.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">create_coins &lt;-<span class="st"> </span><span class="cf">function</span>() { 
-  coins_usdt &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;USDT_BTC&quot;</span>, <span class="st">&quot;USDT_DASH&quot;</span>, <span class="st">&quot;USDT_ETH&quot;</span>, <span class="st">&quot;USDT_LTC&quot;</span>, <span class="st">&quot;USDT_REP&quot;</span>, <span class="st">&quot;USDT_XEM&quot;</span>, <span class="st">&quot;USDT_XMR&quot;</span>, <span class="st">&quot;USDT_ZEC&quot;</span>)
+  coins_usdt &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;USDT_BTC&quot;</span>, <span class="st">&quot;USDT_DASH&quot;</span>, <span class="st">&quot;USDT_ETH&quot;</span>, <span class="st">&quot;USDT_LTC&quot;</span>, <span class="st">&quot;USDT_REP&quot;</span>, <span class="st">&quot;USDT_XMR&quot;</span>, <span class="st">&quot;USDT_ZEC&quot;</span>)
   coins_btc &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;BTC_DASH&quot;</span>, <span class="st">&quot;BTC_ETH&quot;</span>, <span class="st">&quot;BTC_LTC&quot;</span>, <span class="st">&quot;BTC_REP&quot;</span>, <span class="st">&quot;BTC_XEM&quot;</span>, <span class="st">&quot;BTC_XMR&quot;</span>, <span class="st">&quot;BTC_ZEC&quot;</span>)
   coin_pairs &lt;-<span class="st"> </span><span class="kw">rbind</span>(<span class="kw">expand.grid</span>(coins_usdt, coins_usdt), <span class="kw">expand.grid</span>(coins_btc, coins_btc)) <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">as_tibble</span>() <span class="op">%&gt;%</span><span class="st"> </span>
@@ -407,6 +407,26 @@ div.tocify {
 ## [1] &quot;8: Testing for time resolution 14400 from 2017-02-27 to 2017-03-12.&quot;
 ## [1] &quot;9: Testing for time resolution 300 from 2017-05-12 to 2017-06-04.&quot;
 ## [1] &quot;10: Testing for time resolution 86400 from 2017-02-08 to 2017-03-28.&quot;</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">print</span>(results)</code></pre></div>
+<pre><code>## # A tibble: 10 x 14
+##    df_stat_mean crit_value_1pct_mean crit_value_5pct_mean
+##           &lt;dbl&gt;                &lt;dbl&gt;                &lt;dbl&gt;
+##  1    -2.738306                -3.43                -2.86
+##  2    -2.232090                -3.43                -2.86
+##  3    -2.466316                -3.43                -2.86
+##  4    -3.400081                -3.43                -2.86
+##  5    -1.791729                -3.43                -2.86
+##  6    -3.021098                -3.43                -2.86
+##  7    -2.592489                -3.43                -2.86
+##  8    -2.244003                -3.51                -2.89
+##  9    -3.796695                -3.43                -2.86
+## 10    -2.491935                -3.58                -2.93
+## # ... with 11 more variables: crit_value_10pct_mean &lt;dbl&gt;,
+## #   half_life_mean &lt;dbl&gt;, df_stat_median &lt;dbl&gt;,
+## #   crit_value_1pct_median &lt;dbl&gt;, crit_value_5pct_median &lt;dbl&gt;,
+## #   crit_value_10pct_median &lt;dbl&gt;, half_life_median &lt;dbl&gt;,
+## #   time_resolution &lt;dbl&gt;, start_date &lt;date&gt;, end_date &lt;date&gt;,
+## #   length &lt;time&gt;</code></pre>
 </div>
 <div id="results-a" class="section level1">
 <h1>10. Results A</h1>
@@ -429,26 +449,22 @@ results_a &lt;-<span class="st"> </span><span class="kw">read_csv</span>(<span c
 ##   end_date = col_date(format = &quot;&quot;),
 ##   length = col_integer()
 ## )</code></pre>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">print</span>(results)</code></pre></div>
-<pre><code>## # A tibble: 10 x 14
-##    df_stat_mean crit_value_1pct_mean crit_value_5pct_mean
-##           &lt;dbl&gt;                &lt;dbl&gt;                &lt;dbl&gt;
-##  1    -2.705727                -3.43                -2.86
-##  2    -2.205763                -3.43                -2.86
-##  3    -2.522380                -3.43                -2.86
-##  4    -3.358555                -3.43                -2.86
-##  5    -1.919454                -3.43                -2.86
-##  6    -2.964059                -3.43                -2.86
-##  7    -2.594580                -3.43                -2.86
-##  8    -2.211002                -3.51                -2.89
-##  9    -3.661327                -3.43                -2.86
-## 10    -2.529785                -3.58                -2.93
-## # ... with 11 more variables: crit_value_10pct_mean &lt;dbl&gt;,
-## #   half_life_mean &lt;dbl&gt;, df_stat_median &lt;dbl&gt;,
-## #   crit_value_1pct_median &lt;dbl&gt;, crit_value_5pct_median &lt;dbl&gt;,
-## #   crit_value_10pct_median &lt;dbl&gt;, half_life_median &lt;dbl&gt;,
-## #   time_resolution &lt;dbl&gt;, start_date &lt;date&gt;, end_date &lt;date&gt;,
-## #   length &lt;time&gt;</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">print</span>(results_a)</code></pre></div>
+<pre><code>## # A tibble: 18,600 x 9
+##      df_stat crit_value_1pct crit_value_5pct crit_value_10pct   half_life
+##        &lt;dbl&gt;           &lt;dbl&gt;           &lt;dbl&gt;            &lt;dbl&gt;       &lt;dbl&gt;
+##  1 -3.012175           -3.43           -2.86            -2.57  384.672689
+##  2 -3.162462           -3.43           -2.86            -2.57  560.900234
+##  3 -2.598657           -3.43           -2.86            -2.57   44.754316
+##  4 -3.835017           -3.43           -2.86            -2.57 1004.935943
+##  5 -2.582041           -3.43           -2.86            -2.57  223.135158
+##  6 -2.476513           -3.43           -2.86            -2.57  827.426087
+##  7 -2.656168           -3.43           -2.86            -2.57   27.449263
+##  8 -1.769557           -3.44           -2.87            -2.57    8.631061
+##  9 -3.428251           -3.43           -2.86            -2.57  789.819443
+## 10 -1.854896           -3.46           -2.88            -2.57   44.109767
+## # ... with 18,590 more rows, and 4 more variables: time_resolution &lt;int&gt;,
+## #   start_date &lt;date&gt;, end_date &lt;date&gt;, length &lt;int&gt;</code></pre>
 </div>
 <div id="results-b" class="section level1">
 <h1>11. Results B</h1>
@@ -476,13 +492,13 @@ results_b &lt;-<span class="st"> </span><span class="kw">read_csv</span>(<span c
 ##   end_date = col_date(format = &quot;&quot;),
 ##   length = col_integer()
 ## )</code></pre>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">print</span>(results)</code></pre></div>
-<pre><code>## # A tibble: 10 x 14
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">print</span>(results_b)</code></pre></div>
+<pre><code>## # A tibble: 18,600 x 14
 ##    df_stat_mean crit_value_1pct_mean crit_value_5pct_mean
 ##           &lt;dbl&gt;                &lt;dbl&gt;                &lt;dbl&gt;
-##  1    -2.705727                -3.43                -2.86
+##  1    -2.705763                -3.43                -2.86
 ##  2    -2.205763                -3.43                -2.86
-##  3    -2.522380                -3.43                -2.86
+##  3    -2.522635                -3.43                -2.86
 ##  4    -3.358555                -3.43                -2.86
 ##  5    -1.919454                -3.43                -2.86
 ##  6    -2.964059                -3.43                -2.86
@@ -490,12 +506,12 @@ results_b &lt;-<span class="st"> </span><span class="kw">read_csv</span>(<span c
 ##  8    -2.211002                -3.51                -2.89
 ##  9    -3.661327                -3.43                -2.86
 ## 10    -2.529785                -3.58                -2.93
-## # ... with 11 more variables: crit_value_10pct_mean &lt;dbl&gt;,
-## #   half_life_mean &lt;dbl&gt;, df_stat_median &lt;dbl&gt;,
-## #   crit_value_1pct_median &lt;dbl&gt;, crit_value_5pct_median &lt;dbl&gt;,
-## #   crit_value_10pct_median &lt;dbl&gt;, half_life_median &lt;dbl&gt;,
-## #   time_resolution &lt;dbl&gt;, start_date &lt;date&gt;, end_date &lt;date&gt;,
-## #   length &lt;time&gt;</code></pre>
+## # ... with 18,590 more rows, and 11 more variables:
+## #   crit_value_10pct_mean &lt;dbl&gt;, half_life_mean &lt;dbl&gt;,
+## #   df_stat_median &lt;dbl&gt;, crit_value_1pct_median &lt;dbl&gt;,
+## #   crit_value_5pct_median &lt;dbl&gt;, crit_value_10pct_median &lt;dbl&gt;,
+## #   half_life_median &lt;dbl&gt;, time_resolution &lt;int&gt;, start_date &lt;date&gt;,
+## #   end_date &lt;date&gt;, length &lt;int&gt;</code></pre>
 </div>
 <div id="clean" class="section level1">
 <h1>12. Clean</h1>

@@ -20,13 +20,12 @@ source("./Mean Reversion/RMR.001 Load Packages.R")
 #' Returns the ticker for all markets. 
 return_ticker <- fromJSON("https://poloniex.com/public?command=returnTicker") %>% 
   map2_df(names(.), ~ as_tibble(.x) %>% mutate(ticker = .y)) %>% 
-  mutate_at(vars(last, lowestAsk, highestBid, percentChange, baseVolume, quoteVolume, isFrozen, high24hr, low24hr), 
-            as.numeric)
+  mutate_at(vars(last, lowestAsk, highestBid, percentChange, baseVolume, quoteVolume, isFrozen, high24hr, low24hr), as.numeric)
 
 #' # 3. Query Poloniex returnChartData Endpoint 
 #' Returns candlestick chart data. Required GET parameters are "currencyPair", "period" (candlestick period in seconds; 
-#' valid values are 300, 900, 1800, 7200, 14400, and 86400), "start", and "end". "Start" and "end" are given in UNIX 
-#' timestamp format and used to specify the date range for the data returned. This function is a wrapper around the 
+#' valid values are 300, 900, 1800, 7200, 14400, and 86400), "start", and "end". "start" and "end" are given in unix 
+#' timestamp format and are used to specify the date range for the data returned. This function is a wrapper around the 
 #' returnChartData endpoint and adds the currency pair, period, and date time to the result. 
 return_chartdata <- function(currency_pair, start_unix, end_unix, period) { 
   df <- fromJSON(str_c("https://poloniex.com/public?command=returnChartData", 
@@ -37,8 +36,7 @@ return_chartdata <- function(currency_pair, start_unix, end_unix, period) {
     mutate(period = period, 
            currency_pair = currency_pair, 
            date_time = as.POSIXct(date, origin = "1970-01-01")) %>% 
-    select(date, date_time, high, low, open, close, volume, 
-           quoteVolume, weightedAverage, currency_pair, period) %>% 
+    select(date, date_time, high, low, open, close, volume, quoteVolume, weightedAverage, currency_pair, period) %>% 
     as_tibble()
   colnames(df) <- c("date_unix", "date_time", "high", "low", "open", "close", "volume", 
                     "quote_volume", "weighted_average", "currency_pair", "period")
@@ -61,7 +59,10 @@ for (period in periods) {
   for (ticker in tickers) { 
     print(str_c("Downloading data for currency pair ", ticker, "."))
     pricing_data <- pricing_data %>% 
-      bind_rows(return_chartdata(currency_pair = ticker, start_unix = "0000000000", end_unix = "9999999999", period = period)) 
+      bind_rows(return_chartdata(currency_pair = ticker, 
+                                 start_unix = "0000000000", 
+                                 end_unix = "9999999999", 
+                                 period = period)) 
     Sys.sleep(1)
   }
 }

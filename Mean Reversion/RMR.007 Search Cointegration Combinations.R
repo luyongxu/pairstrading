@@ -17,7 +17,7 @@
 source("./Mean Reversion/RMR.001 Load Packages.R")
 
 #' # 2. Load Data
-pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data clean.csv")
+pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv")
 
 #' # 3. Subset and Spread Data Function 
 #' Data was previous gathered in tidy format. This function spreads the data into wide format and filters the data based 
@@ -59,7 +59,7 @@ test_cointegration <- function(coin_y, coin_x) {
 #' is the quote currency. All combinations of coins within each set of currency pairs are created. Combinations that consist 
 #' of the coin with itself are removed. There are a total of 98 coin combinations. 
 create_coins <- function() { 
-  coins_usdt <- c("USDT_BTC", "USDT_DASH", "USDT_ETH", "USDT_LTC", "USDT_REP", "USDT_XEM", "USDT_XMR", "USDT_ZEC")
+  coins_usdt <- c("USDT_BTC", "USDT_DASH", "USDT_ETH", "USDT_LTC", "USDT_REP", "USDT_XMR", "USDT_ZEC")
   coins_btc <- c("BTC_DASH", "BTC_ETH", "BTC_LTC", "BTC_REP", "BTC_XEM", "BTC_XMR", "BTC_ZEC")
   coin_pairs <- rbind(expand.grid(coins_usdt, coins_usdt), expand.grid(coins_btc, coins_btc)) %>% 
     as_tibble() %>% 
@@ -106,7 +106,7 @@ plot_coins <- function(df, coin_y, coin_x) {
   print(summary(m))
   print(ggplot(df, aes(x = date_time)) + 
           geom_line(aes(y = coin_y), colour = "blue") + 
-          geom_line(aes(y = coin_x * coef(m)[2]), colour = "red"))
+          geom_line(aes(y = coef(m)[1] + coin_x * coef(m)[2]), colour = "red"))
   print(ggplot(df, aes(x = date_time)) + 
           geom_line(aes(y = m[["residuals"]]), colour = "blue") + 
           geom_hline(yintercept = 0))
@@ -154,6 +154,7 @@ for (i in 1:10) {
            length = start_date - end_date) 
   results <- bind_rows(results, df_c)
 }
+print(results)
 
 #' # 10. Results A 
 #' An initial run of 18,600 iterations was completed using the following search parameters: 
@@ -163,7 +164,7 @@ for (i in 1:10) {
 #' These results were saved using the code below. 
 # write_csv(results, "./Mean Reversion/Raw Data/search cointegration results A.csv") 
 results_a <- read_csv("./Mean Reversion/Raw Data/search cointegration results A.csv")
-print(results)
+print(results_a)
 
 #' # 11. Results B 
 #' A secondary run of 18,600 iterations was completed using the following search parameters: 
@@ -173,7 +174,7 @@ print(results)
 #' These results were saved using the code below. 
 # write_csv(results, "./Mean Reversion/Raw Data/search cointegration results B.csv")
 results_b <- read_csv("./Mean Reversion/Raw Data/search cointegration results B.csv")
-print(results)
+print(results_b)
 
 #' # 12. Clean 
 rm(i, time_resolution, end_date, start_date, df_a, df_b, df_c)

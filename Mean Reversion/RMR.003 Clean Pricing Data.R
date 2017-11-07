@@ -20,9 +20,7 @@ source("./Mean Reversion/RMR.001 Load Packages.R")
 pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv")
 
 #' # 3. Convert Currency Pairs to USD 
-#' Pricing data was downloaded for the following currency pairs: USDT_BTC, USDT_ETH, USDT_LTC, USDT_DASH, 
-#' USDT_XMR, USDT_ZEC, USDT_REP, BTC_XEM. This section converts all currency pairs to use USDT as the quote 
-#' currency. BTC_XEM is converted to USDT_XEM. 
+#' This section converts the BTC_XEM currency pair to USDT_XEM. 
 usdt_xem <- pricing_data %>% 
   filter(currency_pair == "BTC_XEM") %>% 
   left_join(pricing_data %>% filter(currency_pair == "USDT_BTC"), by = c("date_unix" = "date_unix", "period" = "period")) %>% 
