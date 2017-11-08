@@ -29,16 +29,19 @@ pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv", col_types
 #'   and 86400.   
 #' quote_currency: A string indicating the quote currency of the currency pairs. Takes values "USDT" or "BTC".  
 #' cointegration_test: A string indicating whether the Engle-Granger method or distance method is used to test for 
-#'   cointegration. Takes values "eg" or "distance".  
+#'   cointegration. Takes values "eg", "tls", or "distance".  
 #' adf_threshold: The threshold for the ADF test statistic. Pairs below this threshold are selected when using 
 #'   the Engle-Granger method.  
-#' distance_threshold: The number of coin pairs to select when using the distance method.  
+#' distance_threshold: The threshold for the rmse of the coins normalized prices. Pairs below this threshold are 
+#'   selected when using the distance method.  
 #' train_window: A lubridate period object representing the length of time the train set covers.  
 #' test_window: A lubridate period object representing the length of time the the test set covers.  
 #' model_type: A string indicating whether raw prices or log prices should be used. Takes value "raw" or "log".  
+#' regression_type: A string indicating whether OLS, TLS, or a non-parametric regression should be used. Takes values 
+#'   "ols", "tls", or "non-parametric".    
 #' spread_type: A string indicating whether the regression uses a rolling or fixed window. Takes value "rolling" or 
 #'   "fixed".  
-#' rolling_window: The number of observations used in each window of a rolling linear regression.  
+#' rolling_window: The number of observations used in the lookback window of a rolling linear regression.  
 #' signal_logic: A string indicating which logic to use to generate signals. Takes values "scaled" or "discrete".  
 #' signal_scaled_enter: The z-score threshold indicating the z-score that the signal is fully scaled in when the 
 #'   signal logic is scaled.  
@@ -51,7 +54,8 @@ pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv", col_types
 #' pair_allocation: A string indicating whether the capital allocation to the coin pairs should be equal or weighted. 
 #'   Takes values "equal", "weighted", and "scaled".     
 #'  pair_allocation_scaling: A double indicating the volatility scaling applied to the cointegration stat when the pair 
-#'    allocation is scaled.   
+#'    allocation is scaled. Higher numbers are associated with greater weight being placed on coin pairs with a high 
+#'    cointegration stat.    
 #'   
 
 #' # 4. Tune Parameters 
