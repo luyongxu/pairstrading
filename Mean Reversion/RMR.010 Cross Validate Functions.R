@@ -595,7 +595,9 @@ backtest_pair <- function(train, test, coin_y, coin_x, params, feather = FALSE) 
   # compared to using log prices. 
   if (params[["model_type"]] == "raw") { 
     df_backtest <- test %>% 
-      mutate(signal = generate_signals(train = train, 
+      mutate(coin_y_name = coin_y, 
+             coin_x_name = coin_x, 
+             signal = generate_signals(train = train, 
                                        test = test, 
                                        coin_y = coin_y, 
                                        coin_x = coin_x, 
@@ -607,7 +609,9 @@ backtest_pair <- function(train, test, coin_y, coin_x, params, feather = FALSE) 
              coin_y_return = test[[coin_y]] / lag(test[[coin_y]], 1) - 1, 
              coin_x_return = test[[coin_x]] / lag(test[[coin_x]], 1) - 1, 
              coin_y_position = test[[coin_y]] * signal * 1                      *  1, 
-             coin_x_position = test[[coin_x]] * signal * model[["hedge_ratio"]] * -1,  
+             coin_x_position = test[[coin_x]] * signal * model[["hedge_ratio"]] * -1, 
+             change_y_position = coin_y_position - lag(coin_y_position, 1) - lag(coin_y_position, 1) * coin_y_return, 
+             change_x_position = coin_x_position - lag(coin_x_position, 1) - lag(coin_x_position, 1) * coin_x_return, 
              coin_y_pnl = lag(coin_y_position, 1) * coin_y_return, 
              coin_x_pnl = lag(coin_x_position, 1) * coin_x_return, 
              combined_position = abs(coin_y_position) + abs(coin_x_position), 
@@ -621,7 +625,9 @@ backtest_pair <- function(train, test, coin_y, coin_x, params, feather = FALSE) 
   # is calculated relative to the maximum capital allocation to the coin pair.  
   if (params[["model_type"]] == "log") { 
     df_backtest <- test %>% 
-      mutate(signal = generate_signals(train = train, 
+      mutate(coin_y_name = coin_y, 
+             coin_x_name = coin_x, 
+             signal = generate_signals(train = train, 
                                        test = test, 
                                        coin_y = coin_y, 
                                        coin_x = coin_x, 
@@ -633,7 +639,9 @@ backtest_pair <- function(train, test, coin_y, coin_x, params, feather = FALSE) 
              coin_y_return = test[[coin_y]] / lag(test[[coin_y]], 1) - 1, 
              coin_x_return = test[[coin_x]] / lag(test[[coin_x]], 1) - 1, 
              coin_y_position = signal * 1                      *  1, 
-             coin_x_position = signal * model[["hedge_ratio"]] * -1,  
+             coin_x_position = signal * model[["hedge_ratio"]] * -1, 
+             change_y_position = coin_y_position - lag(coin_y_position, 1) - lag(coin_y_position, 1) * coin_y_return, 
+             change_x_position = coin_x_position - lag(coin_x_position, 1) - lag(coin_x_position, 1) * coin_x_return, 
              coin_y_pnl = lag(coin_y_position, 1) * coin_y_return, 
              coin_x_pnl = lag(coin_x_position, 1) * coin_x_return, 
              combined_position = abs(coin_y_position) + abs(coin_x_position), 
@@ -642,6 +650,12 @@ backtest_pair <- function(train, test, coin_y, coin_x, params, feather = FALSE) 
       mutate_all(funs(ifelse(is.na(.), 0, .))) %>% 
       mutate(cumulative_return = cumprod(1 + combined_return)) 
   } 
+  
+  # Clean the dataframe in preparation for serializing to feather 
+  df_backtest <- df_backtest %>% 
+    select(-starts_with("BTC"), -starts_with("USDT")) %>% 
+    mutate(change_y_position = round(change_y_position, 4), 
+           change_x_position = round(change_x_position, 4))
   
   # Return cumulative return of the trading strategy on a coin pair if feather flag is set to false. 
   if (feather == FALSE) return(df_backtest[["return_pair"]]) 
