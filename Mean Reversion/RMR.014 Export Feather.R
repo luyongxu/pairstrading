@@ -39,6 +39,9 @@ cutoff_date <- "2017-09-01"
 backtest_strategy_results <- tibble()
 for (i in 1:nrow(params_results)) { 
   
+  # Print 
+  print(str_c("Creating backtesting results for parameter set ", i, "."))
+  
   # Set parameter set 
   params <- params_results[i, ] %>% as.list() 
   
