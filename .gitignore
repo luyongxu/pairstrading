@@ -2,5 +2,6 @@
 .Rhistory
 .RData
 .Ruserdata
-/Mean Reversion/Raw Data/
+/Mean Reversion/Raw Data/pricing data.csv
+/Mean Reversion/Raw Data/pricing data clean.csv
 *.feather
