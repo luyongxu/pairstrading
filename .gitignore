@@ -3,3 +3,4 @@
 .RData
 .Ruserdata
 /Mean Reversion/Raw Data/
+*.feather

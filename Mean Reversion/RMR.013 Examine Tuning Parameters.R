@@ -17,7 +17,7 @@
 source("./Mean Reversion/RMR.001 Load Packages.R") 
 
 #' # 2. Load Data 
-params <- read_csv("./Mean Reversion/Output/parameter tuning 20171030.csv")
+params <- read_csv("./Mean Reversion/Output/Parameter Tuning/parameter tuning 20171030.csv")
 
 #' # 3. Remove Bug and Outliers
 #' This set of parameters had a bug that affected runs where the pair allocation was set to scaled. These 

@@ -658,7 +658,7 @@ backtest_pair <- function(train, test, coin_y, coin_x, params, feather = FALSE) 
            change_x_position = round(change_x_position, 4))
   
   # Return cumulative return of the trading strategy on a coin pair if feather flag is set to false. 
-  if (feather == FALSE) return(df_backtest[["return_pair"]]) 
+  if (feather == FALSE) return(df_backtest[["cumulative_return"]]) 
   
   # Return the entire dataframe if feather flag is set to true. This feather object is fed into a backtesting framework that
   # accounts for trading costs.  
@@ -685,26 +685,48 @@ backtest_pair <- function(train, test, coin_y, coin_x, params, feather = FALSE) 
 #'     
 #' Value  
 #' A vector containing the cumulative return of the overall trading strategy for a given train and test split.  
-backtest_strategy <- function(train, test, selected_pairs, params) { 
+backtest_strategy <- function(train, test, selected_pairs, params, feather = FALSE) { 
   
   # Return cumulative return of 1 if no pairs are selected 
   if (nrow(selected_pairs) == 0) 
     return(1) 
   
   # Iterate through each coin pair and calculate the return of the strategy on a coin pair 
-  df <- tibble()  
+  backtest_pair_results <- tibble()  
   for (i in 1:nrow(selected_pairs)) { 
-    single_pair <- tibble(return_pair = backtest_pair(train = train, 
-                                                      test = test, 
-                                                      coin_y = selected_pairs[["coin_y"]][i], 
-                                                      coin_x = selected_pairs[["coin_x"]][i], 
-                                                      params = params), 
-                          coin_y = selected_pairs[["coin_y"]][i], 
-                          coin_x = selected_pairs[["coin_x"]][i], 
-                          date_time = test[["date_time"]], 
-                          cointegration_stat = selected_pairs[["cointegration_stat"]][i]) 
-    df <- bind_rows(df, single_pair)
-  } 
+    
+    # If feather is false, the output of backtest_pair() is just a vector containing the cumulative return of the coin pair, and 
+    # this function Continues on to calculating the cumulative return of the overall strategy. 
+    if (feather == FALSE) { 
+      single_pair <- tibble(return_pair = backtest_pair(train = train, 
+                                                        test = test, 
+                                                        coin_y = selected_pairs[["coin_y"]][i], 
+                                                        coin_x = selected_pairs[["coin_x"]][i], 
+                                                        params = params, 
+                                                        feather = FALSE), 
+                            cointegration_stat = selected_pairs[["cointegration_stat"]][i]) 
+      backtest_pair_results <- bind_rows(backtest_pair_results, single_pair)
+    }
+    
+    # If feather is true, the output of backtest_pair() is a dataframe containing additional information needed for backtesting 
+    # accounting for trading costs. 
+    if (feather == TRUE) { 
+      single_pair <- backtest_pair(train = train, 
+                                   test = test, 
+                                   coin_y = selected_pairs[["coin_y"]][i], 
+                                   coin_x = selected_pairs[["coin_x"]][i], 
+                                   params = params, 
+                                   feather = TRUE) %>% 
+        mutate(cointegration_stat = selected_pairs[["cointegration_stat"]][i], 
+               coin_pair_id = i)
+      backtest_pair_results <- bind_rows(backtest_pair_results, single_pair)
+    }
+  }
+  
+  # If feather is true, return the dataframe containing the multiple dataframes from backtest_pair(). 
+  if (feather == TRUE) { 
+    return(backtest_pair_results)
+  }
   
   # Calculate return of the strategy applied to a portfolio of coin pairs assuming equal capital allocation 
   # to each coin pair 
@@ -759,7 +781,7 @@ backtest_strategy <- function(train, test, selected_pairs, params) {
     }
   } 
   
-  # Return the strategy return
+  # Return the strategy return 
   return(df[["return_strategy"]])
 } 
 
