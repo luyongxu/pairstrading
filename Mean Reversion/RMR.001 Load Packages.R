@@ -22,8 +22,6 @@ suppressWarnings(suppressMessages({
   library(urca)
   library(zoo) 
   library(RcppRoll) 
-  library(foreach) 
-  library(doParallel) 
   library(feather)
 }))
 
