@@ -27,7 +27,7 @@ params_results <- bind_rows(read_csv("./Mean Reversion/Output/Parameter Tuning/p
 #' and adf threshold to be identical so that each strategy will select the same coin pairs. 
 params_results <- params_results %>% 
   arrange(desc(overall_return)) %>% 
-  filter(row_number() <= 3) %>% 
+  filter(row_number() <= 20) %>% 
   mutate(train_window = rep(days(24), nrow(.)), 
          test_window = rep(days(30), nrow(.)), 
          cointegration_test = "eg", 
