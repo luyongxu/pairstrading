@@ -20,23 +20,26 @@ source("./Mean Reversion/RMR.010 Cross Validate Functions.R")
 pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv", col_types = c("iTdddddddci")) 
 params_results <- bind_rows(read_csv("./Mean Reversion/Output/Parameter Tuning/parameter tuning 20171101.csv"), 
                             read_csv("./Mean Reversion/Output/Parameter Tuning/parameter tuning 20171102.csv"), 
-                            read_csv("./Mean Reversion/Output/Parameter Tuning/parameter tuning 20171106.csv")) 
+                            read_csv("./Mean Reversion/Output/Parameter Tuning/parameter tuning 20171106.csv"), 
+                            read_csv("./Mean Reversion/Output/Parameter Tuning/parameter tuning 20171113.csv")) 
 
 #' # 3. Set Parameters 
 #' Take the top 50 best performing parameter sets. First set the train window, test window, cointegration test, 
 #' and adf threshold to be identical so that each strategy will select the same coin pairs. 
 params_results <- params_results %>% 
   arrange(desc(overall_return)) %>% 
-  filter(row_number() <= 20) %>% 
-  mutate(train_window = rep(days(24), nrow(.)), 
+  filter(row_number() <= 3) %>% 
+  mutate(train_window = rep(days(20), nrow(.)), 
          test_window = rep(days(30), nrow(.)), 
          cointegration_test = "eg", 
          adf_threshold = -3.10, 
-         regression_type = "ols")
+         regression_type = "ols", 
+         overall_return = round(overall_return, 2), 
+         params_id = row_number()) %>% 
+  select(params_id, everything())
 cutoff_date <- "2017-09-01"
 
 #' # 4. Loop Over Parameters 
-backtest_strategy_results <- tibble()
 for (i in 1:nrow(params_results)) { 
   
   # Print 
@@ -70,9 +73,10 @@ for (i in 1:nrow(params_results)) {
     mutate(params_id = i, 
            params = paste(map2_chr(names(params), params, str_c, sep = " "), collapse = ", ")) 
   
-  # Append results 
-  backtest_strategy_results <- bind_rows(backtest_strategy_results, backtest)
+  # Output feather file 
+  feather_name <- paste(map_chr(params, str_c, sep = " "), collapse = ", ")
+  write_feather(backtest, str_c("./Mean Reversion/Output/Feather/backtest ", feather_name, ".feather"))
 }
 
-#' # 5. Export to feather
-write_feather(backtest_strategy_results, "./Mean Reversion/Output/Feather/backtest multiple.feather")
+#' # 5. Output Feather of Parameter File 
+write_feather(params_results, "./Mean Reversion/Output/Feather/params_results.feather")
