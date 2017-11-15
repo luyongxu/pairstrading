@@ -67,12 +67,19 @@ for (period in periods) {
   }
 }
 
-#' # 6. Write Data 
+#' # 6. Save Data to CSV
 write_csv(pricing_data, "./Mean Reversion/Raw Data/pricing data.csv")
 
-#' # 7. Summary
+#' # 7. Save Data to MongoDB 
+mongo_connection <- mongo(collection = "pricing_data", 
+                          db = "mean_reversion", 
+                          url = "mongodb://localhost")
+mongo_connection$drop()
+mongo_connection$insert(pricing_data)
+
+#' # 8. Summary
 print(pricing_data)
 summary(pricing_data)
 
-#' # 8. Clean
+#' # 9. Clean
 rm(return_ticker, period, periods, ticker, tickers, return_chartdata)

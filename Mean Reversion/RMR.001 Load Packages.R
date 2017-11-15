@@ -42,7 +42,8 @@ if (debug == TRUE) {
 #' the parent library to not load. If this happens, load the dependencies manually first before loading the parent 
 #' library.  
 library_path <- c("/home/rstudio/R/x86_64-pc-linux-gnu-library/3.4", .libPaths())
-suppressWarnings(suppressMessages({library(cli, lib.loc = library_path)
+suppressWarnings(suppressMessages({
+  library(cli, lib.loc = library_path)
   library(tidyr, lib.loc = library_path)
   library(readr, lib.loc = library_path)
   library(purrr, lib.loc = library_path) 
@@ -57,7 +58,9 @@ suppressWarnings(suppressMessages({library(cli, lib.loc = library_path)
   library(zoo, lib.loc = library_path)
   library(bindrcpp, lib.loc = library_path)
   library(RcppRoll, lib.loc = library_path)
-  library(feather, lib.loc = library_path)}))
+  library(feather, lib.loc = library_path)
+  library(mongolite, lib.loc = library_path)
+}))
 
 #' # 3. Print Session Info 
 #' A debugging step used to verify that all libraries have been loaded properly.  
