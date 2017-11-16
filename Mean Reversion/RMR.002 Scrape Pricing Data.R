@@ -115,7 +115,8 @@ for (period in periods) {
     mongo_connection$insert(pricing_data_ticker)
   }
 
-  # If download_all flag is FALSE, remove the documents from the past 24 hours and re-insert them
+  # If download_all flag is FALSE, remove the documents from the past 24 hours and re-insert them 
+  # NEED TO MODIFY CODE TO DOWNLOAD ONLY THE PAST 24 HOURS OF DATA IF PARAMETER IS PASSED. 
   if (download_flag == FALSE) { 
     pricing_data_recent <- mongo_connection$find(query = '{ "date_unix" : { "$gt" : 1510012800 } }')
     mongo_connection$remove(query = '{ "date_unix" : { "$gt" : 1510012800 } }') 
