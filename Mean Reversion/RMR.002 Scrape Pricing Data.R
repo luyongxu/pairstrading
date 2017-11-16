@@ -13,16 +13,33 @@
 #'     fig_height: 5 
 #' ---
 
-#' # 1. Load Packages 
-source("./Mean Reversion/RMR.001 Load Packages.R")
-  
-#' # 2. Query Poloniex returnTicker Endpoint 
+#' # 1. Capture Command Line Arguments 
+#' This script when called through the command line using Rscript has the option of including one argument indicating the
+#' time resolution to download the data for. This gets passed to the period parameter in the Poloenix API returnChartData 
+#' end point. If no arguments are including when invoking the script using Rscript, all of the data for all time resolutions 
+#' are downloaded. 
+args_period <- commandArgs(trailingOnly = TRUE) 
+if (length(args_period) == 0) { 
+  download_all <- TRUE 
+}
+if (length(args_period) == 1) { 
+  download_all <- FALSE 
+}
+
+#' # 2. Load Packages 
+#' Sets the command line arguments to NULL so that the command line arguments intended for this script do not get passed to 
+#' the load packages script. 
+commandArgs <- function(...) NULL
+source("./Mean Reversion/RMR.001 Load Packages.R") 
+
+#' # 3. Query Poloniex returnTicker Endpoint 
 #' Returns the ticker for all markets. 
 return_ticker <- fromJSON("https://poloniex.com/public?command=returnTicker") %>% 
   map2_df(names(.), ~ as_tibble(.x) %>% mutate(ticker = .y)) %>% 
   mutate_at(vars(last, lowestAsk, highestBid, percentChange, baseVolume, quoteVolume, isFrozen, high24hr, low24hr), as.numeric)
+print(return_ticker)
 
-#' # 3. Query Poloniex returnChartData Endpoint 
+#' # 4. Query Poloniex returnChartData Endpoint 
 #' Returns candlestick chart data. Required GET parameters are "currencyPair", "period" (candlestick period in seconds; 
 #' valid values are 300, 900, 1800, 7200, 14400, and 86400), "start", and "end". "start" and "end" are given in unix 
 #' timestamp format and are used to specify the date range for the data returned. This function is a wrapper around the 
@@ -38,48 +55,94 @@ return_chartdata <- function(currency_pair, start_unix, end_unix, period) {
            date_time = as.POSIXct(date, origin = "1970-01-01")) %>% 
     select(date, date_time, high, low, open, close, volume, quoteVolume, weightedAverage, currency_pair, period) %>% 
     as_tibble()
-  colnames(df) <- c("date_unix", "date_time", "high", "low", "open", "close", "volume", 
-                    "quote_volume", "weighted_average", "currency_pair", "period")
+  colnames(df) <- c("date_unix", "date_time", "high", "low", "open", "close", "volume", "quote_volume", 
+                    "weighted_average", "currency_pair", "period")
   return(df)
 } 
 
-#' # 4. Create List of Tickers and Periods 
+#' # 5. Create List of Tickers 
 #' The following tickers are of interest: USDT_BTC, USDT_ETH, USDT_LTC, USDT_DASH, USDT_XMR, USDT_ZEC, USDT_REP, BTC_XEM, 
 #' BTC_ETH, BTC_LTC, BTC_DASH, BTC_XMR, BTC_ZEC, BTC_REP, BTC_XEM, BTC_DCR, BTC_FCT, BTC_LSK.
-#' The following periods are of interest: 5-minute, 15-minute, 30-minute, 2-hour, 4-hour, 1-day.
 tickers <- c("USDT_BTC", "USDT_ETH", "USDT_LTC", "USDT_DASH", "USDT_XMR", "USDT_ZEC", "USDT_REP", 
              "BTC_ETH", "BTC_LTC", "BTC_DASH", "BTC_XMR", "BTC_ZEC", "BTC_REP", "BTC_XEM", "BTC_DCR", "BTC_FCT", "BTC_LSK")
-periods <- c("300", "900", "1800", "7200", "14400", "86400")
 
-#' # 5. Download Pricing Data 
-#' Download pricing data for each ticker and period length combination. Save in one dataframe. 
+#' # 6. Create List of Periods
+#' The following periods are of interest: 5-minute, 15-minute, 30-minute, 2-hour, 4-hour, 1-day. If the download_all flag is 
+#' TRUE, then set periods to a vector containing all periods. If the download_all flag is FALSE and a period argument was 
+#' passed using the command line, set the period to the period argument.  
+if (download_all == TRUE) { 
+  periods <- c("86400", "14400", "7200", "1800", "900", "300") 
+} 
+if (download_all == FALSE) { 
+  periods <- args_period[1]
+} 
+
+#' # 7. Download Pricing Data 
+#' Download pricing data for each ticker and period length combination. 
+
+# Initialize a tibble for containing the results for all tickers and all period length combinations 
 pricing_data <- tibble()
+
+# Download data for each time resolution 
 for (period in periods) { 
   print(str_c("Downloading data for period length ", period, "."))
+  
+  # Initialize a tibble for containing the results of all tickers within a period length 
+  pricing_data_ticker <- tibble() 
+  
+  # Download data for each ticker within each time resolution and return results in a dataframe 
   for (ticker in tickers) { 
     print(str_c("Downloading data for currency pair ", ticker, "."))
-    pricing_data <- pricing_data %>% 
+    pricing_data_ticker <- pricing_data_ticker %>% 
       bind_rows(return_chartdata(currency_pair = ticker, 
                                  start_unix = "0000000000", 
                                  end_unix = "9999999999", 
                                  period = period)) 
-    Sys.sleep(1)
+  } 
+  
+  # Clean data 
+  pricing_data_ticker <- pricing_data_ticker %>% 
+    arrange(currency_pair, date_unix)
+  
+  # Establish connection to mongo database 
+  mongo_connection <- mongo(collection = str_c("pricing_data_", period), 
+                            db = "mean_reversion", 
+                            url = "mongodb://localhost") 
+  
+  # If download_all flag is TRUE, drop the collection and re-add all the data 
+  if (download_flag == TRUE) { 
+    mongo_connection$drop() 
+    mongo_connection$insert(pricing_data_ticker)
   }
+
+  # If download_all flag is FALSE, remove the documents from the past 24 hours and re-insert them
+  if (download_flag == FALSE) { 
+    pricing_data_recent <- mongo_connection$find(query = '{ "date_unix" : { "$gt" : 1510012800 } }')
+    mongo_connection$remove(query = '{ "date_unix" : { "$gt" : 1510012800 } }') 
+    pricing_data_ticker <- pricing_data_ticker %>% 
+      bind_rows(pricing_data_recent) %>% 
+      filter(date_unix > 1510012800) %>% 
+      distinct() %>% 
+      group_by(currency_pair, date_unix) %>% 
+      filter(row_number() == 1)
+    mongo_connection$insert(pricing_data_ticker)
+  }
+  
+  # Append the data 
+  pricing_data <- pricing_data %>% 
+    bind_rows(pricing_data_ticker) 
 }
 
-#' # 6. Save Data to CSV
-write_csv(pricing_data, "./Mean Reversion/Raw Data/pricing data.csv")
+#' # 8. Save Data to CSV 
+#' Save data to csv only if the download_all flag is TRUE, i.e. no command line arguments were passed. 
+if (download_all == TRUE) { 
+  write_csv(pricing_data, "./Mean Reversion/Raw Data/pricing data.csv")
+} 
 
-#' # 7. Save Data to MongoDB 
-mongo_connection <- mongo(collection = "pricing_data", 
-                          db = "mean_reversion", 
-                          url = "mongodb://localhost")
-mongo_connection$drop()
-mongo_connection$insert(pricing_data)
-
-#' # 8. Summary
+#' # 9. Summary
 print(pricing_data)
-summary(pricing_data)
+glimpse(pricing_data)
+summary(pricing_data) 
 
-#' # 9. Clean
-rm(return_ticker, period, periods, ticker, tickers, return_chartdata)
+#' # 10. Clean
+rm(return_ticker, period, periods, ticker, tickers, return_chartdata, args_period)

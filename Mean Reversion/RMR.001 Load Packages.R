@@ -13,12 +13,21 @@
 #'     fig_height: 5 
 #' ---
 
-#' # 1. Print library Paths and Packages
+#' # 1. Capture Command Line Arguments 
+#' This script when called through the command line using Rscript has the option of including a debug argument 
+#' indicating whether to be verbose in the output or not to aid in debugging package dependency errors.  
+args_debug <- commandArgs(trailingOnly = TRUE) 
+if (length(args_debug) == 0) { 
+  debug <- FALSE 
+} else if (args_debug[1] == "debug") { 
+  debug <- TRUE
+}
+
+#' # 2. Print library Paths and Packages
 #' The .libPaths() function returns the libraries that R looks in to load packages. There are differences in the 
 #' library path folder list when running scripts using Rscript and running scripts using RStudio. This section 
 #' explicitly prints out the library path and the installed packages in each directory to aid in debugging any 
 #' problems regarding loading packages and loading package dependencies.  
-debug <- FALSE
 if (debug == TRUE) { 
   print("The following directories are in the library path: ")
   print(.libPaths())
@@ -30,7 +39,7 @@ if (debug == TRUE) {
   }
 }
 
-#' # 2. Load libraries 
+#' # 3. Load libraries 
 #' The RStudio Server Amazon Machine Image provided by Louis Aslett (http://www.louisaslett.com/RStudio_AMI/) provides 
 #' an easy way to start an ec2 instance with RStudio Server and all major libraries installed. This machine image installs 
 #' packages in the "/home/rstudio/R/x86_64-pc-linux-gnu-library/3.4" directory. When running scripts using Rscript in the 
@@ -62,15 +71,15 @@ suppressWarnings(suppressMessages({
   library(mongolite, lib.loc = library_path)
 }))
 
-#' # 3. Print Session Info 
+#' # 4. Print Session Info 
 #' A debugging step used to verify that all libraries have been loaded properly.  
 if (debug == TRUE) { 
   sessionInfo()
 }
 
-#' # 4. Options 
+#' # 5. Options 
 #' Turn off scientific notation.
 options(scipen = 999)
 
-#' # 5. Clean
-rm(debug, library_path)
+#' # 6. Clean
+rm(args_debug, debug, library_path)
