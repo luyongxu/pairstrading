@@ -129,7 +129,7 @@ for (period in periods) {
   if (args_period[1] == "update") { 
     pricing_data_recent <- mongo_connection$find(query = '{}') 
     pricing_data_ticker <- pricing_data_ticker %>% 
-      filter(date_unix < max(pricing_data_recent[[""]]))
+      filter(date_unix < max(pricing_data_recent[["date_unix"]]))
     mongo_connection$insert(pricing_data_ticker)
   }
 
