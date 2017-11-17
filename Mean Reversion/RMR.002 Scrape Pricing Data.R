@@ -14,17 +14,24 @@
 #' ---
 
 #' # 1. Capture Command Line Arguments 
-#' This script when called through the command line using Rscript has the option of including one argument indicating the
-#' time resolution to download the data for. This gets passed to the period parameter in the Poloenix API returnChartData 
-#' end point. If no arguments are including when invoking the script using Rscript, all of the data for all time resolutions 
-#' are downloaded. 
+#' This script when called through the command line using Rscript has the option of including one argument that takes the 
+#' following values: 300, 900, 1800, 7200, 14400, 86400, update and rebuild.  
+#' 
+#' When the script is called where the argument is a number (300, 900, 1800, 7200, 14400, and 86400), the argument indicates 
+#' the time resolution to download the data for and this argument gets passed to the period parameter in the Poloenix API 
+#' returnChartData end point. The past 24 hours of data are downloaded, compared to the exitsing documents in the mongo 
+#' collection, and uses the new data to update existing documents or is upsert into the collection. This option is designed 
+#' for cron jobs where new data is added to the database at regular intervals.  
+#' 
+#' When the script is called using the update argument, new data for all time resolutions are downloaded and only data that 
+#' is more recent than the most recent document in the collection is inserted into the collection. This option is designed 
+#' to update the database in the event of some disruption in the Poloneix API or AWS instance hosting the script.  
+#' 
+#' When the script is called using the rebuild argument, all collections and documents within those collections are dropped, 
+#' the collections are recreated, and all historical data is re-inserted in the collections. This option is designed to 
+#' initially populate the database or in the event of some major disruption. NB: THIS OPTION DROPS ALL EXISTING DOCUMENTS 
+#' AND REPOPULATES THE COLLECTIONS SO USE THIS OPTION WITH CAUTION.  
 args_period <- commandArgs(trailingOnly = TRUE) 
-if (length(args_period) == 0) { 
-  download_all <- TRUE 
-}
-if (length(args_period) == 1) { 
-  download_all <- FALSE 
-}
 
 #' # 2. Load Packages 
 #' Sets the command line arguments to NULL so that the command line arguments intended for this script do not get passed to 
@@ -39,7 +46,7 @@ return_ticker <- fromJSON("https://poloniex.com/public?command=returnTicker") %>
   mutate_at(vars(last, lowestAsk, highestBid, percentChange, baseVolume, quoteVolume, isFrozen, high24hr, low24hr), as.numeric)
 print(return_ticker)
 
-#' # 4. Query Poloniex returnChartData Endpoint 
+#' # 4. Query Poloniex returnChartData Endpoint   
 #' Returns candlestick chart data. Required GET parameters are "currencyPair", "period" (candlestick period in seconds; 
 #' valid values are 300, 900, 1800, 7200, 14400, and 86400), "start", and "end". "start" and "end" are given in unix 
 #' timestamp format and are used to specify the date range for the data returned. This function is a wrapper around the 
@@ -67,14 +74,16 @@ tickers <- c("USDT_BTC", "USDT_ETH", "USDT_LTC", "USDT_DASH", "USDT_XMR", "USDT_
              "BTC_ETH", "BTC_LTC", "BTC_DASH", "BTC_XMR", "BTC_ZEC", "BTC_REP", "BTC_XEM", "BTC_DCR", "BTC_FCT", "BTC_LSK")
 
 #' # 6. Create List of Periods
-#' The following periods are of interest: 5-minute, 15-minute, 30-minute, 2-hour, 4-hour, 1-day. If the download_all flag is 
-#' TRUE, then set periods to a vector containing all periods. If the download_all flag is FALSE and a period argument was 
-#' passed using the command line, set the period to the period argument.  
-if (download_all == TRUE) { 
+#' The following periods are of interest: 5-minute, 15-minute, 30-minute, 2-hour, 4-hour, 1-day. If the command line argument 
+#' is update, rebuild, or is missing, all the periods and all historical data are downloaded. If the command line argument is 
+#' one of the time resolutions, only data for that time resolution over the past 24 hours is downloaded. 
+if (args_period[1] %in% c("update", "rebuild") | is.na(args_period[1])) { 
   periods <- c("86400", "14400", "7200", "1800", "900", "300") 
+  start_unix <- "0000000000"
 } 
-if (download_all == FALSE) { 
+if (args_period[1] %in% c("86400", "14400", "7200", "1800", "900", "300")) { 
   periods <- args_period[1]
+  start_unix <- as.character(round(as.numeric(Sys.time())) - 86400)
 } 
 
 #' # 7. Download Pricing Data 
@@ -95,7 +104,7 @@ for (period in periods) {
     print(str_c("Downloading data for currency pair ", ticker, "."))
     pricing_data_ticker <- pricing_data_ticker %>% 
       bind_rows(return_chartdata(currency_pair = ticker, 
-                                 start_unix = "0000000000", 
+                                 start_unix = start_unix, 
                                  end_unix = "9999999999", 
                                  period = period)) 
   } 
@@ -106,23 +115,32 @@ for (period in periods) {
   
   # Establish connection to mongo database 
   mongo_connection <- mongo(collection = str_c("pricing_data_", period), 
-                            db = "mean_reversion", 
+                            db = "poloniex_ohlc", 
                             url = "mongodb://localhost") 
   
-  # If download_all flag is TRUE, drop the collection and re-add all the data 
-  if (download_flag == TRUE) { 
+  # When the command line argument is rebuild, drop the collection and reinsert all historical data 
+  if (args_period[1] == "rebuild") { 
     mongo_connection$drop() 
     mongo_connection$insert(pricing_data_ticker)
   }
+  
+  # When the command line argument is update, find the unix timestamp of the most recent observation in the 
+  # collection and only insert observations that are new 
+  if (args_period[1] == "update") { 
+    pricing_data_recent <- mongo_connection$find(query = '{}') 
+    pricing_data_ticker <- pricing_data_ticker %>% 
+      filter(date_unix < max(pricing_data_recent[[""]]))
+    mongo_connection$insert(pricing_data_ticker)
+  }
 
-  # If download_all flag is FALSE, remove the documents from the past 24 hours and re-insert them 
-  # NEED TO MODIFY CODE TO DOWNLOAD ONLY THE PAST 24 HOURS OF DATA IF PARAMETER IS PASSED. 
-  if (download_flag == FALSE) { 
-    pricing_data_recent <- mongo_connection$find(query = '{ "date_unix" : { "$gt" : 1510012800 } }')
-    mongo_connection$remove(query = '{ "date_unix" : { "$gt" : 1510012800 } }') 
+  # When the command line argument is a tie resolution, query the observations from the past 24 hours in the 
+  # database, remove them, compare them to the most recent data, and upsert the newest data into the collection.  
+  if (args_period[1] %in% c("86400", "14400", "7200", "1800", "900", "300")) { 
+    pricing_data_recent <- mongo_connection$find(query = paste0('{ "date_unix" : { "$gt" : ', start_unix, ' } }'))
+    mongo_connection$remove(query = paste0('{ "date_unix" : { "$gt" : ', start_unix, ' } }'))
     pricing_data_ticker <- pricing_data_ticker %>% 
       bind_rows(pricing_data_recent) %>% 
-      filter(date_unix > 1510012800) %>% 
+      filter(date_unix > start_unix) %>% 
       distinct() %>% 
       group_by(currency_pair, date_unix) %>% 
       filter(row_number() == 1)
@@ -135,8 +153,8 @@ for (period in periods) {
 }
 
 #' # 8. Save Data to CSV 
-#' Save data to csv only if the download_all flag is TRUE, i.e. no command line arguments were passed. 
-if (download_all == TRUE) { 
+#' Save data to csv only if no argument was passed in the command line.  
+if (is.na(args_period[1])) { 
   write_csv(pricing_data, "./Mean Reversion/Raw Data/pricing data.csv")
 } 
 
