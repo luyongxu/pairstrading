@@ -31,7 +31,10 @@
 #' the collections are recreated, and all historical data is re-inserted in the collections. This option is designed to 
 #' initially populate the database or in the event of some major disruption. NB: THIS OPTION DROPS ALL EXISTING DOCUMENTS 
 #' AND REPOPULATES THE COLLECTIONS SO USE THIS OPTION WITH CAUTION.  
-args_period <- commandArgs(trailingOnly = TRUE) 
+args_period <- commandArgs(trailingOnly = TRUE)
+if (length(args_period) == 0) { 
+  args_period <- "none" 
+}
 
 #' # 2. Load Packages 
 #' Sets the command line arguments to NULL so that the command line arguments intended for this script do not get passed to 
@@ -77,12 +80,12 @@ tickers <- c("USDT_BTC", "USDT_ETH", "USDT_LTC", "USDT_DASH", "USDT_XMR", "USDT_
 #' The following periods are of interest: 5-minute, 15-minute, 30-minute, 2-hour, 4-hour, 1-day. If the command line argument 
 #' is update, rebuild, or is missing, all the periods and all historical data are downloaded. If the command line argument is 
 #' one of the time resolutions, only data for that time resolution over the past 24 hours is downloaded. 
-if (args_period[1] %in% c("update", "rebuild") | is.na(args_period[1])) { 
+if (args_period %in% c("update", "rebuild", "none")) { 
   periods <- c("86400", "14400", "7200", "1800", "900", "300") 
   start_unix <- "0000000000"
 } 
-if (args_period[1] %in% c("86400", "14400", "7200", "1800", "900", "300")) { 
-  periods <- args_period[1]
+if (args_period %in% c("86400", "14400", "7200", "1800", "900", "300")) { 
+  periods <- args_period
   start_unix <- as.character(round(as.numeric(Sys.time())) - 86400)
 } 
 
@@ -114,28 +117,31 @@ for (period in periods) {
     arrange(currency_pair, date_unix)
   
   # Establish connection to mongo database 
-  mongo_connection <- mongo(collection = str_c("pricing_data_", period), 
-                            db = "poloniex_ohlc", 
-                            url = "mongodb://localhost") 
-  
+  if (args_period != "none") { 
+    mongo_connection <- mongo(collection = str_c("pricing_data_", period), 
+                              db = "poloniex_ohlc", 
+                              url = "mongodb://localhost") 
+  }
+
   # When the command line argument is rebuild, drop the collection and reinsert all historical data 
-  if (args_period[1] == "rebuild") { 
+  if (args_period == "rebuild") { 
+    mongo_connection$insert(tibble(name = "placeholder"))
     mongo_connection$drop() 
     mongo_connection$insert(pricing_data_ticker)
   }
   
   # When the command line argument is update, find the unix timestamp of the most recent observation in the 
   # collection and only insert observations that are new 
-  if (args_period[1] == "update") { 
+  if (args_period == "update") { 
     pricing_data_recent <- mongo_connection$find(query = '{}') 
     pricing_data_ticker <- pricing_data_ticker %>% 
-      filter(date_unix < max(pricing_data_recent[["date_unix"]]))
+      filter(date_unix > max(pricing_data_recent[["date_unix"]]))
     mongo_connection$insert(pricing_data_ticker)
   }
 
   # When the command line argument is a tie resolution, query the observations from the past 24 hours in the 
   # database, remove them, compare them to the most recent data, and upsert the newest data into the collection.  
-  if (args_period[1] %in% c("86400", "14400", "7200", "1800", "900", "300")) { 
+  if (args_period %in% c("86400", "14400", "7200", "1800", "900", "300")) { 
     pricing_data_recent <- mongo_connection$find(query = paste0('{ "date_unix" : { "$gt" : ', start_unix, ' } }'))
     mongo_connection$remove(query = paste0('{ "date_unix" : { "$gt" : ', start_unix, ' } }'))
     pricing_data_ticker <- pricing_data_ticker %>% 
@@ -154,7 +160,7 @@ for (period in periods) {
 
 #' # 8. Save Data to CSV 
 #' Save data to csv only if no argument was passed in the command line.  
-if (is.na(args_period[1])) { 
+if (args_period == "none") { 
   write_csv(pricing_data, "./Mean Reversion/Raw Data/pricing data.csv")
 } 
 
