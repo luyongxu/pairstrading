@@ -134,9 +134,9 @@ for (period in periods) {
   # collection and only insert observations that are new 
   if (args_period == "update") { 
     pricing_data_recent <- mongo_connection$find(query = '{}') 
-    pricing_data_ticker <- pricing_data_ticker %>% 
+    new_data <- pricing_data_ticker %>% 
       filter(date_unix > max(pricing_data_recent[["date_unix"]]))
-    mongo_connection$insert(pricing_data_ticker)
+    mongo_connection$insert(new_data)
   }
 
   # When the command line argument is a tie resolution, query the observations from the past 24 hours in the 
@@ -144,13 +144,13 @@ for (period in periods) {
   if (args_period %in% c("86400", "14400", "7200", "1800", "900", "300")) { 
     pricing_data_recent <- mongo_connection$find(query = paste0('{ "date_unix" : { "$gt" : ', start_unix, ' } }'))
     mongo_connection$remove(query = paste0('{ "date_unix" : { "$gt" : ', start_unix, ' } }'))
-    pricing_data_ticker <- pricing_data_ticker %>% 
+    new_data <- pricing_data_ticker %>% 
       bind_rows(pricing_data_recent) %>% 
       filter(date_unix > start_unix) %>% 
       distinct() %>% 
       group_by(currency_pair, date_unix) %>% 
       filter(row_number() == 1)
-    mongo_connection$insert(pricing_data_ticker)
+    mongo_connection$insert(new_data)
   }
   
   # Append the data 
