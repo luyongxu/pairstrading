@@ -163,7 +163,7 @@ print(results)
 # end_date <- sample(seq(from = start_date + 3, to = Sys.Date(), by = "1 day"), size = 1) 
 #' These results were saved using the code below. 
 # write_csv(results, "./Mean Reversion/Raw Data/search cointegration results A.csv") 
-results_a <- read_csv("./Mean Reversion/Raw Data/search cointegration results A.csv")
+results_a <- read_csv("./Mean Reversion/Output/Parameter Tuning/search cointegration results A.csv")
 print(results_a)
 
 #' # 11. Results B 
@@ -173,7 +173,7 @@ print(results_a)
 # end_date <- sample(seq(from = start_date + 3, to = start_date + 50, by = "1 day"), size = 1) 
 #' These results were saved using the code below. 
 # write_csv(results, "./Mean Reversion/Raw Data/search cointegration results B.csv")
-results_b <- read_csv("./Mean Reversion/Raw Data/search cointegration results B.csv")
+results_b <- read_csv("./Mean Reversion/Output/Parameter Tuning/search cointegration results B.csv")
 print(results_b)
 
 #' # 12. Clean 

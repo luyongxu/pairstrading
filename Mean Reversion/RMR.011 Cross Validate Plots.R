@@ -62,23 +62,23 @@ pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv", col_types
 params <- list(time_resolution = 300, 
                quote_currency = "USDT", 
                cointegration_test = "eg", 
-               adf_threshold = -3.4, 
-               distance_threshold = 0.38, 
-               train_window = days(36), 
-               test_window = days(51), 
+               adf_threshold = -4.0, 
+               distance_threshold = 0.00, 
+               train_window = days(30), 
+               test_window = days(20), 
                model_type = "raw", 
                regression_type = "ols", 
                spread_type = "rolling", 
                rolling_window = 1440, 
                signal_logic = "scaled", 
                signal_scaled_enter = 3.0, 
-               signal_discrete_enter = 2.9, 
+               signal_discrete_enter = 3.0, 
                signal_discrete_exit = 0.2, 
                signal_stop = 4.5, 
                signal_reenter = TRUE, 
                signal_reenter_threshold = 2.00, 
-               pair_allocation = "scaled", 
-               pair_allocation_scaling = 1.25) 
+               pair_allocation = "equal", 
+               pair_allocation_scaling = 1.00) 
 number_pairs <- 8 
 
 #' # 5. Cross Validation September 2017

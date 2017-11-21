@@ -62,7 +62,7 @@ pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv", col_types
 set.seed(5553) 
 results <- tibble()
 return <- list()
-for (i in 1:10000) { 
+for (i in 1:1) { 
   print(str_c("Testing iteration ", i, ".")) 
   time_resolution <- 300  
   train_window <- days(sample(3:60, 1)) 

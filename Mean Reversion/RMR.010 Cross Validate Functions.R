@@ -71,7 +71,7 @@ prepare_data <- function(pricing_data, start_date, end_date, params) {
   df <- pricing_data %>% 
     filter(period == params[["time_resolution"]], 
            date_time >= start_date, 
-           date_time <= end_date) %>% 
+           date_time < end_date) %>% 
     select(date_unix, date_time, close, currency_pair) %>% 
     spread(currency_pair, close) 
   return(df)
@@ -267,7 +267,7 @@ train_model <- function(train, test, coin_y, coin_x, params) {
     test[[coin_y]] <- test[[coin_y]] 
     test[[coin_x]] <- test[[coin_x]] 
   } 
-  if (params[["model_type"]] == "log" | params[["regression_type"]] == "non-parametric") { 
+  if (params[["model_type"]] == "log" & params[["regression_type"]] != "non-parametric") { 
     train[[coin_y]] <- log(train[[coin_y]]) 
     train[[coin_x]] <- log(train[[coin_x]]) 
     test[[coin_y]] <- log(test[[coin_y]]) 
@@ -572,6 +572,7 @@ backtest_pair <- function(train, test, coin_y, coin_x, params, feather = FALSE) 
                                        model = model, 
                                        params = params), 
              hedge_ratio = model[["hedge_ratio"]], 
+             intercept = model[["intercept"]], 
              coin_y_return = test[[coin_y]] / lag(test[[coin_y]], 1) - 1, 
              coin_x_return = test[[coin_x]] / lag(test[[coin_x]], 1) - 1, 
              coin_y_position = test[[coin_y]] * signal * 1                      *  1, 
@@ -603,6 +604,7 @@ backtest_pair <- function(train, test, coin_y, coin_x, params, feather = FALSE) 
                                        model = model, 
                                        params = params), 
              hedge_ratio = model[["hedge_ratio"]], 
+             intercept = model[["intercept"]], 
              coin_y_return = test[[coin_y]] / lag(test[[coin_y]], 1) - 1, 
              coin_x_return = test[[coin_x]] / lag(test[[coin_x]], 1) - 1, 
              coin_y_position = signal * 1                      *  1, 
@@ -631,7 +633,11 @@ backtest_pair <- function(train, test, coin_y, coin_x, params, feather = FALSE) 
            change_x_position = round(change_x_position, 4))
   
   # Return cumulative return of the trading strategy on a coin pair if feather flag is set to false. 
-  if (feather == FALSE) return(df_backtest[["cumulative_return"]]) 
+  if (feather == FALSE) { 
+    df_backtest <- df_backtest %>% 
+      filter(source == "test")
+    return(df_backtest[["cumulative_return"]]) 
+  }
   
   # Return the entire dataframe if feather flag is set to true. This feather object is fed into a backtesting framework that
   # accounts for trading costs.  
@@ -677,6 +683,9 @@ backtest_strategy <- function(train, test, selected_pairs, params, feather = FAL
                                                         coin_x = selected_pairs[["coin_x"]][i], 
                                                         params = params, 
                                                         feather = FALSE), 
+                            coin_y_name = selected_pairs[["coin_y"]][i], 
+                            coin_x_name = selected_pairs[["coin_x"]][i], 
+                            date_time = test[["date_time"]], 
                             cointegration_stat = selected_pairs[["cointegration_stat"]][i], 
                             coin_pair_id = i)
       backtest_pair_results <- bind_rows(backtest_pair_results, single_pair)
@@ -705,7 +714,7 @@ backtest_strategy <- function(train, test, selected_pairs, params, feather = FAL
   # Calculate return of the strategy applied to a portfolio of coin pairs assuming equal capital allocation 
   # to each coin pair 
   if (params[["pair_allocation"]] == "equal") { 
-    df <- df %>% 
+    backtest_pair_results <- backtest_pair_results %>% 
       group_by(date_time) %>% 
       summarise(return_strategy = mean(return_pair)) 
   } 
@@ -716,18 +725,18 @@ backtest_strategy <- function(train, test, selected_pairs, params, feather = FAL
     
     # Calculate weights if cointegration test used Engle-Grange method or total least squares  
     if (params[["cointegration_test"]] == "eg" | params[["cointegration_test"]] == "tls") { 
-      df <- df %>% 
+      backtest_pair_results <- backtest_pair_results %>% 
         mutate(weight = abs(cointegration_stat))
     }
     
     # Calculate weights if cointegration test used distance method 
     if (params[["cointegration_test"]] == "distance") { 
-      df <- df %>% 
+      backtest_pair_results <- backtest_pair_results %>% 
         mutate(weight = 1 / cointegration_stat)
     } 
     
     # Calculate weighted average of the strategy return 
-    df <- df %>% 
+    backtest_pair_results <- backtest_pair_results %>% 
       group_by(date_time) %>% 
       summarise(return_strategy = weighted.mean(x = return_pair, w = weight)) 
   } 
@@ -737,8 +746,8 @@ backtest_strategy <- function(train, test, selected_pairs, params, feather = FAL
   if (params[["pair_allocation"]] == "scaled") { 
     
     # Calculate weights if cointegration test used Engle-Grange method or total least squares method  
-    if (params[["cointegration_test"]] == "eg" | params[["cointegration_stat"]] == "tls") { 
-      df <- df %>% 
+    if (params[["cointegration_test"]] == "eg" | params[["cointegration_test"]] == "tls") { 
+      backtest_pair_results <- backtest_pair_results %>% 
         mutate(cointegration_stat_scaled = abs(cointegration_stat) ^ params[["pair_allocation_scaling"]], 
                weight = cointegration_stat_scaled) %>% 
         group_by(date_time) %>% 
@@ -747,7 +756,7 @@ backtest_strategy <- function(train, test, selected_pairs, params, feather = FAL
     
     # Calculate weights if cointegration test used distance method 
     if (params[["cointegration_test"]] == "distance") { 
-      df <- df %>% 
+      backtest_pair_results <- backtest_pair_results %>% 
         mutate(cointegration_stat_scaled = cointegration_stat ^ params[["pair_allocation_scaling"]], 
                weight = 1 / cointegration_stat_scaled) %>% 
         group_by(date_time) %>% 
@@ -757,7 +766,7 @@ backtest_strategy <- function(train, test, selected_pairs, params, feather = FAL
   
   # Return the strategy return 
   if (feather == FALSE) { 
-    return(df[["return_strategy"]])
+    return(backtest_pair_results[["return_strategy"]])
   }
 } 
 
@@ -853,10 +862,27 @@ plot_single <- function(train, test, coin_y, coin_x, params) {
                        coin_x = coin_x, 
                        params = params) 
   
-  # Calculate signal and strategy return for the coin pair 
-  df_plot <- test %>% 
+  # Calculate prices for coins and beginning and ending dates over the train and test sets
+  df_plot <- backtest_pair(train = train, 
+                           test = test, 
+                           coin_y = coin_y, 
+                           coin_x = coin_x, 
+                           params = params, 
+                           feather = TRUE) 
+  df_plot_dates <- df_plot %>% 
+    group_by(source) %>% 
+    summarise(start = min(date_time), 
+              end = max(date_time)) 
+  df_plot_index <- df_plot %>% 
+    filter(source == "train") %>% 
+    filter(row_number() == n())
+  
+  # Calculate signal and strategy return for the coin pair over the test set  
+  df_plot2 <- test %>% 
     mutate(spread = model[["spread"]], 
            spread_z = model[["spread_z"]], 
+           intercept = model[["intercept"]], 
+           hedge_ratio = model[["hedge_ratio"]], 
            signal = generate_signals(train = train, 
                                      test = test, 
                                      coin_y = coin_y, 
@@ -870,9 +896,37 @@ plot_single <- function(train, test, coin_y, coin_x, params) {
                                        params = params), 
            return_buyhold_y = test[[coin_y]] / test[[coin_y]][1], 
            return_buyhold_x = test[[coin_x]] / test[[coin_x]][1]) 
+  df_plot2_model <- df_plot2 %>% 
+    select(date_time, intercept, hedge_ratio) %>% 
+    gather(data = ., key = "parameter", value = "value", intercept, hedge_ratio)
+  
+  # This plot plots the price of both coins over the train and test sets 
+  print(ggplot(data = df_plot) + 
+          geom_line(aes(x = date_time, y = coin_y_price / df_plot_index[["coin_y_price"]], colour = "Coin Y"), 
+                    size = 0.5, alpha = 0.5) + 
+          geom_line(aes(x = date_time, y = coin_x_price / df_plot_index[["coin_x_price"]], colour = "Coin X"), 
+                    size = 0.5, alpha = 0.5) + 
+          geom_rect(data = df_plot_dates %>% filter(source == "train"), 
+                    mapping = aes(xmin = start, xmax = end, ymin = -Inf, ymax = +Inf), 
+                    fill = "darkblue", 
+                    alpha = 0.2) + 
+          scale_colour_manual(name = "Indexed Prices", values = c("Coin Y" = "darkred", "Coin X" = "darkgreen")) + 
+          labs(title = "Prices Over the Train and Test Sets", 
+               subtitle = str_c(coin_y, " and ", coin_x), 
+               x = "Date", 
+               y = "Indexed Prices"))
+
+  # This plot plots the intercept and hedge ratio over the test set 
+  print(ggplot(df_plot2_model, aes(x = date_time)) + 
+          geom_line(aes(y = value, colour = parameter), size = 1) + 
+          facet_wrap(~ parameter, ncol = 1, scales = "free_y") + 
+          labs(title = "Hedge Ratio and Intercept", 
+               subtitle = str_c(coin_y, " and ", coin_x), 
+               x = "Date", 
+               y = "Value"))
   
   # This plot plots the spread z-score and signal 
-  print(ggplot(df_plot, aes(x = date_time)) + 
+  print(ggplot(df_plot2, aes(x = date_time)) + 
           geom_line(aes(y = spread_z, colour = "Spread Z"), size = 1) + 
           geom_line(aes(y = signal, colour = "Signal"), size = 0.5) + 
           geom_hline(yintercept = 0, colour = "red", alpha = 0.5) + 
@@ -883,12 +937,12 @@ plot_single <- function(train, test, coin_y, coin_x, params) {
                x = "Date", y = "Spread and Signal")) 
   
   # This plot plots the return of the strategy versus the buy-and-hold return of each coin 
-  print(ggplot(df_plot, aes(x = date_time)) + 
+  print(ggplot(df_plot2, aes(x = date_time)) + 
           geom_line(aes(y = return_pair, colour = "Model"), size = 1) + 
           geom_line(aes(y = return_buyhold_y, colour = "Coin Y"), size = 0.5, alpha = 0.4) + 
           geom_line(aes(y = return_buyhold_x, colour = "Coin X"), size = 0.5, alpha = 0.4) + 
           geom_hline(yintercept = 1, colour = "black") + 
-          scale_color_manual(name = "Return", values = c("Model" = "darkblue", "Coin Y" = "darkred", "Coin X" = "darkgreen")) + 
+          scale_colour_manual(name = "Return", values = c("Model" = "darkblue", "Coin Y" = "darkred", "Coin X" = "darkgreen")) + 
           labs(title = "Model Return vs Buy Hold Return", subtitle = str_c(coin_y, " and ", coin_x), 
                x = "Date", y = "Cumulative Return"))
 } 
@@ -933,6 +987,10 @@ plot_many <- function(pricing_data, cutoff_date, params, number_pairs) {
   # For each coin pair, generate plots by calling plot_single()
   print(selected_pairs) 
   for (i in 1:min(number_pairs, nrow(selected_pairs))) { 
+    cutoff_date <- as.Date(cutoff_date) 
+    print(str_c("Creating plots for ", selected_pairs[["coin_y"]][i], " and ", selected_pairs[["coin_x"]][i], ".")) 
+    print(str_c("Using train set from ", cutoff_date - params[["train_window"]] , " to ", cutoff_date, ".")) 
+    print(str_c("Using test set from ", cutoff_date, " to ", cutoff_date + params[["test_window"]], "."))  
     plot_single(train = train, 
                 test = test, 
                 coin_y = selected_pairs[["coin_y"]][i], 
@@ -987,12 +1045,12 @@ generate_predictions <- function(pricing_data, cutoff_date, params) {
                                  params = params) 
   
   # Generate backtest results 
-  backtest <- backtest_strategy(train = train, 
-                                test = test, 
-                                selected_pairs = selected_pairs, 
-                                params = params, 
-                                feather = TRUE)
+  predictions <- backtest_strategy(train = train, 
+                                   test = test, 
+                                   selected_pairs = selected_pairs, 
+                                   params = params, 
+                                   feather = TRUE)
   
-  # Return
-  return(backtest) 
+  # Return predictions 
+  return(predictions) 
 }
