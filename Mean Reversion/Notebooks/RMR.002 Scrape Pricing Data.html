@@ -11,7 +11,7 @@
 
 <meta name="author" content="Kevin Lu" />
 
-<meta name="date" content="2017-11-06" />
+<meta name="date" content="2017-11-20" />
 
 <title>Scrape Pricing Data</title>
 
@@ -245,25 +245,53 @@ div.tocify {
 
 <h1 class="title toc-ignore">Scrape Pricing Data</h1>
 <h4 class="author"><em>Kevin Lu</em></h4>
-<h4 class="date"><em>November 06, 2017</em></h4>
+<h4 class="date"><em>November 20, 2017</em></h4>
 
 </div>
 
 
+<div id="capture-command-line-arguments" class="section level1">
+<h1>1. Capture Command Line Arguments</h1>
+<p>This script when called through the command line using Rscript has the option of including one argument that takes the following values: 300, 900, 1800, 7200, 14400, 86400, update and rebuild.</p>
+<p>When the script is called where the argument is a number (300, 900, 1800, 7200, 14400, and 86400), the argument indicates the time resolution to download the data for and this argument gets passed to the period parameter in the Poloenix API returnChartData end point. The past 24 hours of data are downloaded, compared to the exitsing documents in the mongo collection, and uses the new data to update existing documents or is upsert into the collection. This option is designed for cron jobs where new data is added to the database at regular intervals.</p>
+<p>When the script is called using the update argument, new data for all time resolutions are downloaded and only data that is more recent than the most recent document in the collection is inserted into the collection. This option is designed to update the database in the event of some disruption in the Poloneix API or AWS instance hosting the script.</p>
+<p>When the script is called using the rebuild argument, all collections and documents within those collections are dropped, the collections are recreated, and all historical data is re-inserted in the collections. This option is designed to initially populate the database or in the event of some major disruption. NB: THIS OPTION DROPS ALL EXISTING DOCUMENTS AND REPOPULATES THE COLLECTIONS SO USE THIS OPTION WITH CAUTION.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">args_period &lt;-<span class="st"> </span><span class="kw">commandArgs</span>(<span class="dt">trailingOnly =</span> <span class="ot">TRUE</span>)
+<span class="cf">if</span> (<span class="kw">length</span>(args_period) <span class="op">==</span><span class="st"> </span><span class="dv">0</span>) { 
+  args_period &lt;-<span class="st"> &quot;none&quot;</span> 
+}</code></pre></div>
+</div>
 <div id="load-packages" class="section level1">
-<h1>1. Load Packages</h1>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">source</span>(<span class="st">&quot;./Mean Reversion/RMR.001 Load Packages.R&quot;</span>)</code></pre></div>
+<h1>2. Load Packages</h1>
+<p>Sets the command line arguments to NULL so that the command line arguments intended for this script do not get passed to the load packages script.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">commandArgs &lt;-<span class="st"> </span><span class="cf">function</span>(...) <span class="ot">NULL</span>
+<span class="kw">source</span>(<span class="st">&quot;./Mean Reversion/RMR.001 Load Packages.R&quot;</span>) </code></pre></div>
 </div>
 <div id="query-poloniex-returnticker-endpoint" class="section level1">
-<h1>2. Query Poloniex returnTicker Endpoint</h1>
+<h1>3. Query Poloniex returnTicker Endpoint</h1>
 <p>Returns the ticker for all markets.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">return_ticker &lt;-<span class="st"> </span><span class="kw">fromJSON</span>(<span class="st">&quot;https://poloniex.com/public?command=returnTicker&quot;</span>) <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">  </span><span class="kw">map2_df</span>(<span class="kw">names</span>(.), <span class="op">~</span><span class="st"> </span><span class="kw">as_tibble</span>(.x) <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">mutate</span>(<span class="dt">ticker =</span> .y)) <span class="op">%&gt;%</span><span class="st"> </span>
-<span class="st">  </span><span class="kw">mutate_at</span>(<span class="kw">vars</span>(last, lowestAsk, highestBid, percentChange, baseVolume, quoteVolume, isFrozen, high24hr, low24hr), 
-            as.numeric)</code></pre></div>
+<span class="st">  </span><span class="kw">mutate_at</span>(<span class="kw">vars</span>(last, lowestAsk, highestBid, percentChange, baseVolume, quoteVolume, isFrozen, high24hr, low24hr), as.numeric)
+<span class="kw">print</span>(return_ticker)</code></pre></div>
+<pre><code>## # A tibble: 102 x 11
+##       id       last  lowestAsk highestBid percentChange baseVolume
+##    &lt;int&gt;      &lt;dbl&gt;      &lt;dbl&gt;      &lt;dbl&gt;         &lt;dbl&gt;      &lt;dbl&gt;
+##  1     7 0.00000016 0.00000016 0.00000015    0.06666666  22.669594
+##  2     8 0.00001215 0.00001226 0.00001206   -0.03187250   7.149572
+##  3    10 0.00003422 0.00003465 0.00003422    0.09259259  35.307996
+##  4    12 0.01379835 0.01379835 0.01363437   -0.00170092   7.371490
+##  5    13 0.00005062 0.00005052 0.00005021   -0.13867619   7.214971
+##  6    14 0.00001293 0.00001298 0.00001293    0.15138023 377.652284
+##  7    15 0.00000074 0.00000074 0.00000073   -0.02631578   7.373958
+##  8    20 0.00069996 0.00069996 0.00069829    0.02115367  31.012507
+##  9    24 0.05449978 0.05449977 0.05424998    0.01443991 567.092880
+## 10    25 0.00000109 0.00000110 0.00000109   -0.02678571  81.123498
+## # ... with 92 more rows, and 5 more variables: quoteVolume &lt;dbl&gt;,
+## #   isFrozen &lt;dbl&gt;, high24hr &lt;dbl&gt;, low24hr &lt;dbl&gt;, ticker &lt;chr&gt;</code></pre>
 </div>
 <div id="query-poloniex-returnchartdata-endpoint" class="section level1">
-<h1>3. Query Poloniex returnChartData Endpoint</h1>
+<h1>4. Query Poloniex returnChartData Endpoint</h1>
 <p>Returns candlestick chart data. Required GET parameters are “currencyPair”, “period” (candlestick period in seconds; valid values are 300, 900, 1800, 7200, 14400, and 86400), “start”, and “end”. “start” and “end” are given in unix timestamp format and are used to specify the date range for the data returned. This function is a wrapper around the returnChartData endpoint and adds the currency pair, period, and date time to the result.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">return_chartdata &lt;-<span class="st"> </span><span class="cf">function</span>(currency_pair, start_unix, end_unix, period) { 
   df &lt;-<span class="st"> </span><span class="kw">fromJSON</span>(<span class="kw">str_c</span>(<span class="st">&quot;https://poloniex.com/public?command=returnChartData&quot;</span>, 
@@ -276,89 +304,98 @@ div.tocify {
            <span class="dt">date_time =</span> <span class="kw">as.POSIXct</span>(date, <span class="dt">origin =</span> <span class="st">&quot;1970-01-01&quot;</span>)) <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">select</span>(date, date_time, high, low, open, close, volume, quoteVolume, weightedAverage, currency_pair, period) <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">as_tibble</span>()
-  <span class="kw">colnames</span>(df) &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;date_unix&quot;</span>, <span class="st">&quot;date_time&quot;</span>, <span class="st">&quot;high&quot;</span>, <span class="st">&quot;low&quot;</span>, <span class="st">&quot;open&quot;</span>, <span class="st">&quot;close&quot;</span>, <span class="st">&quot;volume&quot;</span>, 
-                    <span class="st">&quot;quote_volume&quot;</span>, <span class="st">&quot;weighted_average&quot;</span>, <span class="st">&quot;currency_pair&quot;</span>, <span class="st">&quot;period&quot;</span>)
+  <span class="kw">colnames</span>(df) &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;date_unix&quot;</span>, <span class="st">&quot;date_time&quot;</span>, <span class="st">&quot;high&quot;</span>, <span class="st">&quot;low&quot;</span>, <span class="st">&quot;open&quot;</span>, <span class="st">&quot;close&quot;</span>, <span class="st">&quot;volume&quot;</span>, <span class="st">&quot;quote_volume&quot;</span>, 
+                    <span class="st">&quot;weighted_average&quot;</span>, <span class="st">&quot;currency_pair&quot;</span>, <span class="st">&quot;period&quot;</span>)
   <span class="kw">return</span>(df)
 } </code></pre></div>
 </div>
-<div id="create-list-of-tickers-and-periods" class="section level1">
-<h1>4. Create List of Tickers and Periods</h1>
-<p>The following tickers are of interest: USDT_BTC, USDT_ETH, USDT_LTC, USDT_DASH, USDT_XMR, USDT_ZEC, USDT_REP, BTC_XEM, BTC_ETH, BTC_LTC, BTC_DASH, BTC_XMR, BTC_ZEC, BTC_REP, BTC_XEM, BTC_DCR, BTC_FCT, BTC_LSK. The following periods are of interest: 5-minute, 15-minute, 30-minute, 2-hour, 4-hour, 1-day.</p>
+<div id="create-list-of-tickers" class="section level1">
+<h1>5. Create List of Tickers</h1>
+<p>The following tickers are of interest: USDT_BTC, USDT_ETH, USDT_LTC, USDT_DASH, USDT_XMR, USDT_ZEC, USDT_REP, BTC_XEM, BTC_ETH, BTC_LTC, BTC_DASH, BTC_XMR, BTC_ZEC, BTC_REP, BTC_XEM, BTC_DCR, BTC_FCT, BTC_LSK.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">tickers &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;USDT_BTC&quot;</span>, <span class="st">&quot;USDT_ETH&quot;</span>, <span class="st">&quot;USDT_LTC&quot;</span>, <span class="st">&quot;USDT_DASH&quot;</span>, <span class="st">&quot;USDT_XMR&quot;</span>, <span class="st">&quot;USDT_ZEC&quot;</span>, <span class="st">&quot;USDT_REP&quot;</span>, 
-             <span class="st">&quot;BTC_ETH&quot;</span>, <span class="st">&quot;BTC_LTC&quot;</span>, <span class="st">&quot;BTC_DASH&quot;</span>, <span class="st">&quot;BTC_XMR&quot;</span>, <span class="st">&quot;BTC_ZEC&quot;</span>, <span class="st">&quot;BTC_REP&quot;</span>, <span class="st">&quot;BTC_XEM&quot;</span>, <span class="st">&quot;BTC_DCR&quot;</span>, <span class="st">&quot;BTC_FCT&quot;</span>, <span class="st">&quot;BTC_LSK&quot;</span>)
-periods &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;300&quot;</span>, <span class="st">&quot;900&quot;</span>, <span class="st">&quot;1800&quot;</span>, <span class="st">&quot;7200&quot;</span>, <span class="st">&quot;14400&quot;</span>, <span class="st">&quot;86400&quot;</span>)</code></pre></div>
+             <span class="st">&quot;BTC_ETH&quot;</span>, <span class="st">&quot;BTC_LTC&quot;</span>, <span class="st">&quot;BTC_DASH&quot;</span>, <span class="st">&quot;BTC_XMR&quot;</span>, <span class="st">&quot;BTC_ZEC&quot;</span>, <span class="st">&quot;BTC_REP&quot;</span>, <span class="st">&quot;BTC_XEM&quot;</span>, <span class="st">&quot;BTC_DCR&quot;</span>, <span class="st">&quot;BTC_FCT&quot;</span>, <span class="st">&quot;BTC_LSK&quot;</span>)</code></pre></div>
+</div>
+<div id="create-list-of-periods" class="section level1">
+<h1>6. Create List of Periods</h1>
+<p>The following periods are of interest: 5-minute, 15-minute, 30-minute, 2-hour, 4-hour, 1-day. If the command line argument is update, rebuild, or is missing, all the periods and all historical data are downloaded. If the command line argument is one of the time resolutions, only data for that time resolution over the past 24 hours is downloaded.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="cf">if</span> (args_period <span class="op">%in%</span><span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;update&quot;</span>, <span class="st">&quot;rebuild&quot;</span>, <span class="st">&quot;none&quot;</span>)) { 
+  periods &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;86400&quot;</span>, <span class="st">&quot;14400&quot;</span>, <span class="st">&quot;7200&quot;</span>, <span class="st">&quot;1800&quot;</span>, <span class="st">&quot;900&quot;</span>, <span class="st">&quot;300&quot;</span>) 
+  start_unix &lt;-<span class="st"> &quot;0000000000&quot;</span>
+} 
+<span class="cf">if</span> (args_period <span class="op">%in%</span><span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;86400&quot;</span>, <span class="st">&quot;14400&quot;</span>, <span class="st">&quot;7200&quot;</span>, <span class="st">&quot;1800&quot;</span>, <span class="st">&quot;900&quot;</span>, <span class="st">&quot;300&quot;</span>)) { 
+  periods &lt;-<span class="st"> </span>args_period
+  start_unix &lt;-<span class="st"> </span><span class="kw">as.character</span>(<span class="kw">round</span>(<span class="kw">as.numeric</span>(<span class="kw">Sys.time</span>())) <span class="op">-</span><span class="st"> </span><span class="dv">86400</span>)
+} </code></pre></div>
 </div>
 <div id="download-pricing-data" class="section level1">
-<h1>5. Download Pricing Data</h1>
-<p>Download pricing data for each ticker and period length combination. Save in one dataframe.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">pricing_data &lt;-<span class="st"> </span><span class="kw">tibble</span>()
+<h1>7. Download Pricing Data</h1>
+<p>Download pricing data for each ticker and period length combination.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># Initialize a tibble for containing the results for all tickers and all period length combinations </span>
+pricing_data &lt;-<span class="st"> </span><span class="kw">tibble</span>()
+
+<span class="co"># Download data for each time resolution </span>
 <span class="cf">for</span> (period <span class="cf">in</span> periods) { 
   <span class="kw">print</span>(<span class="kw">str_c</span>(<span class="st">&quot;Downloading data for period length &quot;</span>, period, <span class="st">&quot;.&quot;</span>))
+  
+  <span class="co"># Initialize a tibble for containing the results of all tickers within a period length </span>
+  pricing_data_ticker &lt;-<span class="st"> </span><span class="kw">tibble</span>() 
+  
+  <span class="co"># Download data for each ticker within each time resolution and return results in a dataframe </span>
   <span class="cf">for</span> (ticker <span class="cf">in</span> tickers) { 
     <span class="kw">print</span>(<span class="kw">str_c</span>(<span class="st">&quot;Downloading data for currency pair &quot;</span>, ticker, <span class="st">&quot;.&quot;</span>))
-    pricing_data &lt;-<span class="st"> </span>pricing_data <span class="op">%&gt;%</span><span class="st"> </span>
+    pricing_data_ticker &lt;-<span class="st"> </span>pricing_data_ticker <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">      </span><span class="kw">bind_rows</span>(<span class="kw">return_chartdata</span>(<span class="dt">currency_pair =</span> ticker, 
-                                 <span class="dt">start_unix =</span> <span class="st">&quot;0000000000&quot;</span>, 
+                                 <span class="dt">start_unix =</span> start_unix, 
                                  <span class="dt">end_unix =</span> <span class="st">&quot;9999999999&quot;</span>, 
                                  <span class="dt">period =</span> period)) 
-    <span class="kw">Sys.sleep</span>(<span class="dv">1</span>)
+  } 
+  
+  <span class="co"># Clean data </span>
+  pricing_data_ticker &lt;-<span class="st"> </span>pricing_data_ticker <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">    </span><span class="kw">arrange</span>(currency_pair, date_unix)
+  
+  <span class="co"># Establish connection to mongo database </span>
+  <span class="cf">if</span> (args_period <span class="op">!=</span><span class="st"> &quot;none&quot;</span>) { 
+    mongo_connection &lt;-<span class="st"> </span><span class="kw">mongo</span>(<span class="dt">collection =</span> <span class="kw">str_c</span>(<span class="st">&quot;pricing_data_&quot;</span>, period), 
+                              <span class="dt">db =</span> <span class="st">&quot;poloniex_ohlc&quot;</span>, 
+                              <span class="dt">url =</span> <span class="st">&quot;mongodb://localhost&quot;</span>) 
   }
+
+  <span class="co"># When the command line argument is rebuild, drop the collection and reinsert all historical data </span>
+  <span class="cf">if</span> (args_period <span class="op">==</span><span class="st"> &quot;rebuild&quot;</span>) { 
+    mongo_connection<span class="op">$</span><span class="kw">insert</span>(<span class="kw">tibble</span>(<span class="dt">name =</span> <span class="st">&quot;placeholder&quot;</span>))
+    mongo_connection<span class="op">$</span><span class="kw">drop</span>() 
+    mongo_connection<span class="op">$</span><span class="kw">insert</span>(pricing_data_ticker)
+  }
+  
+  <span class="co"># When the command line argument is update, find the unix timestamp of the most recent observation in the </span>
+  <span class="co"># collection and only insert observations that are new </span>
+  <span class="cf">if</span> (args_period <span class="op">==</span><span class="st"> &quot;update&quot;</span>) { 
+    pricing_data_recent &lt;-<span class="st"> </span>mongo_connection<span class="op">$</span><span class="kw">find</span>(<span class="dt">query =</span> <span class="st">'{}'</span>) 
+    new_data &lt;-<span class="st"> </span>pricing_data_ticker <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">      </span><span class="kw">filter</span>(date_unix <span class="op">&gt;</span><span class="st"> </span><span class="kw">max</span>(pricing_data_recent[[<span class="st">&quot;date_unix&quot;</span>]]))
+    mongo_connection<span class="op">$</span><span class="kw">insert</span>(new_data)
+  }
+
+  <span class="co"># When the command line argument is a tie resolution, query the observations from the past 24 hours in the </span>
+  <span class="co"># database, remove them, compare them to the most recent data, and upsert the newest data into the collection.  </span>
+  <span class="cf">if</span> (args_period <span class="op">%in%</span><span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;86400&quot;</span>, <span class="st">&quot;14400&quot;</span>, <span class="st">&quot;7200&quot;</span>, <span class="st">&quot;1800&quot;</span>, <span class="st">&quot;900&quot;</span>, <span class="st">&quot;300&quot;</span>)) { 
+    pricing_data_recent &lt;-<span class="st"> </span>mongo_connection<span class="op">$</span><span class="kw">find</span>(<span class="dt">query =</span> <span class="kw">paste0</span>(<span class="st">'{ &quot;date_unix&quot; : { &quot;$gt&quot; : '</span>, start_unix, <span class="st">' } }'</span>))
+    mongo_connection<span class="op">$</span><span class="kw">remove</span>(<span class="dt">query =</span> <span class="kw">paste0</span>(<span class="st">'{ &quot;date_unix&quot; : { &quot;$gt&quot; : '</span>, start_unix, <span class="st">' } }'</span>))
+    new_data &lt;-<span class="st"> </span>pricing_data_ticker <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">      </span><span class="kw">bind_rows</span>(pricing_data_recent) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">      </span><span class="kw">filter</span>(date_unix <span class="op">&gt;</span><span class="st"> </span>start_unix) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">      </span><span class="kw">distinct</span>() <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">      </span><span class="kw">group_by</span>(currency_pair, date_unix) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">      </span><span class="kw">filter</span>(<span class="kw">row_number</span>() <span class="op">==</span><span class="st"> </span><span class="dv">1</span>)
+    mongo_connection<span class="op">$</span><span class="kw">insert</span>(new_data)
+  }
+  
+  <span class="co"># Append the data </span>
+  pricing_data &lt;-<span class="st"> </span>pricing_data <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">    </span><span class="kw">bind_rows</span>(pricing_data_ticker) 
 }</code></pre></div>
-<pre><code>## [1] &quot;Downloading data for period length 300.&quot;
-## [1] &quot;Downloading data for currency pair USDT_BTC.&quot;
-## [1] &quot;Downloading data for currency pair USDT_ETH.&quot;
-## [1] &quot;Downloading data for currency pair USDT_LTC.&quot;
-## [1] &quot;Downloading data for currency pair USDT_DASH.&quot;
-## [1] &quot;Downloading data for currency pair USDT_XMR.&quot;
-## [1] &quot;Downloading data for currency pair USDT_ZEC.&quot;
-## [1] &quot;Downloading data for currency pair USDT_REP.&quot;
-## [1] &quot;Downloading data for currency pair BTC_ETH.&quot;
-## [1] &quot;Downloading data for currency pair BTC_LTC.&quot;
-## [1] &quot;Downloading data for currency pair BTC_DASH.&quot;
-## [1] &quot;Downloading data for currency pair BTC_XMR.&quot;
-## [1] &quot;Downloading data for currency pair BTC_ZEC.&quot;
-## [1] &quot;Downloading data for currency pair BTC_REP.&quot;
-## [1] &quot;Downloading data for currency pair BTC_XEM.&quot;
-## [1] &quot;Downloading data for currency pair BTC_DCR.&quot;
-## [1] &quot;Downloading data for currency pair BTC_FCT.&quot;
-## [1] &quot;Downloading data for currency pair BTC_LSK.&quot;
-## [1] &quot;Downloading data for period length 900.&quot;
-## [1] &quot;Downloading data for currency pair USDT_BTC.&quot;
-## [1] &quot;Downloading data for currency pair USDT_ETH.&quot;
-## [1] &quot;Downloading data for currency pair USDT_LTC.&quot;
-## [1] &quot;Downloading data for currency pair USDT_DASH.&quot;
-## [1] &quot;Downloading data for currency pair USDT_XMR.&quot;
-## [1] &quot;Downloading data for currency pair USDT_ZEC.&quot;
-## [1] &quot;Downloading data for currency pair USDT_REP.&quot;
-## [1] &quot;Downloading data for currency pair BTC_ETH.&quot;
-## [1] &quot;Downloading data for currency pair BTC_LTC.&quot;
-## [1] &quot;Downloading data for currency pair BTC_DASH.&quot;
-## [1] &quot;Downloading data for currency pair BTC_XMR.&quot;
-## [1] &quot;Downloading data for currency pair BTC_ZEC.&quot;
-## [1] &quot;Downloading data for currency pair BTC_REP.&quot;
-## [1] &quot;Downloading data for currency pair BTC_XEM.&quot;
-## [1] &quot;Downloading data for currency pair BTC_DCR.&quot;
-## [1] &quot;Downloading data for currency pair BTC_FCT.&quot;
-## [1] &quot;Downloading data for currency pair BTC_LSK.&quot;
-## [1] &quot;Downloading data for period length 1800.&quot;
-## [1] &quot;Downloading data for currency pair USDT_BTC.&quot;
-## [1] &quot;Downloading data for currency pair USDT_ETH.&quot;
-## [1] &quot;Downloading data for currency pair USDT_LTC.&quot;
-## [1] &quot;Downloading data for currency pair USDT_DASH.&quot;
-## [1] &quot;Downloading data for currency pair USDT_XMR.&quot;
-## [1] &quot;Downloading data for currency pair USDT_ZEC.&quot;
-## [1] &quot;Downloading data for currency pair USDT_REP.&quot;
-## [1] &quot;Downloading data for currency pair BTC_ETH.&quot;
-## [1] &quot;Downloading data for currency pair BTC_LTC.&quot;
-## [1] &quot;Downloading data for currency pair BTC_DASH.&quot;
-## [1] &quot;Downloading data for currency pair BTC_XMR.&quot;
-## [1] &quot;Downloading data for currency pair BTC_ZEC.&quot;
-## [1] &quot;Downloading data for currency pair BTC_REP.&quot;
-## [1] &quot;Downloading data for currency pair BTC_XEM.&quot;
-## [1] &quot;Downloading data for currency pair BTC_DCR.&quot;
-## [1] &quot;Downloading data for currency pair BTC_FCT.&quot;
-## [1] &quot;Downloading data for currency pair BTC_LSK.&quot;
-## [1] &quot;Downloading data for period length 7200.&quot;
+<pre><code>## [1] &quot;Downloading data for period length 86400.&quot;
 ## [1] &quot;Downloading data for currency pair USDT_BTC.&quot;
 ## [1] &quot;Downloading data for currency pair USDT_ETH.&quot;
 ## [1] &quot;Downloading data for currency pair USDT_LTC.&quot;
@@ -394,7 +431,61 @@ periods &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st"
 ## [1] &quot;Downloading data for currency pair BTC_DCR.&quot;
 ## [1] &quot;Downloading data for currency pair BTC_FCT.&quot;
 ## [1] &quot;Downloading data for currency pair BTC_LSK.&quot;
-## [1] &quot;Downloading data for period length 86400.&quot;
+## [1] &quot;Downloading data for period length 7200.&quot;
+## [1] &quot;Downloading data for currency pair USDT_BTC.&quot;
+## [1] &quot;Downloading data for currency pair USDT_ETH.&quot;
+## [1] &quot;Downloading data for currency pair USDT_LTC.&quot;
+## [1] &quot;Downloading data for currency pair USDT_DASH.&quot;
+## [1] &quot;Downloading data for currency pair USDT_XMR.&quot;
+## [1] &quot;Downloading data for currency pair USDT_ZEC.&quot;
+## [1] &quot;Downloading data for currency pair USDT_REP.&quot;
+## [1] &quot;Downloading data for currency pair BTC_ETH.&quot;
+## [1] &quot;Downloading data for currency pair BTC_LTC.&quot;
+## [1] &quot;Downloading data for currency pair BTC_DASH.&quot;
+## [1] &quot;Downloading data for currency pair BTC_XMR.&quot;
+## [1] &quot;Downloading data for currency pair BTC_ZEC.&quot;
+## [1] &quot;Downloading data for currency pair BTC_REP.&quot;
+## [1] &quot;Downloading data for currency pair BTC_XEM.&quot;
+## [1] &quot;Downloading data for currency pair BTC_DCR.&quot;
+## [1] &quot;Downloading data for currency pair BTC_FCT.&quot;
+## [1] &quot;Downloading data for currency pair BTC_LSK.&quot;
+## [1] &quot;Downloading data for period length 1800.&quot;
+## [1] &quot;Downloading data for currency pair USDT_BTC.&quot;
+## [1] &quot;Downloading data for currency pair USDT_ETH.&quot;
+## [1] &quot;Downloading data for currency pair USDT_LTC.&quot;
+## [1] &quot;Downloading data for currency pair USDT_DASH.&quot;
+## [1] &quot;Downloading data for currency pair USDT_XMR.&quot;
+## [1] &quot;Downloading data for currency pair USDT_ZEC.&quot;
+## [1] &quot;Downloading data for currency pair USDT_REP.&quot;
+## [1] &quot;Downloading data for currency pair BTC_ETH.&quot;
+## [1] &quot;Downloading data for currency pair BTC_LTC.&quot;
+## [1] &quot;Downloading data for currency pair BTC_DASH.&quot;
+## [1] &quot;Downloading data for currency pair BTC_XMR.&quot;
+## [1] &quot;Downloading data for currency pair BTC_ZEC.&quot;
+## [1] &quot;Downloading data for currency pair BTC_REP.&quot;
+## [1] &quot;Downloading data for currency pair BTC_XEM.&quot;
+## [1] &quot;Downloading data for currency pair BTC_DCR.&quot;
+## [1] &quot;Downloading data for currency pair BTC_FCT.&quot;
+## [1] &quot;Downloading data for currency pair BTC_LSK.&quot;
+## [1] &quot;Downloading data for period length 900.&quot;
+## [1] &quot;Downloading data for currency pair USDT_BTC.&quot;
+## [1] &quot;Downloading data for currency pair USDT_ETH.&quot;
+## [1] &quot;Downloading data for currency pair USDT_LTC.&quot;
+## [1] &quot;Downloading data for currency pair USDT_DASH.&quot;
+## [1] &quot;Downloading data for currency pair USDT_XMR.&quot;
+## [1] &quot;Downloading data for currency pair USDT_ZEC.&quot;
+## [1] &quot;Downloading data for currency pair USDT_REP.&quot;
+## [1] &quot;Downloading data for currency pair BTC_ETH.&quot;
+## [1] &quot;Downloading data for currency pair BTC_LTC.&quot;
+## [1] &quot;Downloading data for currency pair BTC_DASH.&quot;
+## [1] &quot;Downloading data for currency pair BTC_XMR.&quot;
+## [1] &quot;Downloading data for currency pair BTC_ZEC.&quot;
+## [1] &quot;Downloading data for currency pair BTC_REP.&quot;
+## [1] &quot;Downloading data for currency pair BTC_XEM.&quot;
+## [1] &quot;Downloading data for currency pair BTC_DCR.&quot;
+## [1] &quot;Downloading data for currency pair BTC_FCT.&quot;
+## [1] &quot;Downloading data for currency pair BTC_LSK.&quot;
+## [1] &quot;Downloading data for period length 300.&quot;
 ## [1] &quot;Downloading data for currency pair USDT_BTC.&quot;
 ## [1] &quot;Downloading data for currency pair USDT_ETH.&quot;
 ## [1] &quot;Downloading data for currency pair USDT_LTC.&quot;
@@ -413,52 +504,70 @@ periods &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st"
 ## [1] &quot;Downloading data for currency pair BTC_FCT.&quot;
 ## [1] &quot;Downloading data for currency pair BTC_LSK.&quot;</code></pre>
 </div>
-<div id="write-data" class="section level1">
-<h1>6. Write Data</h1>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">write_csv</span>(pricing_data, <span class="st">&quot;./Mean Reversion/Raw Data/pricing data.csv&quot;</span>)</code></pre></div>
+<div id="save-data-to-csv" class="section level1">
+<h1>8. Save Data to CSV</h1>
+<p>Save data to csv only if no argument was passed in the command line.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="cf">if</span> (args_period <span class="op">==</span><span class="st"> &quot;none&quot;</span>) { 
+  <span class="kw">write_csv</span>(pricing_data, <span class="st">&quot;./Mean Reversion/Raw Data/pricing data.csv&quot;</span>)
+} </code></pre></div>
 </div>
 <div id="summary" class="section level1">
-<h1>7. Summary</h1>
+<h1>9. Summary</h1>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">print</span>(pricing_data)</code></pre></div>
-<pre><code>## # A tibble: 6,293,573 x 11
-##     date_unix           date_time   high   low   open close   volume
-##         &lt;int&gt;              &lt;dttm&gt;  &lt;dbl&gt; &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt;    &lt;dbl&gt;
-##  1 1424373000 2015-02-19 14:10:00   0.33   225   0.33   225 0.999999
-##  2 1424373300 2015-02-19 14:15:00 225.00   225 225.00   225 0.000000
-##  3 1424373600 2015-02-19 14:20:00 225.00   225 225.00   225 0.000000
-##  4 1424373900 2015-02-19 14:25:00 225.00   225 225.00   225 0.000000
-##  5 1424374200 2015-02-19 14:30:00 225.00   225 225.00   225 0.000000
-##  6 1424374500 2015-02-19 14:35:00 225.00   225 225.00   225 0.000000
-##  7 1424374800 2015-02-19 14:40:00 225.00   225 225.00   225 0.000000
-##  8 1424375100 2015-02-19 14:45:00 225.00   225 225.00   225 0.000000
-##  9 1424375400 2015-02-19 14:50:00 225.00   225 225.00   225 0.000000
-## 10 1424375700 2015-02-19 14:55:00 225.00   225 225.00   225 0.000000
-## # ... with 6,293,563 more rows, and 4 more variables: quote_volume &lt;dbl&gt;,
-## #   weighted_average &lt;dbl&gt;, currency_pair &lt;chr&gt;, period &lt;chr&gt;</code></pre>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">summary</span>(pricing_data)</code></pre></div>
+<pre><code>## # A tibble: 6,399,210 x 11
+##     date_unix           date_time     high        low      open    close
+##         &lt;int&gt;              &lt;dttm&gt;    &lt;dbl&gt;      &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;
+##  1 1391731200 2014-02-06 19:00:00 0.000370 0.00008000 0.0000800 0.000184
+##  2 1391817600 2014-02-07 19:00:00 0.000240 0.00015001 0.0001840 0.000183
+##  3 1391904000 2014-02-08 19:00:00 0.000396 0.00015001 0.0001600 0.000300
+##  4 1391990400 2014-02-09 19:00:00 0.000440 0.00025000 0.0002810 0.000350
+##  5 1392076800 2014-02-10 19:00:00 0.000599 0.00015000 0.0003500 0.000449
+##  6 1392163200 2014-02-11 19:00:00 0.000598 0.00042210 0.0005490 0.000465
+##  7 1392249600 2014-02-12 19:00:00 0.000524 0.00020300 0.0005240 0.000310
+##  8 1392336000 2014-02-13 19:00:00 0.000567 0.00028500 0.0003000 0.000565
+##  9 1392422400 2014-02-14 19:00:00 0.000567 0.00034100 0.0005010 0.000492
+## 10 1392508800 2014-02-15 19:00:00 0.000749 0.00047420 0.0005661 0.000660
+## # ... with 6,399,200 more rows, and 5 more variables: volume &lt;dbl&gt;,
+## #   quote_volume &lt;dbl&gt;, weighted_average &lt;dbl&gt;, currency_pair &lt;chr&gt;,
+## #   period &lt;chr&gt;</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">glimpse</span>(pricing_data)</code></pre></div>
+<pre><code>## Observations: 6,399,210
+## Variables: 11
+## $ date_unix        &lt;int&gt; 1391731200, 1391817600, 1391904000, 139199040...
+## $ date_time        &lt;dttm&gt; 2014-02-06 19:00:00, 2014-02-07 19:00:00, 20...
+## $ high             &lt;dbl&gt; 0.00037000, 0.00024000, 0.00039600, 0.0004400...
+## $ low              &lt;dbl&gt; 0.00008000, 0.00015001, 0.00015001, 0.0002500...
+## $ open             &lt;dbl&gt; 0.00008000, 0.00018400, 0.00016000, 0.0002810...
+## $ close            &lt;dbl&gt; 0.00018400, 0.00018300, 0.00030000, 0.0003500...
+## $ volume           &lt;dbl&gt; 0.5395608, 17.6219443, 18.0455747, 9.3420283,...
+## $ quote_volume     &lt;dbl&gt; 2874.04, 90837.68, 84336.50, 26800.37, 53801....
+## $ weighted_average &lt;dbl&gt; 0.00018773, 0.00019399, 0.00021397, 0.0003485...
+## $ currency_pair    &lt;chr&gt; &quot;BTC_DASH&quot;, &quot;BTC_DASH&quot;, &quot;BTC_DASH&quot;, &quot;BTC_DASH...
+## $ period           &lt;chr&gt; &quot;86400&quot;, &quot;86400&quot;, &quot;86400&quot;, &quot;86400&quot;, &quot;86400&quot;, ...</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">summary</span>(pricing_data) </code></pre></div>
 <pre><code>##    date_unix            date_time                        high         
 ##  Min.   :1390003200   Min.   :2014-01-17 19:00:00   Min.   :   0.000  
-##  1st Qu.:1448362800   1st Qu.:2015-11-24 06:00:00   1st Qu.:   0.004  
-##  Median :1473915600   Median :2016-09-15 01:00:00   Median :   0.018  
-##  Mean   :1468756573   Mean   :2016-07-17 07:56:12   Mean   :  92.886  
-##  3rd Qu.:1492288200   3rd Qu.:2017-04-15 16:30:00   3rd Qu.:   6.029  
-##  Max.   :1510019100   Max.   :2017-11-06 20:45:00   Max.   :9000.000  
+##  1st Qu.:1448823000   1st Qu.:2015-11-29 13:50:00   1st Qu.:   0.004  
+##  Median :1474694100   Median :2016-09-24 01:15:00   Median :   0.018  
+##  Mean   :1469447551   Mean   :2016-07-25 07:52:30   Mean   :  99.439  
+##  3rd Qu.:1493181000   3rd Qu.:2017-04-26 00:30:00   3rd Qu.:   6.500  
+##  Max.   :1511209500   Max.   :2017-11-20 15:25:00   Max.   :9000.000  
 ##       low                open              close         
 ##  Min.   :   0.000   Min.   :   0.000   Min.   :   0.000  
 ##  1st Qu.:   0.004   1st Qu.:   0.004   1st Qu.:   0.004  
 ##  Median :   0.018   Median :   0.018   Median :   0.018  
-##  Mean   :  92.290   Mean   :  92.591   Mean   :  92.599  
-##  3rd Qu.:   6.010   3rd Qu.:   6.020   3rd Qu.:   6.020  
-##  Max.   :7585.000   Max.   :9000.000   Max.   :7591.000  
+##  Mean   :  98.789   Mean   :  99.118   Mean   :  99.126  
+##  3rd Qu.:   6.477   3rd Qu.:   6.490   3rd Qu.:   6.490  
+##  Max.   :8275.000   Max.   :9000.000   Max.   :8279.172  
 ##      volume           quote_volume       weighted_average  
 ##  Min.   :        0   Min.   :        0   Min.   :   0.000  
 ##  1st Qu.:        0   1st Qu.:        0   1st Qu.:   0.004  
-##  Median :        1   Median :       14   Median :   0.018  
-##  Mean   :    12860   Mean   :    29521   Mean   :  92.591  
-##  3rd Qu.:       21   3rd Qu.:      358   3rd Qu.:   6.020  
-##  Max.   :139231790   Max.   :495536294   Max.   :7595.215  
+##  Median :        1   Median :       15   Median :   0.018  
+##  Mean   :    13980   Mean   :    29245   Mean   :  99.118  
+##  3rd Qu.:       23   3rd Qu.:      365   3rd Qu.:   6.490  
+##  Max.   :170040870   Max.   :495536294   Max.   :8283.647  
 ##  currency_pair         period         
-##  Length:6293573     Length:6293573    
+##  Length:6399210     Length:6399210    
 ##  Class :character   Class :character  
 ##  Mode  :character   Mode  :character  
 ##                                       
@@ -466,8 +575,8 @@ periods &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st"
 ## </code></pre>
 </div>
 <div id="clean" class="section level1">
-<h1>8. Clean</h1>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">rm</span>(return_ticker, period, periods, ticker, tickers, return_chartdata)</code></pre></div>
+<h1>10. Clean</h1>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">rm</span>(return_ticker, period, periods, ticker, tickers, return_chartdata, args_period)</code></pre></div>
 </div>
 
 

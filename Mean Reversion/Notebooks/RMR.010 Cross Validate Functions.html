@@ -11,7 +11,7 @@
 
 <meta name="author" content="Kevin Lu" />
 
-<meta name="date" content="2017-11-06" />
+<meta name="date" content="2017-11-20" />
 
 <title>Cross Validate Strategy</title>
 
@@ -245,7 +245,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">Cross Validate Strategy</h1>
 <h4 class="author"><em>Kevin Lu</em></h4>
-<h4 class="date"><em>November 06, 2017</em></h4>
+<h4 class="date"><em>November 20, 2017</em></h4>
 
 </div>
 
@@ -267,9 +267,9 @@ distance_threshold: The threshold for the rmse of the coins normalized prices. P
 train_window: A lubridate period object representing the length of time the train set covers.<br />
 test_window: A lubridate period object representing the length of time the the test set covers.<br />
 model_type: A string indicating whether raw prices or log prices should be used. Takes value “raw” or “log”.<br />
-regression_type: A string indicating whether OLS or TLS regression should be used. Takes values “ols” or “tls”.<br />
+regression_type: A string indicating whether OLS, TLS, or a non-parametric regression should be used. Takes values “ols”, “tls”, or “non-parametric”.<br />
 spread_type: A string indicating whether the regression uses a rolling or fixed window. Takes value “rolling” or “fixed”.<br />
-rolling_window: The number of observations used in each window of a rolling linear regression.<br />
+rolling_window: The number of observations used in the lookback window of a rolling linear regression.<br />
 signal_logic: A string indicating which logic to use to generate signals. Takes values “scaled” or “discrete”.<br />
 signal_scaled_enter: The z-score threshold indicating the z-score that the signal is fully scaled in when the signal logic is scaled.<br />
 signal_discrete_enter: The z-score threshold for entering a position when the signal logic is discrete.<br />
@@ -277,7 +277,7 @@ signal_discrete_exit: The z-score threshold for exiting a position when the sign
 signal_stop: A threshold for the spread z-score beyond which the strategy stops trading the coin pair.<br />
 signal_reenter: A boolean indicating whether the strategy should reenter positions after exceeding the signal_stop threshold once the spread z-score returns to a reasonable range.<br />
 signal_reenter_threshold: The z-score threshold for reentering a position if signal_reenter is TRUE. pair_allocation: A string indicating whether the capital allocation to the coin pairs should be equal or weighted. Takes values “equal”, “weighted”, and “scaled”.<br />
-pair_allocation_scaling: A double indicating the volatility scaling applied to the cointegration stat when the pair allocation is scaled.</p>
+pair_allocation_scaling: A double indicating the volatility scaling applied to the cointegration stat when the pair allocation is scaled. Higher numbers are associated with greater weight being placed on coin pairs with a high cointegration stat.</p>
 </div>
 <div id="prepare-data-function" class="section level1">
 <h1>3. Prepare Data Function</h1>
@@ -295,7 +295,7 @@ Returns a dataframe consiting of the unix timestamp, date time, and the closing 
   df &lt;-<span class="st"> </span>pricing_data <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">filter</span>(period <span class="op">==</span><span class="st"> </span>params[[<span class="st">&quot;time_resolution&quot;</span>]], 
            date_time <span class="op">&gt;=</span><span class="st"> </span>start_date, 
-           date_time <span class="op">&lt;=</span><span class="st"> </span>end_date) <span class="op">%&gt;%</span><span class="st"> </span>
+           date_time <span class="op">&lt;</span><span class="st"> </span>end_date) <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">select</span>(date_unix, date_time, close, currency_pair) <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">spread</span>(currency_pair, close) 
   <span class="kw">return</span>(df)
@@ -304,7 +304,8 @@ Returns a dataframe consiting of the unix timestamp, date time, and the closing 
 <div id="test-cointegration-function" class="section level1">
 <h1>4. Test Cointegration Function</h1>
 <p>Description<br />
-Cointegration is tested using either the distance method or the Engle-Granger two step method. The Engle-Granger consists of two steps: (1) Perform a linear regression of log(coin_y) on log(coin_x). (2) Perform an Augmented Dickey-Fuller test on the residuals from the linear regression estimated in (1). The ADF test specification is of a non-zero mean, no time-based trend, and one autoregressive lag. The distance method calculates the sum of squared differences between the two coins’s normalized prices.</p>
+Cointegration is tested using either the distance method, the Engle-Granger two step method, or total least squares method. The distance method calculates the root mean squared difference between the two coins’s normalized prices.<br />
+The Engle-Granger consists of two steps: (1) Perform a linear regression of coin_y on coin_x. (2) Perform an Augmented Dickey-Fuller test on the residuals from the linear regression estimated in (1). The ADF test specification is of a non-zero mean, no time-based trend, and one autoregressive lag. The total least squares method is similar to the Engle-Granger method except it uses a total least squares regression in step 1 instead of ordinary least squares.</p>
 <p>Arguments<br />
 coin_y: A vector containing the pricing data for the dependent coin in the regression.<br />
 coin_x: A vector containing the pricing data for the independent coin in the regression.<br />
@@ -315,36 +316,35 @@ model_type: A string indicating whether raw prices or log prices should be used.
 Returns the cointegration test statistic for the given coin pair.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">test_cointegration &lt;-<span class="st"> </span><span class="cf">function</span>(coin_y, coin_x, params) { 
   
+  <span class="co"># Use either raw or log prices</span>
+  <span class="cf">if</span> (params[[<span class="st">&quot;model_type&quot;</span>]] <span class="op">==</span><span class="st"> &quot;raw&quot;</span>) { 
+    coin_y &lt;-<span class="st"> </span>coin_y 
+    coin_x &lt;-<span class="st"> </span>coin_x
+  } 
+  <span class="cf">if</span> (params[[<span class="st">&quot;model_type&quot;</span>]] <span class="op">==</span><span class="st"> &quot;log&quot;</span> <span class="op">&amp;</span><span class="st"> </span>params[[<span class="st">&quot;cointegration_test&quot;</span>]] <span class="op">!=</span><span class="st"> &quot;distance&quot;</span>) { 
+    coin_y &lt;-<span class="st"> </span><span class="kw">log</span>(coin_y)
+    coin_x &lt;-<span class="st"> </span><span class="kw">log</span>(coin_x) 
+  } 
+  
   <span class="co"># Test for cointegration using the Engle-Granger two step method</span>
   <span class="cf">if</span> (params[[<span class="st">&quot;cointegration_test&quot;</span>]] <span class="op">==</span><span class="st"> &quot;eg&quot;</span>) { 
-    <span class="cf">if</span> (params[[<span class="st">&quot;model_type&quot;</span>]] <span class="op">==</span><span class="st"> &quot;raw&quot;</span>) 
-      lm_model &lt;-<span class="st"> </span><span class="kw">lm.fit</span>(<span class="dt">y =</span> coin_y, <span class="dt">x =</span> <span class="kw">cbind</span>(<span class="dv">1</span>, coin_x))   
-    <span class="cf">if</span> (params[[<span class="st">&quot;model_type&quot;</span>]] <span class="op">==</span><span class="st"> &quot;log&quot;</span>) 
-      lm_model &lt;-<span class="st"> </span><span class="kw">lm.fit</span>(<span class="dt">y =</span> <span class="kw">log</span>(coin_y), <span class="dt">x =</span> <span class="kw">cbind</span>(<span class="dv">1</span>, <span class="kw">log</span>(coin_x))) 
+    lm_model &lt;-<span class="st"> </span><span class="kw">lm.fit</span>(<span class="dt">y =</span> coin_y, <span class="dt">x =</span> <span class="kw">cbind</span>(<span class="dv">1</span>, coin_x))   
     lm_residuals &lt;-<span class="st"> </span>lm_model[[<span class="st">&quot;residuals&quot;</span>]] 
     adf_test &lt;-<span class="st"> </span><span class="kw">ur.df</span>(lm_residuals, <span class="dt">type =</span> <span class="st">&quot;drift&quot;</span>, <span class="dt">lags =</span> <span class="dv">1</span>) 
-    adf_stat =<span class="st"> </span>adf_test<span class="op">@</span>testreg[[<span class="st">&quot;coefficients&quot;</span>]][<span class="dv">2</span>, <span class="dv">3</span>]
+    adf_stat &lt;-<span class="st"> </span>adf_test<span class="op">@</span>testreg[[<span class="st">&quot;coefficients&quot;</span>]][<span class="dv">2</span>, <span class="dv">3</span>]
     <span class="kw">return</span>(adf_stat) 
   } 
   
   <span class="co"># Test for cointegration using the total least squares method</span>
   <span class="cf">if</span> (params[[<span class="st">&quot;cointegration_test&quot;</span>]] <span class="op">==</span><span class="st"> &quot;tls&quot;</span>) { 
-    <span class="cf">if</span> (params[[<span class="st">&quot;model_type&quot;</span>]] <span class="op">==</span><span class="st"> &quot;raw&quot;</span>) { 
-      pca_model &lt;-<span class="st"> </span><span class="kw">prcomp</span>(<span class="dt">formula =</span> <span class="op">~</span><span class="st"> </span>coin_y <span class="op">+</span><span class="st"> </span>coin_x) 
-      pca_beta &lt;-<span class="st"> </span>pca_model[[<span class="st">&quot;rotation&quot;</span>]][<span class="dv">1</span>, <span class="dv">1</span>] <span class="op">/</span><span class="st"> </span>pca_model[[<span class="st">&quot;rotation&quot;</span>]][<span class="dv">2</span>, <span class="dv">1</span>] 
-      pca_intercept &lt;-<span class="st"> </span>pca_model[[<span class="st">&quot;center&quot;</span>]][<span class="dv">1</span>] <span class="op">-</span><span class="st"> </span>pca_beta <span class="op">*</span><span class="st"> </span>pca_model[[<span class="st">&quot;center&quot;</span>]][<span class="dv">2</span>] 
-      pca_residuals &lt;-<span class="st"> </span>coin_y <span class="op">-</span><span class="st"> </span>pca_beta <span class="op">*</span><span class="st"> </span>coin_x <span class="op">-</span><span class="st"> </span>pca_intercept 
-    } 
-    <span class="cf">if</span> (params[[<span class="st">&quot;model_type&quot;</span>]] <span class="op">==</span><span class="st"> &quot;log&quot;</span>) { 
-      pca_model &lt;-<span class="st"> </span><span class="kw">prcomp</span>(<span class="dt">formula =</span> <span class="op">~</span><span class="st"> </span><span class="kw">log</span>(coin_y) <span class="op">+</span><span class="st"> </span><span class="kw">log</span>(coin_x))  
-      pca_beta &lt;-<span class="st"> </span>pca_model[[<span class="st">&quot;rotation&quot;</span>]][<span class="dv">1</span>, <span class="dv">1</span>] <span class="op">/</span><span class="st"> </span>pca_model[[<span class="st">&quot;rotation&quot;</span>]][<span class="dv">2</span>, <span class="dv">1</span>] 
-      pca_intercept &lt;-<span class="st"> </span>pca_model[[<span class="st">&quot;center&quot;</span>]][<span class="dv">1</span>] <span class="op">-</span><span class="st"> </span>pca_beta <span class="op">*</span><span class="st"> </span>pca_model[[<span class="st">&quot;center&quot;</span>]][<span class="dv">2</span>] 
-      pca_residuals &lt;-<span class="st"> </span><span class="kw">log</span>(coin_y) <span class="op">-</span><span class="st"> </span>pca_beta <span class="op">*</span><span class="st"> </span><span class="kw">log</span>(coin_x) <span class="op">-</span><span class="st"> </span>pca_intercept 
-    } 
+    pca_model &lt;-<span class="st"> </span><span class="kw">prcomp</span>(<span class="dt">formula =</span> <span class="op">~</span><span class="st"> </span>coin_y <span class="op">+</span><span class="st"> </span>coin_x) 
+    pca_beta &lt;-<span class="st"> </span>pca_model[[<span class="st">&quot;rotation&quot;</span>]][<span class="dv">1</span>, <span class="dv">1</span>] <span class="op">/</span><span class="st"> </span>pca_model[[<span class="st">&quot;rotation&quot;</span>]][<span class="dv">2</span>, <span class="dv">1</span>] 
+    pca_intercept &lt;-<span class="st"> </span>pca_model[[<span class="st">&quot;center&quot;</span>]][<span class="dv">1</span>] <span class="op">-</span><span class="st"> </span>pca_beta <span class="op">*</span><span class="st"> </span>pca_model[[<span class="st">&quot;center&quot;</span>]][<span class="dv">2</span>] 
+    pca_residuals &lt;-<span class="st"> </span>coin_y <span class="op">-</span><span class="st"> </span>pca_beta <span class="op">*</span><span class="st"> </span>coin_x <span class="op">-</span><span class="st"> </span>pca_intercept 
     adf_test &lt;-<span class="st"> </span><span class="kw">ur.df</span>(pca_residuals, <span class="dt">type =</span> <span class="st">&quot;drift&quot;</span>, <span class="dt">lags =</span> <span class="dv">1</span>) 
     adf_stat =<span class="st"> </span>adf_test<span class="op">@</span>testreg[[<span class="st">&quot;coefficients&quot;</span>]][<span class="dv">2</span>, <span class="dv">3</span>]
     <span class="kw">return</span>(adf_stat) 
-  }
+  } 
   
   <span class="co"># Test for cointegration using the distance method </span>
   <span class="cf">if</span> (params[[<span class="st">&quot;cointegration_test&quot;</span>]] <span class="op">==</span><span class="st"> &quot;distance&quot;</span>) { 
@@ -365,16 +365,24 @@ quote_currency: A string indicating the quote currency of the currency pairs. Ca
 <p>Value<br />
 Returns a dataframe containing the coin pairs.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">create_pairs &lt;-<span class="st"> </span><span class="cf">function</span>(params) { 
-  <span class="cf">if</span> (params[[<span class="st">&quot;quote_currency&quot;</span>]] <span class="op">==</span><span class="st"> &quot;USDT&quot;</span>) 
+  
+  <span class="co"># Create USDT or BTC quote denominated coin list </span>
+  <span class="cf">if</span> (params[[<span class="st">&quot;quote_currency&quot;</span>]] <span class="op">==</span><span class="st"> &quot;USDT&quot;</span>) {
     coin_list &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;USDT_BTC&quot;</span>, <span class="st">&quot;USDT_DASH&quot;</span>, <span class="st">&quot;USDT_ETH&quot;</span>, <span class="st">&quot;USDT_LTC&quot;</span>, <span class="st">&quot;USDT_REP&quot;</span>, <span class="st">&quot;USDT_XMR&quot;</span>, <span class="st">&quot;USDT_ZEC&quot;</span>)
-  <span class="cf">if</span> (params[[<span class="st">&quot;quote_currency&quot;</span>]] <span class="op">==</span><span class="st"> &quot;BTC&quot;</span>) 
+  }
+  <span class="cf">if</span> (params[[<span class="st">&quot;quote_currency&quot;</span>]] <span class="op">==</span><span class="st"> &quot;BTC&quot;</span>) {
     coin_list &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;BTC_DASH&quot;</span>, <span class="st">&quot;BTC_ETH&quot;</span>, <span class="st">&quot;BTC_LTC&quot;</span>, <span class="st">&quot;BTC_REP&quot;</span>, <span class="st">&quot;BTC_XEM&quot;</span>, <span class="st">&quot;BTC_XMR&quot;</span>, <span class="st">&quot;BTC_ZEC&quot;</span>, <span class="st">&quot;BTC_DCR&quot;</span>, <span class="st">&quot;BTC_FCT&quot;</span>, <span class="st">&quot;BTC_LSK&quot;</span>) 
+  } 
+  
+  <span class="co"># Create coin pairs</span>
   coin_pairs &lt;-<span class="st"> </span><span class="kw">expand.grid</span>(coin_list, coin_list) <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">rename</span>(<span class="dt">coin_y =</span> Var1, 
            <span class="dt">coin_x =</span> Var2) <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">filter</span>(coin_y <span class="op">!=</span><span class="st"> </span>coin_x) <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">    </span><span class="kw">mutate_if</span>(is.factor, as.character) <span class="op">%&gt;%</span>
 <span class="st">    </span><span class="kw">as_tibble</span>() 
+  
+  <span class="co"># Return coin pairs</span>
   <span class="kw">return</span>(coin_pairs)
 } </code></pre></div>
 </div>
@@ -387,7 +395,7 @@ train: A dataframe generated by prepare_data() that represents the training set 
 coin_pairs: A dataframe generated by create_pairs().<br />
 params: A list of parameters that describe the mean reversion pairs trading strategy.</p>
 <p>Value<br />
-Returns a dataframe containing the coin pairs and the ADF test statistic resulting from testing cointegration between each coin pair.</p>
+Returns a dataframe containing the coin pairs and the cointegration test statistic resulting from testing each coin pair.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">test_pairs &lt;-<span class="st"> </span><span class="cf">function</span>(train, coin_pairs, params) { 
   cointegration_stat &lt;-<span class="st"> </span><span class="kw">numeric</span>(<span class="kw">nrow</span>(coin_pairs))  
   <span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span><span class="kw">nrow</span>(coin_pairs)) { 
@@ -422,23 +430,17 @@ Returns a dataframe containing the coin pairs that were selected.</p>
                    <span class="dt">params =</span> params)
   
   <span class="co"># If cointegration test uses the Engle-Granger method, filter by adf threshold </span>
-  <span class="cf">if</span> (params[[<span class="st">&quot;cointegration_test&quot;</span>]] <span class="op">==</span><span class="st"> &quot;eg&quot;</span>) { 
-    df &lt;-<span class="st"> </span>df <span class="op">%&gt;%</span><span class="st"> </span>
-<span class="st">      </span><span class="kw">filter</span>(cointegration_stat <span class="op">&lt;=</span><span class="st"> </span>params[[<span class="st">&quot;adf_threshold&quot;</span>]]) 
-  } 
+  <span class="cf">if</span> (params[[<span class="st">&quot;cointegration_test&quot;</span>]] <span class="op">==</span><span class="st"> &quot;eg&quot;</span>) 
+    df &lt;-<span class="st"> </span>df <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">filter</span>(cointegration_stat <span class="op">&lt;=</span><span class="st"> </span>params[[<span class="st">&quot;adf_threshold&quot;</span>]]) 
   
   <span class="co"># If cointegration test uses the total least squares method, filter by adf threshold </span>
-  <span class="cf">if</span> (params[[<span class="st">&quot;cointegration_test&quot;</span>]] <span class="op">==</span><span class="st"> &quot;tls&quot;</span>) { 
-    df &lt;-<span class="st"> </span>df <span class="op">%&gt;%</span><span class="st"> </span>
-<span class="st">      </span><span class="kw">filter</span>(cointegration_stat <span class="op">&lt;=</span><span class="st"> </span>params[[<span class="st">&quot;adf_threshold&quot;</span>]]) 
-  }
-  
+  <span class="cf">if</span> (params[[<span class="st">&quot;cointegration_test&quot;</span>]] <span class="op">==</span><span class="st"> &quot;tls&quot;</span>) 
+    df &lt;-<span class="st"> </span>df <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">filter</span>(cointegration_stat <span class="op">&lt;=</span><span class="st"> </span>params[[<span class="st">&quot;adf_threshold&quot;</span>]]) 
+
   <span class="co"># If cointegration uses the distance method, filter by rmse distance threshold  </span>
-  <span class="cf">if</span> (params[[<span class="st">&quot;cointegration_test&quot;</span>]] <span class="op">==</span><span class="st"> &quot;distance&quot;</span>) { 
-    df &lt;-<span class="st"> </span>df <span class="op">%&gt;%</span><span class="st"> </span>
-<span class="st">      </span><span class="kw">filter</span>(cointegration_stat <span class="op">&lt;=</span><span class="st"> </span>params[[<span class="st">&quot;distance_threshold&quot;</span>]]) 
-  }
-  
+  <span class="cf">if</span> (params[[<span class="st">&quot;cointegration_test&quot;</span>]] <span class="op">==</span><span class="st"> &quot;distance&quot;</span>) 
+    df &lt;-<span class="st"> </span>df <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">filter</span>(cointegration_stat <span class="op">&lt;=</span><span class="st"> </span>params[[<span class="st">&quot;distance_threshold&quot;</span>]]) 
+
   <span class="co"># Return selected coin pairs </span>
   <span class="kw">return</span>(df)
 } </code></pre></div>
@@ -446,39 +448,43 @@ Returns a dataframe containing the coin pairs that were selected.</p>
 <div id="train-model-function" class="section level1">
 <h1>8. Train Model Function</h1>
 <p>Description<br />
-Performs rolling linear regression of coin y on coin x using a defined rolling window length over the test set.</p>
+Performs a linear regression of coin y on coin x over the test set. The regression can be rolling or fixed, can take raw or log prices, and can use either ols, tls, or a non-parametric regression method.</p>
 <p>Arguments<br />
 train: A dataframe generated by prepare_data() that represents the training set for the coin pair.<br />
 test: A dataframe generated by prepare_data() that represents the test set for the coin pair.<br />
 coin_y: A string indicating the dependent coin in the coin pair regression.<br />
 coin_x: A string indicating the independent coin in the coin pair regression.<br />
 params: A list of parameters passed to the functions below that describe the mean reversion pairs trading strategy.<br />
-rolling_window: The number of observations used in each iteration of a rolling linear regression.<br />
+rolling_window: The number of observations used in the loobkack window of a rolling linear regression.<br />
 model_type: A string indicating whether raw prices or log prices should be used. Takes value “raw” or “log”. spread_type: A string indicating whether the regression uses a rolling or fixed window. Takes value “rolling” or “fixed”.<br />
-regression_type: A string indicating whether OLS or TLS regression should be used. Takes values “ols” or “tls”.</p>
+regression_type: A string indicating whether OLS, TLS, or a non-parametric regression should be used. Takes values “ols”, “tls”, and “non-parametric”.</p>
 <p>Value<br />
-Returns a list containing the intercept, hedge ratio, spread, and spread z-score calculated from a rolling regression over the test set.</p>
+Returns a list containing the intercept, hedge ratio, spread, and spread z-score calculated from a regression over the test set. If the spread type is fixed, the intercept and hedge ratio are just single numbers. If the spread type is rolling, the intercept and hedge ratio are a vector with length equal to the test set.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">train_model &lt;-<span class="st"> </span><span class="cf">function</span>(train, test, coin_y, coin_x, params) { 
+  
+  <span class="co"># Use either raw or log prices</span>
+  <span class="cf">if</span> (params[[<span class="st">&quot;model_type&quot;</span>]] <span class="op">==</span><span class="st"> &quot;raw&quot;</span>) { 
+    train[[coin_y]] &lt;-<span class="st"> </span>train[[coin_y]] 
+    train[[coin_x]] &lt;-<span class="st"> </span>train[[coin_x]] 
+    test[[coin_y]] &lt;-<span class="st"> </span>test[[coin_y]] 
+    test[[coin_x]] &lt;-<span class="st"> </span>test[[coin_x]] 
+  } 
+  <span class="cf">if</span> (params[[<span class="st">&quot;model_type&quot;</span>]] <span class="op">==</span><span class="st"> &quot;log&quot;</span> <span class="op">|</span><span class="st"> </span>params[[<span class="st">&quot;regression_type&quot;</span>]] <span class="op">==</span><span class="st"> &quot;non-parametric&quot;</span>) { 
+    train[[coin_y]] &lt;-<span class="st"> </span><span class="kw">log</span>(train[[coin_y]]) 
+    train[[coin_x]] &lt;-<span class="st"> </span><span class="kw">log</span>(train[[coin_x]]) 
+    test[[coin_y]] &lt;-<span class="st"> </span><span class="kw">log</span>(test[[coin_y]]) 
+    test[[coin_x]] &lt;-<span class="st"> </span><span class="kw">log</span>(test[[coin_x]]) 
+  } 
   
   <span class="co"># If calculation of spread uses a rolling regression </span>
   <span class="cf">if</span> (params[[<span class="st">&quot;spread_type&quot;</span>]] <span class="op">==</span><span class="st"> &quot;rolling&quot;</span>) { 
     
-    <span class="co"># Set y and x if model type is raw </span>
-    <span class="cf">if</span> (params[[<span class="st">&quot;model_type&quot;</span>]] <span class="op">==</span><span class="st"> &quot;raw&quot;</span>) { 
-      rolling_coef &lt;-<span class="st"> </span><span class="kw">bind_rows</span>(train, test) <span class="op">%&gt;%</span><span class="st">  </span>
-<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">y =</span> .[[coin_y]], 
-               <span class="dt">x =</span> .[[coin_x]]) <span class="op">%&gt;%</span><span class="st"> </span>
-<span class="st">        </span><span class="kw">select</span>(y, x)
-    } 
-    
-    <span class="co"># Set y and x if model type is log</span>
-    <span class="cf">if</span> (params[[<span class="st">&quot;model_type&quot;</span>]] <span class="op">==</span><span class="st"> &quot;log&quot;</span>) { 
-      rolling_coef &lt;-<span class="st"> </span><span class="kw">bind_rows</span>(train, test) <span class="op">%&gt;%</span><span class="st">  </span>
-<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">y =</span> <span class="kw">log</span>(.[[coin_y]]), 
-               <span class="dt">x =</span> <span class="kw">log</span>(.[[coin_x]])) <span class="op">%&gt;%</span><span class="st"> </span>
-<span class="st">        </span><span class="kw">select</span>(y, x)
-    } 
-    
+    <span class="co"># Prepare data in a format where rollapply can be used </span>
+    rolling_coef &lt;-<span class="st"> </span><span class="kw">bind_rows</span>(train, test) <span class="op">%&gt;%</span><span class="st">  </span>
+<span class="st">      </span><span class="kw">mutate</span>(<span class="dt">y =</span> .[[coin_y]], 
+             <span class="dt">x =</span> .[[coin_x]]) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">      </span><span class="kw">select</span>(y, x)
+
     <span class="co"># Perform rolling linear regression over the test set if regression type is OLS </span>
     <span class="cf">if</span> (params[[<span class="st">&quot;regression_type&quot;</span>]] <span class="op">==</span><span class="st"> &quot;ols&quot;</span>) { 
       rolling_coef &lt;-<span class="st"> </span>rolling_coef <span class="op">%&gt;%</span><span class="st"> </span>
@@ -517,42 +523,25 @@ Returns a list containing the intercept, hedge ratio, spread, and spread z-score
 <span class="st">        </span><span class="kw">filter</span>(<span class="kw">row_number</span>() <span class="op">&gt;</span><span class="st"> </span><span class="kw">nrow</span>(train)) 
     } 
     
-    <span class="co"># Calculate spread in training and test set if regression type is OLS</span>
+    <span class="co"># Calculate spread in training and test set if spread type is rolling and regression type is OLS. </span>
+    <span class="co"># Over the training set, the spread is the residuals from a regression using all the observations in the training set. </span>
+    <span class="co"># Over the test set, the spread is calculated using fitted coefficients from a rolling regression. </span>
     <span class="cf">if</span> (params[[<span class="st">&quot;regression_type&quot;</span>]] <span class="op">==</span><span class="st"> &quot;ols&quot;</span>) { 
-      <span class="cf">if</span> (params[[<span class="st">&quot;model_type&quot;</span>]] <span class="op">==</span><span class="st"> &quot;raw&quot;</span>) { 
-        train &lt;-<span class="st"> </span>train <span class="op">%&gt;%</span><span class="st"> </span>
-<span class="st">          </span><span class="kw">mutate</span>(<span class="dt">spread =</span> <span class="kw">lm.fit</span>(<span class="dt">y =</span> train[[coin_y]], <span class="dt">x =</span> <span class="kw">cbind</span>(<span class="dv">1</span>, train[[coin_x]]))[[<span class="st">&quot;residuals&quot;</span>]])
-        test &lt;-<span class="st"> </span>test <span class="op">%&gt;%</span><span class="st"> </span>
-<span class="st">          </span><span class="kw">mutate</span>(<span class="dt">spread =</span> test[[coin_y]] <span class="op">-</span><span class="st"> </span>test[[coin_x]] <span class="op">*</span><span class="st"> </span>rolling_coef[[<span class="st">&quot;hedge_ratio&quot;</span>]] <span class="op">-</span><span class="st"> </span>rolling_coef[[<span class="st">&quot;intercept&quot;</span>]]) 
-      } 
-      <span class="cf">if</span> (params[[<span class="st">&quot;model_type&quot;</span>]] <span class="op">==</span><span class="st"> &quot;log&quot;</span>) { 
-        train &lt;-<span class="st"> </span>train <span class="op">%&gt;%</span><span class="st"> </span>
-<span class="st">          </span><span class="kw">mutate</span>(<span class="dt">spread =</span> <span class="kw">lm.fit</span>(<span class="dt">y =</span> <span class="kw">log</span>(train[[coin_y]]), <span class="dt">x =</span> <span class="kw">cbind</span>(<span class="dv">1</span>, <span class="kw">log</span>(train[[coin_x]])))[[<span class="st">&quot;residuals&quot;</span>]]) 
-        test &lt;-<span class="st"> </span>test <span class="op">%&gt;%</span><span class="st"> </span>
-<span class="st">          </span><span class="kw">mutate</span>(<span class="dt">spread =</span> <span class="kw">log</span>(test[[coin_y]]) <span class="op">-</span><span class="st"> </span><span class="kw">log</span>(test[[coin_x]]) <span class="op">*</span><span class="st"> </span>rolling_coef[[<span class="st">&quot;hedge_ratio&quot;</span>]] <span class="op">-</span><span class="st"> </span>rolling_coef[[<span class="st">&quot;intercept&quot;</span>]]) 
-      } 
+      train &lt;-<span class="st"> </span>train <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">spread =</span> <span class="kw">lm.fit</span>(<span class="dt">y =</span> train[[coin_y]], <span class="dt">x =</span> <span class="kw">cbind</span>(<span class="dv">1</span>, train[[coin_x]]))[[<span class="st">&quot;residuals&quot;</span>]])
+      test &lt;-<span class="st"> </span>test <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">spread =</span> test[[coin_y]] <span class="op">-</span><span class="st"> </span>test[[coin_x]] <span class="op">*</span><span class="st"> </span>rolling_coef[[<span class="st">&quot;hedge_ratio&quot;</span>]] <span class="op">-</span><span class="st"> </span>rolling_coef[[<span class="st">&quot;intercept&quot;</span>]]) 
     }
     
-    <span class="co"># Calculate spread in training and test set if regression type is TLS  </span>
+    <span class="co"># Calculate spread in training and test set if spread type is rolling and regression type is TLS  </span>
     <span class="cf">if</span> (params[[<span class="st">&quot;regression_type&quot;</span>]] <span class="op">==</span><span class="st"> &quot;tls&quot;</span>) { 
-      <span class="cf">if</span> (params[[<span class="st">&quot;model_type&quot;</span>]] <span class="op">==</span><span class="st"> &quot;raw&quot;</span>) { 
-        pca_model &lt;-<span class="st"> </span><span class="kw">prcomp</span>(<span class="dt">formula =</span> <span class="op">~</span><span class="st"> </span>train[[coin_y]] <span class="op">+</span><span class="st"> </span>train[[coin_x]]) 
-        pca_beta &lt;-<span class="st"> </span>pca_model[[<span class="st">&quot;rotation&quot;</span>]][<span class="dv">1</span>, <span class="dv">1</span>] <span class="op">/</span><span class="st"> </span>pca_model[[<span class="st">&quot;rotation&quot;</span>]][<span class="dv">2</span>, <span class="dv">1</span>] 
-        pca_intercept &lt;-<span class="st"> </span>pca_model[[<span class="st">&quot;center&quot;</span>]][<span class="dv">1</span>] <span class="op">-</span><span class="st"> </span>pca_beta <span class="op">*</span><span class="st"> </span>pca_model[[<span class="st">&quot;center&quot;</span>]][<span class="dv">2</span>] 
-        train &lt;-<span class="st"> </span>train <span class="op">%&gt;%</span><span class="st"> </span>
-<span class="st">          </span><span class="kw">mutate</span>(<span class="dt">spread =</span> train[[coin_y]] <span class="op">-</span><span class="st"> </span>pca_beta <span class="op">*</span><span class="st"> </span>train[[coin_x]] <span class="op">-</span><span class="st"> </span>pca_intercept) 
-        test &lt;-<span class="st"> </span>test <span class="op">%&gt;%</span><span class="st"> </span>
-<span class="st">          </span><span class="kw">mutate</span>(<span class="dt">spread =</span> test[[coin_y]] <span class="op">-</span><span class="st"> </span>test[[coin_x]] <span class="op">*</span><span class="st"> </span>rolling_coef[[<span class="st">&quot;hedge_ratio&quot;</span>]] <span class="op">-</span><span class="st"> </span>rolling_coef[[<span class="st">&quot;intercept&quot;</span>]]) 
-      } 
-      <span class="cf">if</span> (params[[<span class="st">&quot;model_type&quot;</span>]] <span class="op">==</span><span class="st"> &quot;log&quot;</span>) { 
-        pca_model &lt;-<span class="st"> </span><span class="kw">prcomp</span>(<span class="dt">formula =</span> <span class="op">~</span><span class="st"> </span><span class="kw">log</span>(train[[coin_y]]) <span class="op">+</span><span class="st"> </span><span class="kw">log</span>(train[[coin_x]]), <span class="dt">data =</span> train) 
-        pca_beta &lt;-<span class="st"> </span>pca_model[[<span class="st">&quot;rotation&quot;</span>]][<span class="dv">1</span>, <span class="dv">1</span>] <span class="op">/</span><span class="st"> </span>pca_model[[<span class="st">&quot;rotation&quot;</span>]][<span class="dv">2</span>, <span class="dv">1</span>] 
-        pca_intercept &lt;-<span class="st"> </span>pca_model[[<span class="st">&quot;center&quot;</span>]][<span class="dv">1</span>] <span class="op">-</span><span class="st"> </span>pca_beta <span class="op">*</span><span class="st"> </span>pca_model[[<span class="st">&quot;center&quot;</span>]][<span class="dv">2</span>] 
-        train &lt;-<span class="st"> </span>train <span class="op">%&gt;%</span><span class="st"> </span>
-<span class="st">          </span><span class="kw">mutate</span>(<span class="dt">spread =</span> <span class="kw">log</span>(train[[coin_y]]) <span class="op">-</span><span class="st"> </span>pca_beta <span class="op">*</span><span class="st"> </span><span class="kw">log</span>(train[[coin_x]]) <span class="op">-</span><span class="st"> </span>pca_intercept) 
-        test &lt;-<span class="st"> </span>test <span class="op">%&gt;%</span><span class="st"> </span>
-<span class="st">          </span><span class="kw">mutate</span>(<span class="dt">spread =</span> <span class="kw">log</span>(test[[coin_y]]) <span class="op">-</span><span class="st"> </span><span class="kw">log</span>(test[[coin_x]]) <span class="op">*</span><span class="st"> </span>rolling_coef[[<span class="st">&quot;hedge_ratio&quot;</span>]] <span class="op">-</span><span class="st"> </span>rolling_coef[[<span class="st">&quot;intercept&quot;</span>]]) 
-      } 
+      pca_model &lt;-<span class="st"> </span><span class="kw">prcomp</span>(<span class="dt">formula =</span> <span class="op">~</span><span class="st"> </span>train[[coin_y]] <span class="op">+</span><span class="st"> </span>train[[coin_x]]) 
+      pca_beta &lt;-<span class="st"> </span>pca_model[[<span class="st">&quot;rotation&quot;</span>]][<span class="dv">1</span>, <span class="dv">1</span>] <span class="op">/</span><span class="st"> </span>pca_model[[<span class="st">&quot;rotation&quot;</span>]][<span class="dv">2</span>, <span class="dv">1</span>] 
+      pca_intercept &lt;-<span class="st"> </span>pca_model[[<span class="st">&quot;center&quot;</span>]][<span class="dv">1</span>] <span class="op">-</span><span class="st"> </span>pca_beta <span class="op">*</span><span class="st"> </span>pca_model[[<span class="st">&quot;center&quot;</span>]][<span class="dv">2</span>] 
+      train &lt;-<span class="st"> </span>train <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">spread =</span> train[[coin_y]] <span class="op">-</span><span class="st"> </span>pca_beta <span class="op">*</span><span class="st"> </span>train[[coin_x]] <span class="op">-</span><span class="st"> </span>pca_intercept) 
+      test &lt;-<span class="st"> </span>test <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">spread =</span> test[[coin_y]] <span class="op">-</span><span class="st"> </span>test[[coin_x]] <span class="op">*</span><span class="st"> </span>rolling_coef[[<span class="st">&quot;hedge_ratio&quot;</span>]] <span class="op">-</span><span class="st"> </span>rolling_coef[[<span class="st">&quot;intercept&quot;</span>]]) 
     } 
     
     <span class="co"># Combine train and test to calculate rolling z-score for the test set  </span>
@@ -566,21 +555,22 @@ Returns a list containing the intercept, hedge ratio, spread, and spread z-score
     }
     
     <span class="co"># Calculate spread in training and test set if regression type is non-parametric </span>
+    <span class="co"># Calculates normalized prices using a rolling a window and defines the spread as the difference betewen the normalized </span>
+    <span class="co"># prices. For backtesting position calculation purposes, set the intercept and hedge ratio to 1.  </span>
     <span class="cf">if</span> (params[[<span class="st">&quot;regression_type&quot;</span>]] <span class="op">==</span><span class="st"> &quot;non-parametric&quot;</span>) { 
       combined &lt;-<span class="st"> </span><span class="kw">bind_rows</span>(train <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">mutate</span>(source <span class="op">==</span><span class="st"> &quot;train&quot;</span>), 
-                            test <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">mutate</span>(source <span class="op">==</span><span class="st"> &quot;test&quot;</span>)) 
-      result &lt;-<span class="st"> </span>combined <span class="op">%&gt;%</span><span class="st">  </span>
-<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">coin_y_normalized =</span> combined[[coin_y]] <span class="op">/</span><span class="st"> </span><span class="kw">lag</span>(combined[[coin_y]], params[[<span class="st">&quot;rolling_window&quot;</span>]]), 
-               <span class="dt">coin_x_normalized =</span> combined[[coin_x]] <span class="op">/</span><span class="st"> </span><span class="kw">lag</span>(combined[[coin_x]], params[[<span class="st">&quot;rolling_window&quot;</span>]]), 
+                            test <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">mutate</span>(source <span class="op">==</span><span class="st"> &quot;test&quot;</span>)) <span class="op">%&gt;%</span><span class="st">   </span>
+<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">coin_y_normalized =</span> .[[coin_y]] <span class="op">/</span><span class="st"> </span><span class="kw">lag</span>(.[[coin_y]], params[[<span class="st">&quot;rolling_window&quot;</span>]]), 
+               <span class="dt">coin_x_normalized =</span> .[[coin_x]] <span class="op">/</span><span class="st"> </span><span class="kw">lag</span>(.[[coin_x]], params[[<span class="st">&quot;rolling_window&quot;</span>]]), 
                <span class="dt">sd =</span> <span class="kw">roll_sdr</span>(coin_y_normalized <span class="op">-</span><span class="st"> </span>coin_x_normalized, <span class="dt">n =</span> params[[<span class="st">&quot;rolling_window&quot;</span>]]), 
                <span class="dt">spread =</span> coin_y_normalized <span class="op">-</span><span class="st"> </span>coin_x_normalized, 
                <span class="dt">spread_z =</span> spread <span class="op">/</span><span class="st"> </span>sd) <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">        </span><span class="kw">filter</span>(source <span class="op">==</span><span class="st"> &quot;test&quot;</span>)
-      rolling_coef[[<span class="st">&quot;intercept&quot;</span>]] &lt;-<span class="st"> </span><span class="ot">NA</span> 
+      rolling_coef[[<span class="st">&quot;intercept&quot;</span>]] &lt;-<span class="st"> </span><span class="dv">0</span> 
       rolling_coef[[<span class="st">&quot;hedge_ratio&quot;</span>]] &lt;-<span class="st"> </span><span class="dv">1</span> 
     } 
     
-    <span class="co"># Return list of statistics for the test set  </span>
+    <span class="co"># Return list of statistics for the test set if the spread type is rolling  </span>
     <span class="kw">return</span>(<span class="kw">list</span>(<span class="dt">intercept =</span> rolling_coef[[<span class="st">&quot;intercept&quot;</span>]], 
                 <span class="dt">hedge_ratio =</span> rolling_coef[[<span class="st">&quot;hedge_ratio&quot;</span>]], 
                 <span class="dt">spread =</span> result[[<span class="st">&quot;spread&quot;</span>]], 
@@ -590,49 +580,28 @@ Returns a list containing the intercept, hedge ratio, spread, and spread z-score
   <span class="co"># If calculation of spread uses a model with fixed coefficients estimated over the training set </span>
   <span class="cf">if</span> (params[[<span class="st">&quot;spread_type&quot;</span>]] <span class="op">==</span><span class="st"> &quot;fixed&quot;</span>) { 
     
-    <span class="co"># If regression uses OLS </span>
+    <span class="co"># If spread type is fixed regression uses OLS </span>
     <span class="cf">if</span> (params[[<span class="st">&quot;regression_type&quot;</span>]] <span class="op">==</span><span class="st"> &quot;ols&quot;</span>) { 
-      <span class="cf">if</span> (params[[<span class="st">&quot;model_type&quot;</span>]] <span class="op">==</span><span class="st"> &quot;raw&quot;</span>) { 
-        model &lt;-<span class="st"> </span><span class="kw">lm.fit</span>(<span class="dt">y =</span> train[[coin_y]], <span class="dt">x =</span> <span class="kw">cbind</span>(<span class="dv">1</span>, train[[coin_x]])) 
-        intercept &lt;-<span class="st"> </span><span class="kw">coef</span>(model)[<span class="dv">1</span>] 
-        hedge_ratio &lt;-<span class="st"> </span><span class="kw">coef</span>(model)[<span class="dv">2</span>] 
-        result &lt;-<span class="st"> </span>test <span class="op">%&gt;%</span><span class="st"> </span>
-<span class="st">          </span><span class="kw">mutate</span>(<span class="dt">spread =</span> test[[coin_y]] <span class="op">-</span><span class="st"> </span>test[[coin_x]] <span class="op">*</span><span class="st"> </span>hedge_ratio <span class="op">-</span><span class="st"> </span>intercept, 
-                 <span class="dt">spread_z =</span> (spread <span class="op">-</span><span class="st"> </span><span class="kw">mean</span>(model[[<span class="st">&quot;residuals&quot;</span>]])) <span class="op">/</span><span class="st"> </span><span class="kw">sd</span>(model[[<span class="st">&quot;residuals&quot;</span>]]))
-      }
-      <span class="cf">if</span> (params[[<span class="st">&quot;model_type&quot;</span>]] <span class="op">==</span><span class="st"> &quot;log&quot;</span>) { 
-        model &lt;-<span class="st"> </span><span class="kw">lm.fit</span>(<span class="dt">y =</span> <span class="kw">log</span>(train[[coin_y]]), <span class="dt">x =</span> <span class="kw">cbind</span>(<span class="dv">1</span>, <span class="kw">log</span>(train[[coin_x]]))) 
-        intercept &lt;-<span class="st"> </span><span class="kw">coef</span>(model)[<span class="dv">1</span>] 
-        hedge_ratio &lt;-<span class="st"> </span><span class="kw">coef</span>(model)[<span class="dv">2</span>] 
-        result &lt;-<span class="st"> </span>test <span class="op">%&gt;%</span><span class="st"> </span>
-<span class="st">          </span><span class="kw">mutate</span>(<span class="dt">spread =</span> <span class="kw">log</span>(test[[coin_y]]) <span class="op">-</span><span class="st"> </span><span class="kw">log</span>(test[[coin_x]]) <span class="op">*</span><span class="st"> </span>hedge_ratio <span class="op">-</span><span class="st"> </span>intercept, 
-                 <span class="dt">spread_z =</span> (spread <span class="op">-</span><span class="st"> </span><span class="kw">mean</span>(model[[<span class="st">&quot;residuals&quot;</span>]])) <span class="op">/</span><span class="st"> </span><span class="kw">sd</span>(model[[<span class="st">&quot;residuals&quot;</span>]]))
-      }
+      model &lt;-<span class="st"> </span><span class="kw">lm.fit</span>(<span class="dt">y =</span> train[[coin_y]], <span class="dt">x =</span> <span class="kw">cbind</span>(<span class="dv">1</span>, train[[coin_x]])) 
+      intercept &lt;-<span class="st"> </span><span class="kw">coef</span>(model)[<span class="dv">1</span>] 
+      hedge_ratio &lt;-<span class="st"> </span><span class="kw">coef</span>(model)[<span class="dv">2</span>] 
+      result &lt;-<span class="st"> </span>test <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">spread =</span> test[[coin_y]] <span class="op">-</span><span class="st"> </span>test[[coin_x]] <span class="op">*</span><span class="st"> </span>hedge_ratio <span class="op">-</span><span class="st"> </span>intercept, 
+               <span class="dt">spread_z =</span> (spread <span class="op">-</span><span class="st"> </span><span class="kw">mean</span>(model[[<span class="st">&quot;residuals&quot;</span>]])) <span class="op">/</span><span class="st"> </span><span class="kw">sd</span>(model[[<span class="st">&quot;residuals&quot;</span>]]))
     }
     
-    <span class="co"># If regression uses TLS </span>
+    <span class="co"># If spread type is fixed and regression uses TLS </span>
     <span class="cf">if</span> (params[[<span class="st">&quot;regression_type&quot;</span>]] <span class="op">==</span><span class="st"> &quot;tls&quot;</span>) { 
-      <span class="cf">if</span> (params[[<span class="st">&quot;model_type&quot;</span>]] <span class="op">==</span><span class="st"> &quot;raw&quot;</span>) { 
-        pca_model &lt;-<span class="st"> </span><span class="kw">prcomp</span>(<span class="dt">formula =</span> <span class="op">~</span><span class="st"> </span>train[[coin_y]] <span class="op">+</span><span class="st"> </span>train[[coin_x]]) 
-        pca_beta &lt;-<span class="st"> </span>pca_model[[<span class="st">&quot;rotation&quot;</span>]][<span class="dv">1</span>, <span class="dv">1</span>] <span class="op">/</span><span class="st"> </span>pca_model[[<span class="st">&quot;rotation&quot;</span>]][<span class="dv">2</span>, <span class="dv">1</span>] 
-        pca_intercept &lt;-<span class="st"> </span>pca_model[[<span class="st">&quot;center&quot;</span>]][<span class="dv">1</span>] <span class="op">-</span><span class="st"> </span>pca_beta <span class="op">*</span><span class="st"> </span>pca_model[[<span class="st">&quot;center&quot;</span>]][<span class="dv">2</span>] 
-        pca_residuals &lt;-<span class="st"> </span>train[[coin_y]] <span class="op">-</span><span class="st"> </span>pca_beta <span class="op">*</span><span class="st"> </span>train[[coin_x]] <span class="op">-</span><span class="st"> </span>pca_intercept 
-        result &lt;-<span class="st"> </span>test <span class="op">%&gt;%</span><span class="st"> </span>
-<span class="st">          </span><span class="kw">mutate</span>(<span class="dt">spread =</span> test[[coin_y]] <span class="op">-</span><span class="st"> </span>test[[coin_x]] <span class="op">*</span><span class="st"> </span>pca_beta <span class="op">-</span><span class="st"> </span>pca_intercept, 
-                 <span class="dt">spread_z =</span> (spread <span class="op">-</span><span class="st"> </span><span class="kw">mean</span>(pca_residuals)) <span class="op">/</span><span class="st"> </span><span class="kw">sd</span>(pca_residuals))
-      } 
-      <span class="cf">if</span> (params[[<span class="st">&quot;model_type&quot;</span>]] <span class="op">==</span><span class="st"> &quot;log&quot;</span>) { 
-        pca_model &lt;-<span class="st"> </span><span class="kw">prcomp</span>(<span class="dt">formula =</span> <span class="op">~</span><span class="st"> </span><span class="kw">log</span>(train[[coin_y]]) <span class="op">+</span><span class="st"> </span><span class="kw">log</span>(train[[coin_x]]))  
-        pca_beta &lt;-<span class="st"> </span>pca_model[[<span class="st">&quot;rotation&quot;</span>]][<span class="dv">1</span>, <span class="dv">1</span>] <span class="op">/</span><span class="st"> </span>pca_model[[<span class="st">&quot;rotation&quot;</span>]][<span class="dv">2</span>, <span class="dv">1</span>] 
-        pca_intercept &lt;-<span class="st"> </span>pca_model[[<span class="st">&quot;center&quot;</span>]][<span class="dv">1</span>] <span class="op">-</span><span class="st"> </span>pca_beta <span class="op">*</span><span class="st"> </span>pca_model[[<span class="st">&quot;center&quot;</span>]][<span class="dv">2</span>] 
-        pca_residuals &lt;-<span class="st"> </span><span class="kw">log</span>(train[[coin_y]]) <span class="op">-</span><span class="st"> </span>pca_beta <span class="op">*</span><span class="st"> </span><span class="kw">log</span>(train[[coin_x]]) <span class="op">-</span><span class="st"> </span>pca_intercept 
-        result &lt;-<span class="st"> </span>test <span class="op">%&gt;%</span><span class="st"> </span>
-<span class="st">          </span><span class="kw">mutate</span>(<span class="dt">spread =</span> <span class="kw">log</span>(test[[coin_y]]) <span class="op">-</span><span class="st"> </span><span class="kw">log</span>(test[[coin_x]]) <span class="op">*</span><span class="st"> </span>hedge_ratio <span class="op">-</span><span class="st"> </span>intercept, 
-                 <span class="dt">spread_z =</span> (spread <span class="op">-</span><span class="st"> </span><span class="kw">mean</span>(pca_residuals)) <span class="op">/</span><span class="st"> </span><span class="kw">sd</span>(pca_residuals))
-      } 
+      pca_model &lt;-<span class="st"> </span><span class="kw">prcomp</span>(<span class="dt">formula =</span> <span class="op">~</span><span class="st"> </span>train[[coin_y]] <span class="op">+</span><span class="st"> </span>train[[coin_x]]) 
+      pca_beta &lt;-<span class="st"> </span>pca_model[[<span class="st">&quot;rotation&quot;</span>]][<span class="dv">1</span>, <span class="dv">1</span>] <span class="op">/</span><span class="st"> </span>pca_model[[<span class="st">&quot;rotation&quot;</span>]][<span class="dv">2</span>, <span class="dv">1</span>] 
+      pca_intercept &lt;-<span class="st"> </span>pca_model[[<span class="st">&quot;center&quot;</span>]][<span class="dv">1</span>] <span class="op">-</span><span class="st"> </span>pca_beta <span class="op">*</span><span class="st"> </span>pca_model[[<span class="st">&quot;center&quot;</span>]][<span class="dv">2</span>] 
+      pca_residuals &lt;-<span class="st"> </span>train[[coin_y]] <span class="op">-</span><span class="st"> </span>pca_beta <span class="op">*</span><span class="st"> </span>train[[coin_x]] <span class="op">-</span><span class="st"> </span>pca_intercept 
+      result &lt;-<span class="st"> </span>test <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">spread =</span> test[[coin_y]] <span class="op">-</span><span class="st"> </span>test[[coin_x]] <span class="op">*</span><span class="st"> </span>pca_beta <span class="op">-</span><span class="st"> </span>pca_intercept, 
+               <span class="dt">spread_z =</span> (spread <span class="op">-</span><span class="st"> </span><span class="kw">mean</span>(pca_residuals)) <span class="op">/</span><span class="st"> </span><span class="kw">sd</span>(pca_residuals))
     } 
     
-    <span class="co"># If model is non-parametric </span>
+    <span class="co"># If spread type is fixed and model is non-parametric </span>
     <span class="cf">if</span> (params[[<span class="st">&quot;regression_type&quot;</span>]] <span class="op">==</span><span class="st"> &quot;non-parametric&quot;</span>) { 
       train &lt;-<span class="st"> </span>train <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">        </span><span class="kw">mutate</span>(<span class="dt">coin_y_normalized =</span> train[[coin_y]] <span class="op">/</span><span class="st"> </span>train[[coin_y]][<span class="dv">1</span>], 
@@ -643,12 +612,11 @@ Returns a list containing the intercept, hedge ratio, spread, and spread z-score
                <span class="dt">coin_x_normalized =</span> test[[coin_x]] <span class="op">/</span><span class="st"> </span>test[[coin_x]][<span class="dv">1</span>], 
                <span class="dt">spread =</span> coin_y_normalized <span class="op">-</span><span class="st"> </span>coin_x_normalized, 
                <span class="dt">spread_z =</span> spread <span class="op">/</span><span class="st"> </span><span class="kw">sd</span>(train[[<span class="st">&quot;spread&quot;</span>]]))
-      intercept =<span class="st"> </span><span class="ot">NA</span>
+      intercept =<span class="st"> </span><span class="dv">0</span>
       hedge_ratio =<span class="st"> </span><span class="dv">1</span> 
     } 
     
-    
-    <span class="co"># Return list of statistics for the test set  </span>
+    <span class="co"># Return list of statistics for the test set if the spread type is fixed  </span>
     <span class="kw">return</span>(<span class="kw">list</span>(<span class="dt">intercept =</span> intercept, 
                 <span class="dt">hedge_ratio =</span> hedge_ratio, 
                 <span class="dt">spread =</span> result[[<span class="st">&quot;spread&quot;</span>]], 
@@ -768,10 +736,11 @@ test: A dataframe generated by prepare_data() that represents the test set for t
 coin_y: A string indicating the dependent coin in the coin pair regression.<br />
 coin_x: A string indicating the independent coin in the coin pair regression.<br />
 params: A list of parameters passed to the functions below that describe the mean reversion pairs trading strategy.<br />
-model_type: A string indicating whether raw prices or log prices should be used. Takes value “raw” or “log”.</p>
+model_type: A string indicating whether raw prices or log prices should be used. Takes value “raw” or “log”.<br />
+featuer: A boolean indicating whether to export the data in feather format.</p>
 <p>Value<br />
 Returns a vector containing the cumulative return of applying the trading strategy to the given coin pair.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">backtest_pair &lt;-<span class="st"> </span><span class="cf">function</span>(train, test, coin_y, coin_x, params) { 
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">backtest_pair &lt;-<span class="st"> </span><span class="cf">function</span>(train, test, coin_y, coin_x, params, <span class="dt">feather =</span> <span class="ot">FALSE</span>) {  
   
   <span class="co"># Generate model for calculating spread z-score </span>
   model &lt;-<span class="st"> </span><span class="kw">train_model</span>(<span class="dt">train =</span> train, 
@@ -780,54 +749,81 @@ Returns a vector containing the cumulative return of applying the trading strate
                        <span class="dt">coin_x =</span> coin_x, 
                        <span class="dt">params =</span> params)
   
-  <span class="co"># Return calculations if model type uses raw prices to test for cointegration. The position and combined </span>
-  <span class="co"># return calculations differ compared to using log prices. </span>
+  <span class="co"># Return calculations if model type uses raw prices. The position and combined return calculations differ </span>
+  <span class="co"># compared to using log prices. </span>
   <span class="cf">if</span> (params[[<span class="st">&quot;model_type&quot;</span>]] <span class="op">==</span><span class="st"> &quot;raw&quot;</span>) { 
-    df_backtest &lt;-<span class="st"> </span>test <span class="op">%&gt;%</span><span class="st"> </span>
+    test &lt;-<span class="st"> </span>test <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">      </span><span class="kw">mutate</span>(<span class="dt">signal =</span> <span class="kw">generate_signals</span>(<span class="dt">train =</span> train, 
                                        <span class="dt">test =</span> test, 
                                        <span class="dt">coin_y =</span> coin_y, 
                                        <span class="dt">coin_x =</span> coin_x, 
                                        <span class="dt">model =</span> model, 
                                        <span class="dt">params =</span> params), 
+             <span class="dt">hedge_ratio =</span> model[[<span class="st">&quot;hedge_ratio&quot;</span>]], 
              <span class="dt">coin_y_return =</span> test[[coin_y]] <span class="op">/</span><span class="st"> </span><span class="kw">lag</span>(test[[coin_y]], <span class="dv">1</span>) <span class="op">-</span><span class="st"> </span><span class="dv">1</span>, 
              <span class="dt">coin_x_return =</span> test[[coin_x]] <span class="op">/</span><span class="st"> </span><span class="kw">lag</span>(test[[coin_x]], <span class="dv">1</span>) <span class="op">-</span><span class="st"> </span><span class="dv">1</span>, 
              <span class="dt">coin_y_position =</span> test[[coin_y]] <span class="op">*</span><span class="st"> </span>signal <span class="op">*</span><span class="st"> </span><span class="dv">1</span>                      <span class="op">*</span><span class="st">  </span><span class="dv">1</span>, 
-             <span class="dt">coin_x_position =</span> test[[coin_x]] <span class="op">*</span><span class="st"> </span>signal <span class="op">*</span><span class="st"> </span>model[[<span class="st">&quot;hedge_ratio&quot;</span>]] <span class="op">*</span><span class="st"> </span><span class="op">-</span><span class="dv">1</span>,  
+             <span class="dt">coin_x_position =</span> test[[coin_x]] <span class="op">*</span><span class="st"> </span>signal <span class="op">*</span><span class="st"> </span>model[[<span class="st">&quot;hedge_ratio&quot;</span>]] <span class="op">*</span><span class="st"> </span><span class="op">-</span><span class="dv">1</span>, 
+             <span class="dt">change_y_position =</span> coin_y_position <span class="op">-</span><span class="st"> </span><span class="kw">lag</span>(coin_y_position, <span class="dv">1</span>) <span class="op">-</span><span class="st"> </span><span class="kw">lag</span>(coin_y_position, <span class="dv">1</span>) <span class="op">*</span><span class="st"> </span>coin_y_return, 
+             <span class="dt">change_x_position =</span> coin_x_position <span class="op">-</span><span class="st"> </span><span class="kw">lag</span>(coin_x_position, <span class="dv">1</span>) <span class="op">-</span><span class="st"> </span><span class="kw">lag</span>(coin_x_position, <span class="dv">1</span>) <span class="op">*</span><span class="st"> </span>coin_x_return, 
              <span class="dt">coin_y_pnl =</span> <span class="kw">lag</span>(coin_y_position, <span class="dv">1</span>) <span class="op">*</span><span class="st"> </span>coin_y_return, 
              <span class="dt">coin_x_pnl =</span> <span class="kw">lag</span>(coin_x_position, <span class="dv">1</span>) <span class="op">*</span><span class="st"> </span>coin_x_return, 
              <span class="dt">combined_position =</span> <span class="kw">abs</span>(coin_y_position) <span class="op">+</span><span class="st"> </span><span class="kw">abs</span>(coin_x_position), 
              <span class="dt">combined_pnl =</span> coin_y_pnl <span class="op">+</span><span class="st"> </span>coin_x_pnl, 
              <span class="dt">combined_return =</span> combined_pnl <span class="op">/</span><span class="st"> </span><span class="kw">lag</span>(combined_position, <span class="dv">1</span>)) <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">      </span><span class="kw">mutate_all</span>(<span class="kw">funs</span>(<span class="kw">ifelse</span>(<span class="kw">is.na</span>(.), <span class="dv">0</span>, .))) <span class="op">%&gt;%</span><span class="st"> </span>
-<span class="st">      </span><span class="kw">mutate</span>(<span class="dt">return_pair =</span> <span class="kw">cumprod</span>(<span class="dv">1</span> <span class="op">+</span><span class="st"> </span>combined_return)) 
+<span class="st">      </span><span class="kw">mutate</span>(<span class="dt">cumulative_return =</span> <span class="kw">cumprod</span>(<span class="dv">1</span> <span class="op">+</span><span class="st"> </span>combined_return), 
+             <span class="dt">date_time =</span> <span class="kw">as.POSIXct</span>(date_time, <span class="dt">origin =</span> <span class="st">&quot;1970-01-01&quot;</span>)) 
   } 
   
   <span class="co"># Return calculations if model uses log prices to test for cointegration. The combined return calculation </span>
   <span class="co"># is calculated relative to the maximum capital allocation to the coin pair.  </span>
   <span class="cf">if</span> (params[[<span class="st">&quot;model_type&quot;</span>]] <span class="op">==</span><span class="st"> &quot;log&quot;</span>) { 
-    df_backtest &lt;-<span class="st"> </span>test <span class="op">%&gt;%</span><span class="st"> </span>
-<span class="st">      </span><span class="kw">mutate</span>(<span class="dt">signal =</span> <span class="kw">generate_signals</span>(<span class="dt">train =</span> train, 
+    test &lt;-<span class="st"> </span>test <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">      </span><span class="kw">mutate</span>(<span class="dt">coin_y_name =</span> coin_y, 
+             <span class="dt">coin_x_name =</span> coin_x, 
+             <span class="dt">coin_y_price =</span> test[[coin_y]], 
+             <span class="dt">coin_x_price =</span> test[[coin_x]], 
+             <span class="dt">signal =</span> <span class="kw">generate_signals</span>(<span class="dt">train =</span> train, 
                                        <span class="dt">test =</span> test, 
                                        <span class="dt">coin_y =</span> coin_y, 
                                        <span class="dt">coin_x =</span> coin_x, 
                                        <span class="dt">model =</span> model, 
                                        <span class="dt">params =</span> params), 
+             <span class="dt">hedge_ratio =</span> model[[<span class="st">&quot;hedge_ratio&quot;</span>]], 
              <span class="dt">coin_y_return =</span> test[[coin_y]] <span class="op">/</span><span class="st"> </span><span class="kw">lag</span>(test[[coin_y]], <span class="dv">1</span>) <span class="op">-</span><span class="st"> </span><span class="dv">1</span>, 
              <span class="dt">coin_x_return =</span> test[[coin_x]] <span class="op">/</span><span class="st"> </span><span class="kw">lag</span>(test[[coin_x]], <span class="dv">1</span>) <span class="op">-</span><span class="st"> </span><span class="dv">1</span>, 
              <span class="dt">coin_y_position =</span> signal <span class="op">*</span><span class="st"> </span><span class="dv">1</span>                      <span class="op">*</span><span class="st">  </span><span class="dv">1</span>, 
-             <span class="dt">coin_x_position =</span> signal <span class="op">*</span><span class="st"> </span>model[[<span class="st">&quot;hedge_ratio&quot;</span>]] <span class="op">*</span><span class="st"> </span><span class="op">-</span><span class="dv">1</span>,  
+             <span class="dt">coin_x_position =</span> signal <span class="op">*</span><span class="st"> </span>model[[<span class="st">&quot;hedge_ratio&quot;</span>]] <span class="op">*</span><span class="st"> </span><span class="op">-</span><span class="dv">1</span>, 
+             <span class="dt">change_y_position =</span> coin_y_position <span class="op">-</span><span class="st"> </span><span class="kw">lag</span>(coin_y_position, <span class="dv">1</span>) <span class="op">-</span><span class="st"> </span><span class="kw">lag</span>(coin_y_position, <span class="dv">1</span>) <span class="op">*</span><span class="st"> </span>coin_y_return, 
+             <span class="dt">change_x_position =</span> coin_x_position <span class="op">-</span><span class="st"> </span><span class="kw">lag</span>(coin_x_position, <span class="dv">1</span>) <span class="op">-</span><span class="st"> </span><span class="kw">lag</span>(coin_x_position, <span class="dv">1</span>) <span class="op">*</span><span class="st"> </span>coin_x_return, 
              <span class="dt">coin_y_pnl =</span> <span class="kw">lag</span>(coin_y_position, <span class="dv">1</span>) <span class="op">*</span><span class="st"> </span>coin_y_return, 
              <span class="dt">coin_x_pnl =</span> <span class="kw">lag</span>(coin_x_position, <span class="dv">1</span>) <span class="op">*</span><span class="st"> </span>coin_x_return, 
              <span class="dt">combined_position =</span> <span class="kw">abs</span>(coin_y_position) <span class="op">+</span><span class="st"> </span><span class="kw">abs</span>(coin_x_position), 
              <span class="dt">combined_pnl =</span> coin_y_pnl <span class="op">+</span><span class="st"> </span>coin_x_pnl, 
              <span class="dt">combined_return =</span> combined_pnl <span class="op">/</span><span class="st"> </span>(<span class="dv">1</span> <span class="op">+</span><span class="st"> </span><span class="kw">abs</span>(model[[<span class="st">&quot;hedge_ratio&quot;</span>]]))) <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">      </span><span class="kw">mutate_all</span>(<span class="kw">funs</span>(<span class="kw">ifelse</span>(<span class="kw">is.na</span>(.), <span class="dv">0</span>, .))) <span class="op">%&gt;%</span><span class="st"> </span>
-<span class="st">      </span><span class="kw">mutate</span>(<span class="dt">return_pair =</span> <span class="kw">cumprod</span>(<span class="dv">1</span> <span class="op">+</span><span class="st"> </span>combined_return)) 
+<span class="st">      </span><span class="kw">mutate</span>(<span class="dt">cumulative_return =</span> <span class="kw">cumprod</span>(<span class="dv">1</span> <span class="op">+</span><span class="st"> </span>combined_return), 
+             <span class="dt">date_time =</span> <span class="kw">as.POSIXct</span>(date_time, <span class="dt">origin =</span> <span class="st">&quot;1970-01-01&quot;</span>)) 
   } 
   
-  <span class="co"># Return cumulative return of the trading strategy on a coin pair </span>
-  <span class="kw">return</span>(df_backtest[[<span class="st">&quot;return_pair&quot;</span>]])
+  <span class="co"># Clean the dataframe in preparation for serializing to feather </span>
+  df_backtest &lt;-<span class="st"> </span><span class="kw">bind_rows</span>(train <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">mutate</span>(<span class="dt">source =</span> <span class="st">&quot;train&quot;</span>), test <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">mutate</span>(<span class="dt">source =</span> <span class="st">&quot;test&quot;</span>)) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">    </span><span class="kw">mutate</span>(<span class="dt">coin_y_name =</span> coin_y, 
+           <span class="dt">coin_x_name =</span> coin_x, 
+           <span class="dt">coin_y_price =</span> .[[coin_y]], 
+           <span class="dt">coin_x_price =</span> .[[coin_x]]) <span class="op">%&gt;%</span><span class="st">  </span>
+<span class="st">    </span><span class="kw">select</span>(<span class="op">-</span><span class="kw">starts_with</span>(<span class="st">&quot;BTC&quot;</span>), <span class="op">-</span><span class="kw">starts_with</span>(<span class="st">&quot;USDT&quot;</span>)) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">    </span><span class="kw">select</span>(date_unix, date_time, coin_y_name, coin_x_name, coin_y_price, coin_x_price, <span class="kw">everything</span>()) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">    </span><span class="kw">mutate</span>(<span class="dt">change_y_position =</span> <span class="kw">round</span>(change_y_position, <span class="dv">4</span>), 
+           <span class="dt">change_x_position =</span> <span class="kw">round</span>(change_x_position, <span class="dv">4</span>))
+  
+  <span class="co"># Return cumulative return of the trading strategy on a coin pair if feather flag is set to false. </span>
+  <span class="cf">if</span> (feather <span class="op">==</span><span class="st"> </span><span class="ot">FALSE</span>) <span class="kw">return</span>(df_backtest[[<span class="st">&quot;cumulative_return&quot;</span>]]) 
+  
+  <span class="co"># Return the entire dataframe if feather flag is set to true. This feather object is fed into a backtesting framework that</span>
+  <span class="co"># accounts for trading costs.  </span>
+  <span class="cf">if</span> (feather <span class="op">==</span><span class="st"> </span><span class="ot">TRUE</span>) <span class="kw">return</span>(df_backtest)
 } </code></pre></div>
 </div>
 <div id="backtest-strategy-function" class="section level1">
@@ -842,26 +838,49 @@ params: A list of parameters passed to the functions below that describe the mea
 cointegration_test: A string indicating whether the Engle-Granger method or distance method is used to test for cointegration. Takes values “eg” or “distance”.</p>
 <p>Value<br />
 A vector containing the cumulative return of the overall trading strategy for a given train and test split.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">backtest_strategy &lt;-<span class="st"> </span><span class="cf">function</span>(train, test, selected_pairs, params) { 
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">backtest_strategy &lt;-<span class="st"> </span><span class="cf">function</span>(train, test, selected_pairs, params, <span class="dt">feather =</span> <span class="ot">FALSE</span>) { 
   
   <span class="co"># Return cumulative return of 1 if no pairs are selected </span>
   <span class="cf">if</span> (<span class="kw">nrow</span>(selected_pairs) <span class="op">==</span><span class="st"> </span><span class="dv">0</span>) 
     <span class="kw">return</span>(<span class="dv">1</span>) 
   
   <span class="co"># Iterate through each coin pair and calculate the return of the strategy on a coin pair </span>
-  df &lt;-<span class="st"> </span><span class="kw">tibble</span>()  
+  backtest_pair_results &lt;-<span class="st"> </span><span class="kw">tibble</span>()  
   <span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span><span class="kw">nrow</span>(selected_pairs)) { 
-    single_pair &lt;-<span class="st"> </span><span class="kw">tibble</span>(<span class="dt">return_pair =</span> <span class="kw">backtest_pair</span>(<span class="dt">train =</span> train, 
-                                                      <span class="dt">test =</span> test, 
-                                                      <span class="dt">coin_y =</span> selected_pairs[[<span class="st">&quot;coin_y&quot;</span>]][i], 
-                                                      <span class="dt">coin_x =</span> selected_pairs[[<span class="st">&quot;coin_x&quot;</span>]][i], 
-                                                      <span class="dt">params =</span> params), 
-                          <span class="dt">coin_y =</span> selected_pairs[[<span class="st">&quot;coin_y&quot;</span>]][i], 
-                          <span class="dt">coin_x =</span> selected_pairs[[<span class="st">&quot;coin_x&quot;</span>]][i], 
-                          <span class="dt">date_time =</span> test[[<span class="st">&quot;date_time&quot;</span>]], 
-                          <span class="dt">cointegration_stat =</span> selected_pairs[[<span class="st">&quot;cointegration_stat&quot;</span>]][i]) 
-    df &lt;-<span class="st"> </span><span class="kw">bind_rows</span>(df, single_pair)
-  } 
+    
+    <span class="co"># If feather is false, the output of backtest_pair() is just a vector containing the cumulative return of each coin pair, and </span>
+    <span class="co"># this function Continues on to calculating the cumulative return of the overall strategy. </span>
+    <span class="cf">if</span> (feather <span class="op">==</span><span class="st"> </span><span class="ot">FALSE</span>) { 
+      single_pair &lt;-<span class="st"> </span><span class="kw">tibble</span>(<span class="dt">return_pair =</span> <span class="kw">backtest_pair</span>(<span class="dt">train =</span> train, 
+                                                        <span class="dt">test =</span> test, 
+                                                        <span class="dt">coin_y =</span> selected_pairs[[<span class="st">&quot;coin_y&quot;</span>]][i], 
+                                                        <span class="dt">coin_x =</span> selected_pairs[[<span class="st">&quot;coin_x&quot;</span>]][i], 
+                                                        <span class="dt">params =</span> params, 
+                                                        <span class="dt">feather =</span> <span class="ot">FALSE</span>), 
+                            <span class="dt">cointegration_stat =</span> selected_pairs[[<span class="st">&quot;cointegration_stat&quot;</span>]][i], 
+                            <span class="dt">coin_pair_id =</span> i)
+      backtest_pair_results &lt;-<span class="st"> </span><span class="kw">bind_rows</span>(backtest_pair_results, single_pair)
+    }
+    
+    <span class="co"># If feather is true, the output of backtest_pair() is a dataframe containing additional information needed for backtesting </span>
+    <span class="co"># accounting for trading costs. </span>
+    <span class="cf">if</span> (feather <span class="op">==</span><span class="st"> </span><span class="ot">TRUE</span>) { 
+      single_pair &lt;-<span class="st"> </span><span class="kw">backtest_pair</span>(<span class="dt">train =</span> train, 
+                                   <span class="dt">test =</span> test, 
+                                   <span class="dt">coin_y =</span> selected_pairs[[<span class="st">&quot;coin_y&quot;</span>]][i], 
+                                   <span class="dt">coin_x =</span> selected_pairs[[<span class="st">&quot;coin_x&quot;</span>]][i], 
+                                   <span class="dt">params =</span> params, 
+                                   <span class="dt">feather =</span> <span class="ot">TRUE</span>) <span class="op">%&gt;%</span><span class="st"> </span>
+<span class="st">        </span><span class="kw">mutate</span>(<span class="dt">cointegration_stat =</span> selected_pairs[[<span class="st">&quot;cointegration_stat&quot;</span>]][i], 
+               <span class="dt">coin_pair_id =</span> i)
+      backtest_pair_results &lt;-<span class="st"> </span><span class="kw">bind_rows</span>(backtest_pair_results, single_pair)
+    }
+  }
+  
+  <span class="co"># If feather is true, return the dataframe containing the multiple dataframes from backtest_pair(). </span>
+  <span class="cf">if</span> (feather <span class="op">==</span><span class="st"> </span><span class="ot">TRUE</span>) { 
+    <span class="kw">return</span>(backtest_pair_results)
+  }
   
   <span class="co"># Calculate return of the strategy applied to a portfolio of coin pairs assuming equal capital allocation </span>
   <span class="co"># to each coin pair </span>
@@ -875,8 +894,8 @@ A vector containing the cumulative return of the overall trading strategy for a 
   <span class="co"># to each coin pair as a function of the cointegration stat </span>
   <span class="cf">if</span> (params[[<span class="st">&quot;pair_allocation&quot;</span>]] <span class="op">==</span><span class="st"> &quot;weighted&quot;</span>) { 
     
-    <span class="co"># Calculate weights if cointegration test used Engle-Grange method </span>
-    <span class="cf">if</span> (params[[<span class="st">&quot;cointegration_test&quot;</span>]] <span class="op">==</span><span class="st"> &quot;eg&quot;</span>) { 
+    <span class="co"># Calculate weights if cointegration test used Engle-Grange method or total least squares  </span>
+    <span class="cf">if</span> (params[[<span class="st">&quot;cointegration_test&quot;</span>]] <span class="op">==</span><span class="st"> &quot;eg&quot;</span> <span class="op">|</span><span class="st"> </span>params[[<span class="st">&quot;cointegration_test&quot;</span>]] <span class="op">==</span><span class="st"> &quot;tls&quot;</span>) { 
       df &lt;-<span class="st"> </span>df <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">        </span><span class="kw">mutate</span>(<span class="dt">weight =</span> <span class="kw">abs</span>(cointegration_stat))
     }
@@ -897,8 +916,8 @@ A vector containing the cumulative return of the overall trading strategy for a 
   <span class="co"># to each coin using a scaled tuning parameter </span>
   <span class="cf">if</span> (params[[<span class="st">&quot;pair_allocation&quot;</span>]] <span class="op">==</span><span class="st"> &quot;scaled&quot;</span>) { 
     
-    <span class="co"># Calculate weights if cointegration test used Engle-Grange method </span>
-    <span class="cf">if</span> (params[[<span class="st">&quot;cointegration_test&quot;</span>]] <span class="op">==</span><span class="st"> &quot;eg&quot;</span>) { 
+    <span class="co"># Calculate weights if cointegration test used Engle-Grange method or total least squares method  </span>
+    <span class="cf">if</span> (params[[<span class="st">&quot;cointegration_test&quot;</span>]] <span class="op">==</span><span class="st"> &quot;eg&quot;</span> <span class="op">|</span><span class="st"> </span>params[[<span class="st">&quot;cointegration_stat&quot;</span>]] <span class="op">==</span><span class="st"> &quot;tls&quot;</span>) { 
       df &lt;-<span class="st"> </span>df <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">        </span><span class="kw">mutate</span>(<span class="dt">cointegration_stat_scaled =</span> <span class="kw">abs</span>(cointegration_stat) <span class="op">^</span><span class="st"> </span>params[[<span class="st">&quot;pair_allocation_scaling&quot;</span>]], 
                <span class="dt">weight =</span> cointegration_stat_scaled) <span class="op">%&gt;%</span><span class="st"> </span>
@@ -916,14 +935,16 @@ A vector containing the cumulative return of the overall trading strategy for a 
     }
   } 
   
-  <span class="co"># Return the strategy return</span>
-  <span class="kw">return</span>(df[[<span class="st">&quot;return_strategy&quot;</span>]])
+  <span class="co"># Return the strategy return </span>
+  <span class="cf">if</span> (feather <span class="op">==</span><span class="st"> </span><span class="ot">FALSE</span>) { 
+    <span class="kw">return</span>(df[[<span class="st">&quot;return_strategy&quot;</span>]])
+  }
 } </code></pre></div>
 </div>
 <div id="backtest-strategy-full-function" class="section level1">
 <h1>12. Backtest Strategy Full Function</h1>
 <p>Description<br />
-Calculate the return of a cointegration-based mean reversion trading strategy using an equally weighted portfolio of cointegrated coin pairs. The backtest evaluates the performance in a timeseries cross validation method in which train and test sets are created iteratively over time.</p>
+Calculate the return of a cointegration-based mean reversion trading strategy using a portfolio of cointegrated coin pairs. The backtest evaluates the performance in a timeseries cross validation method in which train and test sets are created iteratively over time.</p>
 <p>Arguments<br />
 pricing_data: A dataframe containing pricing data from Poloneix gathered in tidy format.<br />
 params: A list of parameters passed to the functions below that describe the mean reversion pairs trading strategy.<br />
@@ -1101,6 +1122,45 @@ Prints the plots described above.</p>
 <span class="st">          </span><span class="kw">scale_color_manual</span>(<span class="dt">name =</span> <span class="st">&quot;Return&quot;</span>, <span class="dt">values =</span> <span class="kw">c</span>(<span class="st">&quot;Strategy&quot;</span> =<span class="st"> &quot;darkblue&quot;</span>, <span class="st">&quot;USDT_BTC&quot;</span> =<span class="st"> &quot;darkred&quot;</span>)) <span class="op">+</span><span class="st"> </span>
 <span class="st">          </span><span class="kw">labs</span>(<span class="dt">title =</span> <span class="st">&quot;Strategy Return vs Buy Hold Return&quot;</span>, <span class="dt">x =</span> <span class="st">&quot;Date&quot;</span>, <span class="dt">y =</span> <span class="st">&quot;Cumulative Return&quot;</span>)) 
 } </code></pre></div>
+</div>
+<div id="generate-predictions-function" class="section level1">
+<h1>15. Generate Predictions Function</h1>
+<p>Description<br />
+Generate predictions on the test set given a cutoff date to split the train and test sets and a list of parameters.</p>
+<p>Arguments<br />
+pricing_data: A dataframe containing pricing data from Poloneix gathered in tidy format.<br />
+cutoff_date: A data representing the cutoff date between the train and test sets.<br />
+params: A list of parameters passed to the functions below that describe the mean reversion pairs trading strategy.</p>
+<p>Value<br />
+A dataframe containing the position, change in position, signal, and hedge ratio for the coin pairs selected by the strategy.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">generate_predictions &lt;-<span class="st"> </span><span class="cf">function</span>(pricing_data, cutoff_date, params) { 
+  
+  <span class="co"># Create train and test sets </span>
+  train &lt;-<span class="st"> </span><span class="kw">prepare_data</span>(<span class="dt">pricing_data =</span> pricing_data, 
+                        <span class="dt">start_date =</span> <span class="kw">as.Date</span>(cutoff_date) <span class="op">-</span><span class="st"> </span>params[[<span class="st">&quot;train_window&quot;</span>]], 
+                        <span class="dt">end_date =</span> <span class="kw">as.Date</span>(cutoff_date), 
+                        <span class="dt">params =</span> params) 
+  test &lt;-<span class="st"> </span><span class="kw">prepare_data</span>(<span class="dt">pricing_data =</span> pricing_data, 
+                       <span class="dt">start_date =</span> <span class="kw">as.Date</span>(cutoff_date), 
+                       <span class="dt">end_date =</span> <span class="kw">as.Date</span>(cutoff_date) <span class="op">+</span><span class="st"> </span>params[[<span class="st">&quot;test_window&quot;</span>]], 
+                       <span class="dt">params =</span> params) 
+  
+  <span class="co"># Select coin pairs </span>
+  coin_pairs &lt;-<span class="st"> </span><span class="kw">create_pairs</span>(<span class="dt">params =</span> params) 
+  selected_pairs &lt;-<span class="st"> </span><span class="kw">select_pairs</span>(<span class="dt">train =</span> train, 
+                                 <span class="dt">coin_pairs =</span> coin_pairs, 
+                                 <span class="dt">params =</span> params) 
+  
+  <span class="co"># Generate backtest results </span>
+  backtest &lt;-<span class="st"> </span><span class="kw">backtest_strategy</span>(<span class="dt">train =</span> train, 
+                                <span class="dt">test =</span> test, 
+                                <span class="dt">selected_pairs =</span> selected_pairs, 
+                                <span class="dt">params =</span> params, 
+                                <span class="dt">feather =</span> <span class="ot">TRUE</span>)
+  
+  <span class="co"># Return</span>
+  <span class="kw">return</span>(backtest) 
+}</code></pre></div>
 </div>
 
 

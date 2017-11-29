@@ -11,7 +11,7 @@
 
 <meta name="author" content="Kevin Lu" />
 
-<meta name="date" content="2017-11-06" />
+<meta name="date" content="2017-11-20" />
 
 <title>Explore Cointegration Combinations</title>
 
@@ -245,7 +245,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">Explore Cointegration Combinations</h1>
 <h4 class="author"><em>Kevin Lu</em></h4>
-<h4 class="date"><em>November 06, 2017</em></h4>
+<h4 class="date"><em>November 20, 2017</em></h4>
 
 </div>
 
@@ -259,12 +259,8 @@ div.tocify {
 <p>An initial run of 18,600 iterations was completed using the following search parameters:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># time_resolution &lt;- sample(c(300, 900, 1800, 7200, 14400, 86400), size = 1) </span>
 <span class="co"># start_date &lt;- sample(seq(from = ymd(&quot;2017-01-01&quot;), to = ymd(&quot;2017-10-01&quot;), by = &quot;1 day&quot;), size = 1)</span>
-<span class="co"># end_date &lt;- sample(seq(from = start_date + 3, to = Sys.Date(), by = &quot;1 day&quot;), size = 1)  </span></code></pre></div>
-<p>A secondary run of 18,600 iterations was completed using the following search parameters:</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># time_resolution &lt;- sample(c(300, 900, 1800, 7200, 14400, 86400), size = 1) </span>
-<span class="co"># start_date &lt;- sample(seq(from = ymd(&quot;2017-01-01&quot;), to = ymd(&quot;2017-10-01&quot;), by = &quot;1 day&quot;), size = 1)</span>
-<span class="co"># end_date &lt;- sample(seq(from = start_date + 3, to = start_date + 50, by = &quot;1 day&quot;), size = 1) </span>
-results_a &lt;-<span class="st"> </span><span class="kw">read_csv</span>(<span class="st">&quot;./Mean Reversion/Raw Data/search cointegration results A.csv&quot;</span>)</code></pre></div>
+<span class="co"># end_date &lt;- sample(seq(from = start_date + 3, to = Sys.Date(), by = &quot;1 day&quot;), size = 1)  </span>
+results_a &lt;-<span class="st"> </span><span class="kw">read_csv</span>(<span class="st">&quot;./Mean Reversion/Output/Parameter Tuning/search cointegration results A.csv&quot;</span>)</code></pre></div>
 <pre><code>## Parsed with column specification:
 ## cols(
 ##   df_stat = col_double(),
@@ -277,7 +273,11 @@ results_a &lt;-<span class="st"> </span><span class="kw">read_csv</span>(<span c
 ##   end_date = col_date(format = &quot;&quot;),
 ##   length = col_integer()
 ## )</code></pre>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">results_b &lt;-<span class="st"> </span><span class="kw">read_csv</span>(<span class="st">&quot;./Mean Reversion/Raw Data/search cointegration results B.csv&quot;</span>)</code></pre></div>
+<p>A secondary run of 18,600 iterations was completed using the following search parameters:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># time_resolution &lt;- sample(c(300, 900, 1800, 7200, 14400, 86400), size = 1) </span>
+<span class="co"># start_date &lt;- sample(seq(from = ymd(&quot;2017-01-01&quot;), to = ymd(&quot;2017-10-01&quot;), by = &quot;1 day&quot;), size = 1)</span>
+<span class="co"># end_date &lt;- sample(seq(from = start_date + 3, to = start_date + 50, by = &quot;1 day&quot;), size = 1) </span>
+results_b &lt;-<span class="st"> </span><span class="kw">read_csv</span>(<span class="st">&quot;./Mean Reversion/Output/Parameter Tuning/search cointegration results B.csv&quot;</span>)</code></pre></div>
 <pre><code>## Parsed with column specification:
 ## cols(
 ##   df_stat_mean = col_double(),

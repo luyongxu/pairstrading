@@ -33,10 +33,11 @@ source("./Mean Reversion/RMR.001 Load Packages.R")
 #' train_window: A lubridate period object representing the length of time the train set covers.  
 #' test_window: A lubridate period object representing the length of time the the test set covers.  
 #' model_type: A string indicating whether raw prices or log prices should be used. Takes value "raw" or "log".  
-#' regression_type: A string indicating whether OLS or TLS regression should be used. Takes values "ols" or "tls".  
+#' regression_type: A string indicating whether OLS, TLS, or a non-parametric regression should be used. Takes values 
+#'   "ols", "tls", or "non-parametric".    
 #' spread_type: A string indicating whether the regression uses a rolling or fixed window. Takes value "rolling" or 
 #'   "fixed".  
-#' rolling_window: The number of observations used in each window of a rolling linear regression.  
+#' rolling_window: The number of observations used in the lookback window of a rolling linear regression.  
 #' signal_logic: A string indicating which logic to use to generate signals. Takes values "scaled" or "discrete".  
 #' signal_scaled_enter: The z-score threshold indicating the z-score that the signal is fully scaled in when the 
 #'   signal logic is scaled.  
@@ -49,7 +50,8 @@ source("./Mean Reversion/RMR.001 Load Packages.R")
 #' pair_allocation: A string indicating whether the capital allocation to the coin pairs should be equal or weighted. 
 #'   Takes values "equal", "weighted", and "scaled".     
 #'  pair_allocation_scaling: A double indicating the volatility scaling applied to the cointegration stat when the pair 
-#'    allocation is scaled.   
+#'    allocation is scaled. Higher numbers are associated with greater weight being placed on coin pairs with a high 
+#'    cointegration stat.    
 #'   
 
 #' # 3. Prepare Data Function 
@@ -69,7 +71,7 @@ prepare_data <- function(pricing_data, start_date, end_date, params) {
   df <- pricing_data %>% 
     filter(period == params[["time_resolution"]], 
            date_time >= start_date, 
-           date_time <= end_date) %>% 
+           date_time < end_date) %>% 
     select(date_unix, date_time, close, currency_pair) %>% 
     spread(currency_pair, close) 
   return(df)
@@ -77,11 +79,12 @@ prepare_data <- function(pricing_data, start_date, end_date, params) {
 
 #' # 4. Test Cointegration Function  
 #' Description  
-#' Cointegration is tested using either the distance method or the Engle-Granger two step method. The Engle-Granger consists 
-#' of two steps:  (1) Perform a linear regression of log(coin_y) on log(coin_x). (2) Perform an Augmented Dickey-Fuller test 
-#' on the residuals from the linear regression estimated in (1). The ADF test specification is of a non-zero mean, no 
-#' time-based trend, and one autoregressive lag. The distance method calculates the sum of squared differences between the 
-#' two coins's normalized prices.  
+#' Cointegration is tested using either the distance method, the Engle-Granger two step method, or total least squares 
+#' method. The distance method calculates the root mean squared difference between the two coins's normalized prices.  
+#' The Engle-Granger consists of two steps:  (1) Perform a linear regression of coin_y on coin_x. (2) Perform an 
+#' Augmented Dickey-Fuller test on the residuals from the linear regression estimated in (1). The ADF test specification 
+#' is of a non-zero mean, no time-based trend, and one autoregressive lag. The total least squares method is similar to 
+#' the Engle-Granger method except it uses a total least squares regression in step 1 instead of ordinary least squares. 
 #' 
 #' Arguments  
 #' coin_y: A vector containing the pricing data for the dependent coin in the regression.  
@@ -95,36 +98,35 @@ prepare_data <- function(pricing_data, start_date, end_date, params) {
 #' Returns the cointegration test statistic for the given coin pair.  
 test_cointegration <- function(coin_y, coin_x, params) { 
   
+  # Use either raw or log prices
+  if (params[["model_type"]] == "raw") { 
+    coin_y <- coin_y 
+    coin_x <- coin_x
+  } 
+  if (params[["model_type"]] == "log" & params[["cointegration_test"]] != "distance") { 
+    coin_y <- log(coin_y)
+    coin_x <- log(coin_x) 
+  } 
+  
   # Test for cointegration using the Engle-Granger two step method
   if (params[["cointegration_test"]] == "eg") { 
-    if (params[["model_type"]] == "raw") 
-      lm_model <- lm.fit(y = coin_y, x = cbind(1, coin_x))   
-    if (params[["model_type"]] == "log") 
-      lm_model <- lm.fit(y = log(coin_y), x = cbind(1, log(coin_x))) 
+    lm_model <- lm.fit(y = coin_y, x = cbind(1, coin_x))   
     lm_residuals <- lm_model[["residuals"]] 
     adf_test <- ur.df(lm_residuals, type = "drift", lags = 1) 
-    adf_stat = adf_test@testreg[["coefficients"]][2, 3]
+    adf_stat <- adf_test@testreg[["coefficients"]][2, 3]
     return(adf_stat) 
   } 
   
   # Test for cointegration using the total least squares method
   if (params[["cointegration_test"]] == "tls") { 
-    if (params[["model_type"]] == "raw") { 
-      pca_model <- prcomp(formula = ~ coin_y + coin_x) 
-      pca_beta <- pca_model[["rotation"]][1, 1] / pca_model[["rotation"]][2, 1] 
-      pca_intercept <- pca_model[["center"]][1] - pca_beta * pca_model[["center"]][2] 
-      pca_residuals <- coin_y - pca_beta * coin_x - pca_intercept 
-    } 
-    if (params[["model_type"]] == "log") { 
-      pca_model <- prcomp(formula = ~ log(coin_y) + log(coin_x))  
-      pca_beta <- pca_model[["rotation"]][1, 1] / pca_model[["rotation"]][2, 1] 
-      pca_intercept <- pca_model[["center"]][1] - pca_beta * pca_model[["center"]][2] 
-      pca_residuals <- log(coin_y) - pca_beta * log(coin_x) - pca_intercept 
-    } 
+    pca_model <- prcomp(formula = ~ coin_y + coin_x) 
+    pca_beta <- pca_model[["rotation"]][1, 1] / pca_model[["rotation"]][2, 1] 
+    pca_intercept <- pca_model[["center"]][1] - pca_beta * pca_model[["center"]][2] 
+    pca_residuals <- coin_y - pca_beta * coin_x - pca_intercept 
     adf_test <- ur.df(pca_residuals, type = "drift", lags = 1) 
     adf_stat = adf_test@testreg[["coefficients"]][2, 3]
     return(adf_stat) 
-  }
+  } 
   
   # Test for cointegration using the distance method 
   if (params[["cointegration_test"]] == "distance") { 
@@ -148,16 +150,24 @@ test_cointegration <- function(coin_y, coin_x, params) {
 #' Value  
 #' Returns a dataframe containing the coin pairs.  
 create_pairs <- function(params) { 
-  if (params[["quote_currency"]] == "USDT") 
+  
+  # Create USDT or BTC quote denominated coin list 
+  if (params[["quote_currency"]] == "USDT") {
     coin_list <- c("USDT_BTC", "USDT_DASH", "USDT_ETH", "USDT_LTC", "USDT_REP", "USDT_XMR", "USDT_ZEC")
-  if (params[["quote_currency"]] == "BTC") 
+  }
+  if (params[["quote_currency"]] == "BTC") {
     coin_list <- c("BTC_DASH", "BTC_ETH", "BTC_LTC", "BTC_REP", "BTC_XEM", "BTC_XMR", "BTC_ZEC", "BTC_DCR", "BTC_FCT", "BTC_LSK") 
+  } 
+  
+  # Create coin pairs
   coin_pairs <- expand.grid(coin_list, coin_list) %>% 
     rename(coin_y = Var1, 
            coin_x = Var2) %>% 
     filter(coin_y != coin_x) %>% 
     mutate_if(is.factor, as.character) %>%
     as_tibble() 
+  
+  # Return coin pairs
   return(coin_pairs)
 } 
 
@@ -172,8 +182,7 @@ create_pairs <- function(params) {
 #' params: A list of parameters that describe the mean reversion pairs trading strategy.  
 #' 
 #' Value  
-#' Returns a dataframe containing the coin pairs and the ADF test statistic resulting from testing cointegration 
-#' between each coin pair.  
+#' Returns a dataframe containing the coin pairs and the cointegration test statistic resulting from testing each coin pair.  
 test_pairs <- function(train, coin_pairs, params) { 
   cointegration_stat <- numeric(nrow(coin_pairs))  
   for (i in 1:nrow(coin_pairs)) { 
@@ -213,31 +222,25 @@ select_pairs <- function(train, coin_pairs, params) {
                    params = params)
   
   # If cointegration test uses the Engle-Granger method, filter by adf threshold 
-  if (params[["cointegration_test"]] == "eg") { 
-    df <- df %>% 
-      filter(cointegration_stat <= params[["adf_threshold"]]) 
-  } 
+  if (params[["cointegration_test"]] == "eg") 
+    df <- df %>% filter(cointegration_stat <= params[["adf_threshold"]]) 
   
   # If cointegration test uses the total least squares method, filter by adf threshold 
-  if (params[["cointegration_test"]] == "tls") { 
-    df <- df %>% 
-      filter(cointegration_stat <= params[["adf_threshold"]]) 
-  }
-  
+  if (params[["cointegration_test"]] == "tls") 
+    df <- df %>% filter(cointegration_stat <= params[["adf_threshold"]]) 
+
   # If cointegration uses the distance method, filter by rmse distance threshold  
-  if (params[["cointegration_test"]] == "distance") { 
-    df <- df %>% 
-      filter(cointegration_stat <= params[["distance_threshold"]]) 
-  }
-  
+  if (params[["cointegration_test"]] == "distance") 
+    df <- df %>% filter(cointegration_stat <= params[["distance_threshold"]]) 
+
   # Return selected coin pairs 
   return(df)
 } 
 
 #' # 8. Train Model Function 
 #' Description   
-#' Performs rolling linear regression of coin y on coin x using a defined rolling window length over 
-#' the test set.  
+#' Performs a linear regression of coin y on coin x over the test set. The regression can be rolling or fixed, can 
+#' take raw or log prices, and can use either ols, tls, or a non-parametric regression method.    
 #' 
 #' Arguments  
 #' train: A dataframe generated by prepare_data() that represents the training set for the coin pair.  
@@ -245,35 +248,41 @@ select_pairs <- function(train, coin_pairs, params) {
 #' coin_y: A string indicating the dependent coin in the coin pair regression.  
 #' coin_x: A string indicating the independent coin in the coin pair regression.  
 #' params: A list of parameters passed to the functions below that describe the mean reversion pairs trading strategy.  
-#'   rolling_window: The number of observations used in each iteration of a rolling linear regression.  
+#'   rolling_window: The number of observations used in the loobkack window of a rolling linear regression.  
 #'   model_type: A string indicating whether raw prices or log prices should be used. Takes value "raw" or "log". 
 #'   spread_type: A string indicating whether the regression uses a rolling or fixed window. Takes value "rolling" or "fixed".  
-#'   regression_type: A string indicating whether OLS or TLS regression should be used. Takes values "ols" or "tls". 
+#'   regression_type: A string indicating whether OLS, TLS, or a non-parametric regression should be used. 
+#'     Takes values "ols", "tls", and "non-parametric". 
 #' 
 #' Value  
-#' Returns a list containing the intercept, hedge ratio, spread, and spread z-score calculated from a rolling 
-#' regression over the test set. 
+#' Returns a list containing the intercept, hedge ratio, spread, and spread z-score calculated from a regression 
+#'   over the test set. If the spread type is fixed, the intercept and hedge ratio are just single numbers. If the 
+#'   spread type is rolling, the intercept and hedge ratio are a vector with length equal to the test set.  
 train_model <- function(train, test, coin_y, coin_x, params) { 
+  
+  # Use either raw or log prices
+  if (params[["model_type"]] == "raw") { 
+    train[[coin_y]] <- train[[coin_y]] 
+    train[[coin_x]] <- train[[coin_x]] 
+    test[[coin_y]] <- test[[coin_y]] 
+    test[[coin_x]] <- test[[coin_x]] 
+  } 
+  if (params[["model_type"]] == "log" & params[["regression_type"]] != "non-parametric") { 
+    train[[coin_y]] <- log(train[[coin_y]]) 
+    train[[coin_x]] <- log(train[[coin_x]]) 
+    test[[coin_y]] <- log(test[[coin_y]]) 
+    test[[coin_x]] <- log(test[[coin_x]]) 
+  } 
   
   # If calculation of spread uses a rolling regression 
   if (params[["spread_type"]] == "rolling") { 
     
-    # Set y and x if model type is raw 
-    if (params[["model_type"]] == "raw") { 
-      rolling_coef <- bind_rows(train, test) %>%  
-        mutate(y = .[[coin_y]], 
-               x = .[[coin_x]]) %>% 
-        select(y, x)
-    } 
-    
-    # Set y and x if model type is log
-    if (params[["model_type"]] == "log") { 
-      rolling_coef <- bind_rows(train, test) %>%  
-        mutate(y = log(.[[coin_y]]), 
-               x = log(.[[coin_x]])) %>% 
-        select(y, x)
-    } 
-    
+    # Prepare data in a format where rollapply can be used 
+    rolling_coef <- bind_rows(train, test) %>%  
+      mutate(y = .[[coin_y]], 
+             x = .[[coin_x]]) %>% 
+      select(y, x)
+
     # Perform rolling linear regression over the test set if regression type is OLS 
     if (params[["regression_type"]] == "ols") { 
       rolling_coef <- rolling_coef %>% 
@@ -312,42 +321,25 @@ train_model <- function(train, test, coin_y, coin_x, params) {
         filter(row_number() > nrow(train)) 
     } 
     
-    # Calculate spread in training and test set if regression type is OLS
+    # Calculate spread in training and test set if spread type is rolling and regression type is OLS. 
+    # Over the training set, the spread is the residuals from a regression using all the observations in the training set. 
+    # Over the test set, the spread is calculated using fitted coefficients from a rolling regression. 
     if (params[["regression_type"]] == "ols") { 
-      if (params[["model_type"]] == "raw") { 
-        train <- train %>% 
-          mutate(spread = lm.fit(y = train[[coin_y]], x = cbind(1, train[[coin_x]]))[["residuals"]])
-        test <- test %>% 
-          mutate(spread = test[[coin_y]] - test[[coin_x]] * rolling_coef[["hedge_ratio"]] - rolling_coef[["intercept"]]) 
-      } 
-      if (params[["model_type"]] == "log") { 
-        train <- train %>% 
-          mutate(spread = lm.fit(y = log(train[[coin_y]]), x = cbind(1, log(train[[coin_x]])))[["residuals"]]) 
-        test <- test %>% 
-          mutate(spread = log(test[[coin_y]]) - log(test[[coin_x]]) * rolling_coef[["hedge_ratio"]] - rolling_coef[["intercept"]]) 
-      } 
+      train <- train %>% 
+        mutate(spread = lm.fit(y = train[[coin_y]], x = cbind(1, train[[coin_x]]))[["residuals"]])
+      test <- test %>% 
+        mutate(spread = test[[coin_y]] - test[[coin_x]] * rolling_coef[["hedge_ratio"]] - rolling_coef[["intercept"]]) 
     }
     
-    # Calculate spread in training and test set if regression type is TLS  
+    # Calculate spread in training and test set if spread type is rolling and regression type is TLS  
     if (params[["regression_type"]] == "tls") { 
-      if (params[["model_type"]] == "raw") { 
-        pca_model <- prcomp(formula = ~ train[[coin_y]] + train[[coin_x]]) 
-        pca_beta <- pca_model[["rotation"]][1, 1] / pca_model[["rotation"]][2, 1] 
-        pca_intercept <- pca_model[["center"]][1] - pca_beta * pca_model[["center"]][2] 
-        train <- train %>% 
-          mutate(spread = train[[coin_y]] - pca_beta * train[[coin_x]] - pca_intercept) 
-        test <- test %>% 
-          mutate(spread = test[[coin_y]] - test[[coin_x]] * rolling_coef[["hedge_ratio"]] - rolling_coef[["intercept"]]) 
-      } 
-      if (params[["model_type"]] == "log") { 
-        pca_model <- prcomp(formula = ~ log(train[[coin_y]]) + log(train[[coin_x]]), data = train) 
-        pca_beta <- pca_model[["rotation"]][1, 1] / pca_model[["rotation"]][2, 1] 
-        pca_intercept <- pca_model[["center"]][1] - pca_beta * pca_model[["center"]][2] 
-        train <- train %>% 
-          mutate(spread = log(train[[coin_y]]) - pca_beta * log(train[[coin_x]]) - pca_intercept) 
-        test <- test %>% 
-          mutate(spread = log(test[[coin_y]]) - log(test[[coin_x]]) * rolling_coef[["hedge_ratio"]] - rolling_coef[["intercept"]]) 
-      } 
+      pca_model <- prcomp(formula = ~ train[[coin_y]] + train[[coin_x]]) 
+      pca_beta <- pca_model[["rotation"]][1, 1] / pca_model[["rotation"]][2, 1] 
+      pca_intercept <- pca_model[["center"]][1] - pca_beta * pca_model[["center"]][2] 
+      train <- train %>% 
+        mutate(spread = train[[coin_y]] - pca_beta * train[[coin_x]] - pca_intercept) 
+      test <- test %>% 
+        mutate(spread = test[[coin_y]] - test[[coin_x]] * rolling_coef[["hedge_ratio"]] - rolling_coef[["intercept"]]) 
     } 
     
     # Combine train and test to calculate rolling z-score for the test set  
@@ -361,21 +353,22 @@ train_model <- function(train, test, coin_y, coin_x, params) {
     }
     
     # Calculate spread in training and test set if regression type is non-parametric 
+    # Calculates normalized prices using a rolling a window and defines the spread as the difference betewen the normalized 
+    # prices. For backtesting position calculation purposes, set the intercept and hedge ratio to 1.  
     if (params[["regression_type"]] == "non-parametric") { 
       combined <- bind_rows(train %>% mutate(source == "train"), 
-                            test %>% mutate(source == "test")) 
-      result <- combined %>%  
-        mutate(coin_y_normalized = combined[[coin_y]] / lag(combined[[coin_y]], params[["rolling_window"]]), 
-               coin_x_normalized = combined[[coin_x]] / lag(combined[[coin_x]], params[["rolling_window"]]), 
+                            test %>% mutate(source == "test")) %>%   
+        mutate(coin_y_normalized = .[[coin_y]] / lag(.[[coin_y]], params[["rolling_window"]]), 
+               coin_x_normalized = .[[coin_x]] / lag(.[[coin_x]], params[["rolling_window"]]), 
                sd = roll_sdr(coin_y_normalized - coin_x_normalized, n = params[["rolling_window"]]), 
                spread = coin_y_normalized - coin_x_normalized, 
                spread_z = spread / sd) %>% 
         filter(source == "test")
-      rolling_coef[["intercept"]] <- NA 
+      rolling_coef[["intercept"]] <- 0 
       rolling_coef[["hedge_ratio"]] <- 1 
     } 
     
-    # Return list of statistics for the test set  
+    # Return list of statistics for the test set if the spread type is rolling  
     return(list(intercept = rolling_coef[["intercept"]], 
                 hedge_ratio = rolling_coef[["hedge_ratio"]], 
                 spread = result[["spread"]], 
@@ -385,49 +378,28 @@ train_model <- function(train, test, coin_y, coin_x, params) {
   # If calculation of spread uses a model with fixed coefficients estimated over the training set 
   if (params[["spread_type"]] == "fixed") { 
     
-    # If regression uses OLS 
+    # If spread type is fixed regression uses OLS 
     if (params[["regression_type"]] == "ols") { 
-      if (params[["model_type"]] == "raw") { 
-        model <- lm.fit(y = train[[coin_y]], x = cbind(1, train[[coin_x]])) 
-        intercept <- coef(model)[1] 
-        hedge_ratio <- coef(model)[2] 
-        result <- test %>% 
-          mutate(spread = test[[coin_y]] - test[[coin_x]] * hedge_ratio - intercept, 
-                 spread_z = (spread - mean(model[["residuals"]])) / sd(model[["residuals"]]))
-      }
-      if (params[["model_type"]] == "log") { 
-        model <- lm.fit(y = log(train[[coin_y]]), x = cbind(1, log(train[[coin_x]]))) 
-        intercept <- coef(model)[1] 
-        hedge_ratio <- coef(model)[2] 
-        result <- test %>% 
-          mutate(spread = log(test[[coin_y]]) - log(test[[coin_x]]) * hedge_ratio - intercept, 
-                 spread_z = (spread - mean(model[["residuals"]])) / sd(model[["residuals"]]))
-      }
+      model <- lm.fit(y = train[[coin_y]], x = cbind(1, train[[coin_x]])) 
+      intercept <- coef(model)[1] 
+      hedge_ratio <- coef(model)[2] 
+      result <- test %>% 
+        mutate(spread = test[[coin_y]] - test[[coin_x]] * hedge_ratio - intercept, 
+               spread_z = (spread - mean(model[["residuals"]])) / sd(model[["residuals"]]))
     }
     
-    # If regression uses TLS 
+    # If spread type is fixed and regression uses TLS 
     if (params[["regression_type"]] == "tls") { 
-      if (params[["model_type"]] == "raw") { 
-        pca_model <- prcomp(formula = ~ train[[coin_y]] + train[[coin_x]]) 
-        pca_beta <- pca_model[["rotation"]][1, 1] / pca_model[["rotation"]][2, 1] 
-        pca_intercept <- pca_model[["center"]][1] - pca_beta * pca_model[["center"]][2] 
-        pca_residuals <- train[[coin_y]] - pca_beta * train[[coin_x]] - pca_intercept 
-        result <- test %>% 
-          mutate(spread = test[[coin_y]] - test[[coin_x]] * pca_beta - pca_intercept, 
-                 spread_z = (spread - mean(pca_residuals)) / sd(pca_residuals))
-      } 
-      if (params[["model_type"]] == "log") { 
-        pca_model <- prcomp(formula = ~ log(train[[coin_y]]) + log(train[[coin_x]]))  
-        pca_beta <- pca_model[["rotation"]][1, 1] / pca_model[["rotation"]][2, 1] 
-        pca_intercept <- pca_model[["center"]][1] - pca_beta * pca_model[["center"]][2] 
-        pca_residuals <- log(train[[coin_y]]) - pca_beta * log(train[[coin_x]]) - pca_intercept 
-        result <- test %>% 
-          mutate(spread = log(test[[coin_y]]) - log(test[[coin_x]]) * hedge_ratio - intercept, 
-                 spread_z = (spread - mean(pca_residuals)) / sd(pca_residuals))
-      } 
+      pca_model <- prcomp(formula = ~ train[[coin_y]] + train[[coin_x]]) 
+      pca_beta <- pca_model[["rotation"]][1, 1] / pca_model[["rotation"]][2, 1] 
+      pca_intercept <- pca_model[["center"]][1] - pca_beta * pca_model[["center"]][2] 
+      pca_residuals <- train[[coin_y]] - pca_beta * train[[coin_x]] - pca_intercept 
+      result <- test %>% 
+        mutate(spread = test[[coin_y]] - test[[coin_x]] * pca_beta - pca_intercept, 
+               spread_z = (spread - mean(pca_residuals)) / sd(pca_residuals))
     } 
     
-    # If model is non-parametric 
+    # If spread type is fixed and model is non-parametric 
     if (params[["regression_type"]] == "non-parametric") { 
       train <- train %>% 
         mutate(coin_y_normalized = train[[coin_y]] / train[[coin_y]][1], 
@@ -438,12 +410,11 @@ train_model <- function(train, test, coin_y, coin_x, params) {
                coin_x_normalized = test[[coin_x]] / test[[coin_x]][1], 
                spread = coin_y_normalized - coin_x_normalized, 
                spread_z = spread / sd(train[["spread"]]))
-      intercept = NA
+      intercept = 0
       hedge_ratio = 1 
     } 
     
-    
-    # Return list of statistics for the test set  
+    # Return list of statistics for the test set if the spread type is fixed  
     return(list(intercept = intercept, 
                 hedge_ratio = hedge_ratio, 
                 spread = result[["spread"]], 
@@ -577,10 +548,11 @@ generate_signals <- function(train, test, coin_y, coin_x, model, params) {
 #' coin_x: A string indicating the independent coin in the coin pair regression.  
 #' params: A list of parameters passed to the functions below that describe the mean reversion pairs trading strategy.  
 #'   model_type: A string indicating whether raw prices or log prices should be used. Takes value "raw" or "log".  
+#' featuer: A boolean indicating whether to export the data in feather format.  
 #' 
 #' Value  
 #' Returns a vector containing the cumulative return of applying the trading strategy to the given coin pair.  
-backtest_pair <- function(train, test, coin_y, coin_x, params) { 
+backtest_pair <- function(train, test, coin_y, coin_x, params, feather = FALSE) {  
   
   # Generate model for calculating spread z-score 
   model <- train_model(train = train, 
@@ -589,54 +561,87 @@ backtest_pair <- function(train, test, coin_y, coin_x, params) {
                        coin_x = coin_x, 
                        params = params)
   
-  # Return calculations if model type uses raw prices to test for cointegration. The position and combined 
-  # return calculations differ compared to using log prices. 
+  # Return calculations if model type uses raw prices. The position and combined return calculations differ 
+  # compared to using log prices. 
   if (params[["model_type"]] == "raw") { 
-    df_backtest <- test %>% 
+    test <- test %>% 
       mutate(signal = generate_signals(train = train, 
                                        test = test, 
                                        coin_y = coin_y, 
                                        coin_x = coin_x, 
                                        model = model, 
                                        params = params), 
+             hedge_ratio = model[["hedge_ratio"]], 
+             intercept = model[["intercept"]], 
              coin_y_return = test[[coin_y]] / lag(test[[coin_y]], 1) - 1, 
              coin_x_return = test[[coin_x]] / lag(test[[coin_x]], 1) - 1, 
              coin_y_position = test[[coin_y]] * signal * 1                      *  1, 
-             coin_x_position = test[[coin_x]] * signal * model[["hedge_ratio"]] * -1,  
+             coin_x_position = test[[coin_x]] * signal * model[["hedge_ratio"]] * -1, 
+             change_y_position = coin_y_position - lag(coin_y_position, 1) - lag(coin_y_position, 1) * coin_y_return, 
+             change_x_position = coin_x_position - lag(coin_x_position, 1) - lag(coin_x_position, 1) * coin_x_return, 
              coin_y_pnl = lag(coin_y_position, 1) * coin_y_return, 
              coin_x_pnl = lag(coin_x_position, 1) * coin_x_return, 
              combined_position = abs(coin_y_position) + abs(coin_x_position), 
              combined_pnl = coin_y_pnl + coin_x_pnl, 
              combined_return = combined_pnl / lag(combined_position, 1)) %>% 
       mutate_all(funs(ifelse(is.na(.), 0, .))) %>% 
-      mutate(return_pair = cumprod(1 + combined_return)) 
+      mutate(cumulative_return = cumprod(1 + combined_return), 
+             date_time = as.POSIXct(date_time, origin = "1970-01-01")) 
   } 
   
   # Return calculations if model uses log prices to test for cointegration. The combined return calculation 
   # is calculated relative to the maximum capital allocation to the coin pair.  
   if (params[["model_type"]] == "log") { 
-    df_backtest <- test %>% 
-      mutate(signal = generate_signals(train = train, 
+    test <- test %>% 
+      mutate(coin_y_name = coin_y, 
+             coin_x_name = coin_x, 
+             coin_y_price = test[[coin_y]], 
+             coin_x_price = test[[coin_x]], 
+             signal = generate_signals(train = train, 
                                        test = test, 
                                        coin_y = coin_y, 
                                        coin_x = coin_x, 
                                        model = model, 
                                        params = params), 
+             hedge_ratio = model[["hedge_ratio"]], 
+             intercept = model[["intercept"]], 
              coin_y_return = test[[coin_y]] / lag(test[[coin_y]], 1) - 1, 
              coin_x_return = test[[coin_x]] / lag(test[[coin_x]], 1) - 1, 
              coin_y_position = signal * 1                      *  1, 
-             coin_x_position = signal * model[["hedge_ratio"]] * -1,  
+             coin_x_position = signal * model[["hedge_ratio"]] * -1, 
+             change_y_position = coin_y_position - lag(coin_y_position, 1) - lag(coin_y_position, 1) * coin_y_return, 
+             change_x_position = coin_x_position - lag(coin_x_position, 1) - lag(coin_x_position, 1) * coin_x_return, 
              coin_y_pnl = lag(coin_y_position, 1) * coin_y_return, 
              coin_x_pnl = lag(coin_x_position, 1) * coin_x_return, 
              combined_position = abs(coin_y_position) + abs(coin_x_position), 
              combined_pnl = coin_y_pnl + coin_x_pnl, 
              combined_return = combined_pnl / (1 + abs(model[["hedge_ratio"]]))) %>% 
       mutate_all(funs(ifelse(is.na(.), 0, .))) %>% 
-      mutate(return_pair = cumprod(1 + combined_return)) 
+      mutate(cumulative_return = cumprod(1 + combined_return), 
+             date_time = as.POSIXct(date_time, origin = "1970-01-01")) 
   } 
   
-  # Return cumulative return of the trading strategy on a coin pair 
-  return(df_backtest[["return_pair"]])
+  # Clean the dataframe in preparation for serializing to feather 
+  df_backtest <- bind_rows(train %>% mutate(source = "train"), test %>% mutate(source = "test")) %>% 
+    mutate(coin_y_name = coin_y, 
+           coin_x_name = coin_x, 
+           coin_y_price = .[[coin_y]], 
+           coin_x_price = .[[coin_x]]) %>%  
+    select(-starts_with("BTC"), -starts_with("USDT")) %>% 
+    select(date_unix, date_time, coin_y_name, coin_x_name, coin_y_price, coin_x_price, everything()) %>% 
+    mutate(change_y_position = round(change_y_position, 4), 
+           change_x_position = round(change_x_position, 4))
+  
+  # Return cumulative return of the trading strategy on a coin pair if feather flag is set to false. 
+  if (feather == FALSE) { 
+    df_backtest <- df_backtest %>% 
+      filter(source == "test")
+    return(df_backtest[["cumulative_return"]]) 
+  }
+  
+  # Return the entire dataframe if feather flag is set to true. This feather object is fed into a backtesting framework that
+  # accounts for trading costs.  
+  if (feather == TRUE) return(df_backtest)
 } 
 
 #' # 11. Backtest Strategy Function 
@@ -659,31 +664,57 @@ backtest_pair <- function(train, test, coin_y, coin_x, params) {
 #'     
 #' Value  
 #' A vector containing the cumulative return of the overall trading strategy for a given train and test split.  
-backtest_strategy <- function(train, test, selected_pairs, params) { 
+backtest_strategy <- function(train, test, selected_pairs, params, feather = FALSE) { 
   
   # Return cumulative return of 1 if no pairs are selected 
   if (nrow(selected_pairs) == 0) 
     return(1) 
   
   # Iterate through each coin pair and calculate the return of the strategy on a coin pair 
-  df <- tibble()  
+  backtest_pair_results <- tibble()  
   for (i in 1:nrow(selected_pairs)) { 
-    single_pair <- tibble(return_pair = backtest_pair(train = train, 
-                                                      test = test, 
-                                                      coin_y = selected_pairs[["coin_y"]][i], 
-                                                      coin_x = selected_pairs[["coin_x"]][i], 
-                                                      params = params), 
-                          coin_y = selected_pairs[["coin_y"]][i], 
-                          coin_x = selected_pairs[["coin_x"]][i], 
-                          date_time = test[["date_time"]], 
-                          cointegration_stat = selected_pairs[["cointegration_stat"]][i]) 
-    df <- bind_rows(df, single_pair)
-  } 
+    
+    # If feather is false, the output of backtest_pair() is just a vector containing the cumulative return of each coin pair, and 
+    # this function Continues on to calculating the cumulative return of the overall strategy. 
+    if (feather == FALSE) { 
+      single_pair <- tibble(return_pair = backtest_pair(train = train, 
+                                                        test = test, 
+                                                        coin_y = selected_pairs[["coin_y"]][i], 
+                                                        coin_x = selected_pairs[["coin_x"]][i], 
+                                                        params = params, 
+                                                        feather = FALSE), 
+                            coin_y_name = selected_pairs[["coin_y"]][i], 
+                            coin_x_name = selected_pairs[["coin_x"]][i], 
+                            date_time = test[["date_time"]], 
+                            cointegration_stat = selected_pairs[["cointegration_stat"]][i], 
+                            coin_pair_id = i)
+      backtest_pair_results <- bind_rows(backtest_pair_results, single_pair)
+    }
+    
+    # If feather is true, the output of backtest_pair() is a dataframe containing additional information needed for backtesting 
+    # accounting for trading costs. 
+    if (feather == TRUE) { 
+      single_pair <- backtest_pair(train = train, 
+                                   test = test, 
+                                   coin_y = selected_pairs[["coin_y"]][i], 
+                                   coin_x = selected_pairs[["coin_x"]][i], 
+                                   params = params, 
+                                   feather = TRUE) %>% 
+        mutate(cointegration_stat = selected_pairs[["cointegration_stat"]][i], 
+               coin_pair_id = i)
+      backtest_pair_results <- bind_rows(backtest_pair_results, single_pair)
+    }
+  }
+  
+  # If feather is true, return the dataframe containing the multiple dataframes from backtest_pair(). 
+  if (feather == TRUE) { 
+    return(backtest_pair_results)
+  }
   
   # Calculate return of the strategy applied to a portfolio of coin pairs assuming equal capital allocation 
   # to each coin pair 
   if (params[["pair_allocation"]] == "equal") { 
-    df <- df %>% 
+    backtest_pair_results <- backtest_pair_results %>% 
       group_by(date_time) %>% 
       summarise(return_strategy = mean(return_pair)) 
   } 
@@ -692,20 +723,20 @@ backtest_strategy <- function(train, test, selected_pairs, params) {
   # to each coin pair as a function of the cointegration stat 
   if (params[["pair_allocation"]] == "weighted") { 
     
-    # Calculate weights if cointegration test used Engle-Grange method 
-    if (params[["cointegration_test"]] == "eg") { 
-      df <- df %>% 
+    # Calculate weights if cointegration test used Engle-Grange method or total least squares  
+    if (params[["cointegration_test"]] == "eg" | params[["cointegration_test"]] == "tls") { 
+      backtest_pair_results <- backtest_pair_results %>% 
         mutate(weight = abs(cointegration_stat))
     }
     
     # Calculate weights if cointegration test used distance method 
     if (params[["cointegration_test"]] == "distance") { 
-      df <- df %>% 
+      backtest_pair_results <- backtest_pair_results %>% 
         mutate(weight = 1 / cointegration_stat)
     } 
     
     # Calculate weighted average of the strategy return 
-    df <- df %>% 
+    backtest_pair_results <- backtest_pair_results %>% 
       group_by(date_time) %>% 
       summarise(return_strategy = weighted.mean(x = return_pair, w = weight)) 
   } 
@@ -714,9 +745,9 @@ backtest_strategy <- function(train, test, selected_pairs, params) {
   # to each coin using a scaled tuning parameter 
   if (params[["pair_allocation"]] == "scaled") { 
     
-    # Calculate weights if cointegration test used Engle-Grange method 
-    if (params[["cointegration_test"]] == "eg") { 
-      df <- df %>% 
+    # Calculate weights if cointegration test used Engle-Grange method or total least squares method  
+    if (params[["cointegration_test"]] == "eg" | params[["cointegration_test"]] == "tls") { 
+      backtest_pair_results <- backtest_pair_results %>% 
         mutate(cointegration_stat_scaled = abs(cointegration_stat) ^ params[["pair_allocation_scaling"]], 
                weight = cointegration_stat_scaled) %>% 
         group_by(date_time) %>% 
@@ -725,7 +756,7 @@ backtest_strategy <- function(train, test, selected_pairs, params) {
     
     # Calculate weights if cointegration test used distance method 
     if (params[["cointegration_test"]] == "distance") { 
-      df <- df %>% 
+      backtest_pair_results <- backtest_pair_results %>% 
         mutate(cointegration_stat_scaled = cointegration_stat ^ params[["pair_allocation_scaling"]], 
                weight = 1 / cointegration_stat_scaled) %>% 
         group_by(date_time) %>% 
@@ -733,15 +764,17 @@ backtest_strategy <- function(train, test, selected_pairs, params) {
     }
   } 
   
-  # Return the strategy return
-  return(df[["return_strategy"]])
+  # Return the strategy return 
+  if (feather == FALSE) { 
+    return(backtest_pair_results[["return_strategy"]])
+  }
 } 
 
 #' # 12. Backtest Strategy Full Function 
 #' Description  
-#' Calculate the return of a cointegration-based mean reversion trading strategy using an equally weighted 
-#' portfolio of cointegrated coin pairs. The backtest evaluates the performance in a timeseries cross validation 
-#' method in which train and test sets are created iteratively over time. 
+#' Calculate the return of a cointegration-based mean reversion trading strategy using a portfolio of cointegrated coin 
+#' pairs. The backtest evaluates the performance in a timeseries cross validation method in which train and test sets 
+#' are created iteratively over time. 
 #' 
 #' Arguments  
 #' pricing_data: A dataframe containing pricing data from Poloneix gathered in tidy format.  
@@ -829,10 +862,27 @@ plot_single <- function(train, test, coin_y, coin_x, params) {
                        coin_x = coin_x, 
                        params = params) 
   
-  # Calculate signal and strategy return for the coin pair 
-  df_plot <- test %>% 
+  # Calculate prices for coins and beginning and ending dates over the train and test sets
+  df_plot <- backtest_pair(train = train, 
+                           test = test, 
+                           coin_y = coin_y, 
+                           coin_x = coin_x, 
+                           params = params, 
+                           feather = TRUE) 
+  df_plot_dates <- df_plot %>% 
+    group_by(source) %>% 
+    summarise(start = min(date_time), 
+              end = max(date_time)) 
+  df_plot_index <- df_plot %>% 
+    filter(source == "train") %>% 
+    filter(row_number() == n())
+  
+  # Calculate signal and strategy return for the coin pair over the test set  
+  df_plot2 <- test %>% 
     mutate(spread = model[["spread"]], 
            spread_z = model[["spread_z"]], 
+           intercept = model[["intercept"]], 
+           hedge_ratio = model[["hedge_ratio"]], 
            signal = generate_signals(train = train, 
                                      test = test, 
                                      coin_y = coin_y, 
@@ -846,9 +896,37 @@ plot_single <- function(train, test, coin_y, coin_x, params) {
                                        params = params), 
            return_buyhold_y = test[[coin_y]] / test[[coin_y]][1], 
            return_buyhold_x = test[[coin_x]] / test[[coin_x]][1]) 
+  df_plot2_model <- df_plot2 %>% 
+    select(date_time, intercept, hedge_ratio) %>% 
+    gather(data = ., key = "parameter", value = "value", intercept, hedge_ratio)
+  
+  # This plot plots the price of both coins over the train and test sets 
+  print(ggplot(data = df_plot) + 
+          geom_line(aes(x = date_time, y = coin_y_price / df_plot_index[["coin_y_price"]], colour = "Coin Y"), 
+                    size = 0.5, alpha = 0.5) + 
+          geom_line(aes(x = date_time, y = coin_x_price / df_plot_index[["coin_x_price"]], colour = "Coin X"), 
+                    size = 0.5, alpha = 0.5) + 
+          geom_rect(data = df_plot_dates %>% filter(source == "train"), 
+                    mapping = aes(xmin = start, xmax = end, ymin = -Inf, ymax = +Inf), 
+                    fill = "darkblue", 
+                    alpha = 0.2) + 
+          scale_colour_manual(name = "Indexed Prices", values = c("Coin Y" = "darkred", "Coin X" = "darkgreen")) + 
+          labs(title = "Prices Over the Train and Test Sets", 
+               subtitle = str_c(coin_y, " and ", coin_x), 
+               x = "Date", 
+               y = "Indexed Prices"))
+
+  # This plot plots the intercept and hedge ratio over the test set 
+  print(ggplot(df_plot2_model, aes(x = date_time)) + 
+          geom_line(aes(y = value, colour = parameter), size = 1) + 
+          facet_wrap(~ parameter, ncol = 1, scales = "free_y") + 
+          labs(title = "Hedge Ratio and Intercept", 
+               subtitle = str_c(coin_y, " and ", coin_x), 
+               x = "Date", 
+               y = "Value"))
   
   # This plot plots the spread z-score and signal 
-  print(ggplot(df_plot, aes(x = date_time)) + 
+  print(ggplot(df_plot2, aes(x = date_time)) + 
           geom_line(aes(y = spread_z, colour = "Spread Z"), size = 1) + 
           geom_line(aes(y = signal, colour = "Signal"), size = 0.5) + 
           geom_hline(yintercept = 0, colour = "red", alpha = 0.5) + 
@@ -859,12 +937,12 @@ plot_single <- function(train, test, coin_y, coin_x, params) {
                x = "Date", y = "Spread and Signal")) 
   
   # This plot plots the return of the strategy versus the buy-and-hold return of each coin 
-  print(ggplot(df_plot, aes(x = date_time)) + 
+  print(ggplot(df_plot2, aes(x = date_time)) + 
           geom_line(aes(y = return_pair, colour = "Model"), size = 1) + 
           geom_line(aes(y = return_buyhold_y, colour = "Coin Y"), size = 0.5, alpha = 0.4) + 
           geom_line(aes(y = return_buyhold_x, colour = "Coin X"), size = 0.5, alpha = 0.4) + 
           geom_hline(yintercept = 1, colour = "black") + 
-          scale_color_manual(name = "Return", values = c("Model" = "darkblue", "Coin Y" = "darkred", "Coin X" = "darkgreen")) + 
+          scale_colour_manual(name = "Return", values = c("Model" = "darkblue", "Coin Y" = "darkred", "Coin X" = "darkgreen")) + 
           labs(title = "Model Return vs Buy Hold Return", subtitle = str_c(coin_y, " and ", coin_x), 
                x = "Date", y = "Cumulative Return"))
 } 
@@ -909,6 +987,10 @@ plot_many <- function(pricing_data, cutoff_date, params, number_pairs) {
   # For each coin pair, generate plots by calling plot_single()
   print(selected_pairs) 
   for (i in 1:min(number_pairs, nrow(selected_pairs))) { 
+    cutoff_date <- as.Date(cutoff_date) 
+    print(str_c("Creating plots for ", selected_pairs[["coin_y"]][i], " and ", selected_pairs[["coin_x"]][i], ".")) 
+    print(str_c("Using train set from ", cutoff_date - params[["train_window"]] , " to ", cutoff_date, ".")) 
+    print(str_c("Using test set from ", cutoff_date, " to ", cutoff_date + params[["test_window"]], "."))  
     plot_single(train = train, 
                 test = test, 
                 coin_y = selected_pairs[["coin_y"]][i], 
@@ -932,4 +1014,43 @@ plot_many <- function(pricing_data, cutoff_date, params, number_pairs) {
           labs(title = "Strategy Return vs Buy Hold Return", x = "Date", y = "Cumulative Return")) 
 } 
 
-
+#' # 15. Generate Predictions Function   
+#' Description  
+#' Generate predictions on the test set given a cutoff date to split the train and test sets and a list of parameters. 
+#' 
+#' Arguments   
+#' pricing_data: A dataframe containing pricing data from Poloneix gathered in tidy format.  
+#' cutoff_date: A data representing the cutoff date between the train and test sets.  
+#' params: A list of parameters passed to the functions below that describe the mean reversion pairs trading strategy.  
+#'     
+#' Value  
+#' A dataframe containing the position, change in position, signal, and hedge ratio for the coin pairs selected by the 
+#' strategy.  
+generate_predictions <- function(pricing_data, cutoff_date, params) { 
+  
+  # Create train and test sets 
+  train <- prepare_data(pricing_data = pricing_data, 
+                        start_date = as.Date(cutoff_date) - params[["train_window"]], 
+                        end_date = as.Date(cutoff_date), 
+                        params = params) 
+  test <- prepare_data(pricing_data = pricing_data, 
+                       start_date = as.Date(cutoff_date), 
+                       end_date = as.Date(cutoff_date) + params[["test_window"]], 
+                       params = params) 
+  
+  # Select coin pairs 
+  coin_pairs <- create_pairs(params = params) 
+  selected_pairs <- select_pairs(train = train, 
+                                 coin_pairs = coin_pairs, 
+                                 params = params) 
+  
+  # Generate backtest results 
+  predictions <- backtest_strategy(train = train, 
+                                   test = test, 
+                                   selected_pairs = selected_pairs, 
+                                   params = params, 
+                                   feather = TRUE)
+  
+  # Return predictions 
+  return(predictions) 
+}

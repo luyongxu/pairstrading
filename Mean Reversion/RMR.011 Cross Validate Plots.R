@@ -37,10 +37,11 @@ pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv", col_types
 #' train_window: A lubridate period object representing the length of time the train set covers.  
 #' test_window: A lubridate period object representing the length of time the the test set covers.  
 #' model_type: A string indicating whether raw prices or log prices should be used. Takes value "raw" or "log".  
-#' regression_type: A string indicating whether OLS or TLS regression should be used. Takes values "ols" or "tls".  
+#' regression_type: A string indicating whether OLS, TLS, or a non-parametric regression should be used. Takes values 
+#'   "ols", "tls", or "non-parametric".    
 #' spread_type: A string indicating whether the regression uses a rolling or fixed window. Takes value "rolling" or 
 #'   "fixed".  
-#' rolling_window: The number of observations used in each window of a rolling linear regression.  
+#' rolling_window: The number of observations used in the lookback window of a rolling linear regression.  
 #' signal_logic: A string indicating which logic to use to generate signals. Takes values "scaled" or "discrete".  
 #' signal_scaled_enter: The z-score threshold indicating the z-score that the signal is fully scaled in when the 
 #'   signal logic is scaled.  
@@ -53,30 +54,31 @@ pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv", col_types
 #' pair_allocation: A string indicating whether the capital allocation to the coin pairs should be equal or weighted. 
 #'   Takes values "equal", "weighted", and "scaled".     
 #'  pair_allocation_scaling: A double indicating the volatility scaling applied to the cointegration stat when the pair 
-#'    allocation is scaled.   
+#'    allocation is scaled. Higher numbers are associated with greater weight being placed on coin pairs with a high 
+#'    cointegration stat.    
 #'   
 
 #' # 4. Set Parameters 
 params <- list(time_resolution = 300, 
                quote_currency = "USDT", 
                cointegration_test = "eg", 
-               adf_threshold = -3.4, 
-               distance_threshold = 0.38, 
-               train_window = days(36), 
-               test_window = days(51), 
+               adf_threshold = -4.0, 
+               distance_threshold = 0.00, 
+               train_window = days(30), 
+               test_window = days(20), 
                model_type = "raw", 
                regression_type = "ols", 
                spread_type = "rolling", 
                rolling_window = 1440, 
                signal_logic = "scaled", 
                signal_scaled_enter = 3.0, 
-               signal_discrete_enter = 2.9, 
+               signal_discrete_enter = 3.0, 
                signal_discrete_exit = 0.2, 
                signal_stop = 4.5, 
                signal_reenter = TRUE, 
                signal_reenter_threshold = 2.00, 
-               pair_allocation = "scaled", 
-               pair_allocation_scaling = 1.25) 
+               pair_allocation = "equal", 
+               pair_allocation_scaling = 1.00) 
 number_pairs <- 8 
 
 #' # 5. Cross Validation September 2017
