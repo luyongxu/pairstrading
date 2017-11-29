@@ -40,7 +40,7 @@ if (length(args_period) == 0) {
 #' Sets the command line arguments to NULL so that the command line arguments intended for this script do not get passed to 
 #' the load packages script. 
 commandArgs <- function(...) NULL
-source("./Mean Reversion/RMR.001 Load Packages.R") 
+source("./Mean Reversion/TMR.001 Load Packages.R") 
 
 #' # 3. Query Poloniex returnTicker Endpoint 
 #' Returns the ticker for all markets. 

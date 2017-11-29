@@ -14,7 +14,7 @@
 #' ---
 
 #' # 1. Load Packages 
-source("./Mean Reversion/RMR.001 Load Packages.R")
+source("./Mean Reversion/TMR.001 Load Packages.R")
 
 #' # 2. Load Data 
 #' An initial run of 18,600 iterations was completed using the following search parameters: 

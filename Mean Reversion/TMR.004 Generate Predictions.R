@@ -31,7 +31,7 @@ if (length(args_prediciton) == 0) {
 #' Sets the command line arguments to NULL so that the command line arguments intended for this script do not get passed to
 #' the load packages script. 
 commandArgs <- function(...) NULL
-source("./Mean Reversion/RMR.010 Cross Validate Functions.R")
+source("./Mean Reversion/TMR.003 Pairs Trading Functions.R")
 
 #' # 3. Set Parameters 
 params <- list(time_resolution = 300, 
