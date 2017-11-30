@@ -52,8 +52,9 @@ return_ticker <- function() {
     mutate(date_time = Sys.time(), 
            date_unix = as.numeric(as.POSIXct(date_time)), 
            currency_pair = ticker, 
-           close = last) %>% 
-    select(date_unix, date_time, close, currency_pair)
+           close = last, 
+           source = "return_ticker") %>% 
+    select(date_unix, date_time, close, currency_pair, source)
   return(df)
 }
   
@@ -70,11 +71,12 @@ return_chartdata <- function(currency_pair, start_unix, end_unix, period) {
                        "&period=", period)) %>% 
     mutate(period = period, 
            currency_pair = currency_pair, 
-           date_time = as.POSIXct(date, origin = "1970-01-01")) %>% 
-    select(date, date_time, high, low, open, close, volume, quoteVolume, weightedAverage, currency_pair, period) %>% 
+           date_time = as.POSIXct(date, origin = "1970-01-01"), 
+           source = "return_chartdata") %>% 
+    select(date, date_time, high, low, open, close, volume, quoteVolume, weightedAverage, currency_pair, period, source) %>% 
     as_tibble()
   colnames(df) <- c("date_unix", "date_time", "high", "low", "open", "close", "volume", "quote_volume", 
-                    "weighted_average", "currency_pair", "period")
+                    "weighted_average", "currency_pair", "period", "source")
   return(df)
 } 
 
@@ -119,11 +121,12 @@ for (period in periods) {
                                      end_unix = "9999999999", 
                                      period = period)
     pricing_data_ticker <- bind_rows(pricing_data_ticker, df_chartdata)
+    Sys.sleep(2)
   } 
   
   # Add latest data from returnTicker endpoint 
   df_ticker <- return_ticker() %>% 
-    filter(currency_pair %in% tickers) 
+    filter(currency_pair %in% tickers)
   pricing_data_ticker <- bind_rows(pricing_data_ticker, df_ticker)
   
   # Clean data 
@@ -151,6 +154,7 @@ for (period in periods) {
   # When the command line argument is update, find the unix timestamp of the most recent observation in the 
   # collection and only insert observations that are new 
   if (args_period == "update") { 
+    mongo_connection$remove(query = '{ "source" : "return_ticker" }')
     pricing_data_recent <- mongo_connection$find(query = '{}') 
     new_data <- pricing_data_ticker %>% 
       filter(date_unix > max(pricing_data_recent[["date_unix"]]))
@@ -163,6 +167,7 @@ for (period in periods) {
   if (args_period %in% c("86400", "14400", "7200", "1800", "900", "300")) { 
     pricing_data_recent <- mongo_connection$find(query = paste0('{ "date_unix" : { "$gt" : ', start_unix, ' } }'))
     mongo_connection$remove(query = paste0('{ "date_unix" : { "$gt" : ', start_unix, ' } }'))
+    mongo_connection$remove(query = '{ "source" : "return_ticker" }')
     new_data <- pricing_data_ticker %>% 
       bind_rows(pricing_data_recent) %>% 
       filter(date_unix > start_unix) %>% 
@@ -190,4 +195,5 @@ glimpse(pricing_data)
 summary(pricing_data) 
 
 #' # 10. Clean
-rm(return_ticker, period, periods, ticker, tickers, return_chartdata, args_period)
+rm(return_ticker, return_chartdata, period, periods, ticker, tickers, args_period, start_unix, commandArgs, 
+   df_chartdata, df_ticker, pricing_data_ticker, mongo_connection)

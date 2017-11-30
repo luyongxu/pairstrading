@@ -62,12 +62,10 @@ if (args_prediciton == "predictions") {
                                                db = "poloniex_ohlc",
                                                url = "mongodb://localhost"))
   pricing_data <- mongo_connection$find(query = '{}') %>% 
-    as_tibble() %>% 
-    filter(date_time <= "2017-11-17") 
+    as_tibble()
 }
 if (args_prediction == "none") { 
-  pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv", col_types = c("iTdddddddci")) %>% 
-    filter(date_time <= "2017-11-17")
+  pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv", col_types = c("iTdddddddci")) 
 }
 
 
