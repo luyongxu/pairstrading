@@ -44,7 +44,7 @@ source("./Mean Reversion/TMR.001 Load Packages.R")
 
 #' # 3. Query Poloniex returnTicker Endpoint 
 #' Returns the current price for a given ticker.  
-return_ticker <- function(ticker) { 
+return_ticker <- function() { 
   df <- fromJSON("https://poloniex.com/public?command=returnTicker") %>% 
     map2_df(names(.), ~ as_tibble(.x) %>% mutate(ticker = .y)) %>% 
     mutate_at(vars(last, lowestAsk, highestBid, percentChange, baseVolume, 
@@ -53,8 +53,7 @@ return_ticker <- function(ticker) {
            date_unix = as.numeric(as.POSIXct(date_time)), 
            currency_pair = ticker, 
            close = last) %>% 
-    select(date_unix, date_time, close, currency_pair) %>%  
-    filter(currency_pair == ticker)  
+    select(date_unix, date_time, close, currency_pair)
   return(df)
 }
   
@@ -118,16 +117,21 @@ for (period in periods) {
     df_chartdata <- return_chartdata(currency_pair = ticker, 
                                      start_unix = start_unix, 
                                      end_unix = "9999999999", 
-                                     period = period) %>% 
-      bind_rows(return_ticker(ticker = ticker)) %>% 
-      mutate(close = na.locf(close), 
-             period = na.locf(period))
-    pricing_data_ticker <- bind_rows(pricing_data_ticker, ) %>% bind_rows(df_chartdata)
+                                     period = period)
+    pricing_data_ticker <- bind_rows(pricing_data_ticker, df_chartdata)
   } 
+  
+  # Add latest data from returnTicker endpoint 
+  df_ticker <- return_ticker() %>% 
+    filter(currency_pair %in% tickers) 
+  pricing_data_ticker <- bind_rows(pricing_data_ticker, df_ticker)
   
   # Clean data 
   pricing_data_ticker <- pricing_data_ticker %>% 
-    arrange(currency_pair, date_unix)
+    arrange(currency_pair, date_unix) %>% 
+    group_by(currency_pair) %>% 
+    mutate(close = na.locf(close), 
+           period = na.locf(period)) 
   
   # Establish connection to mongo database 
   if (args_period != "none") { 
@@ -136,11 +140,12 @@ for (period in periods) {
                               url = "mongodb://localhost") 
   }
 
-  # When the command line argument is rebuild, drop the collection and reinsert all historical data 
+  # When the command line argument is rebuild, drop the collection, and reinsert all historical data 
   if (args_period == "rebuild") { 
     mongo_connection$insert(tibble(name = "placeholder"))
     mongo_connection$drop() 
     mongo_connection$insert(pricing_data_ticker)
+    print("Rebuilding mongo collection.")
   }
   
   # When the command line argument is update, find the unix timestamp of the most recent observation in the 
@@ -150,6 +155,7 @@ for (period in periods) {
     new_data <- pricing_data_ticker %>% 
       filter(date_unix > max(pricing_data_recent[["date_unix"]]))
     mongo_connection$insert(new_data)
+    print("Updating mongo collection.")
   }
 
   # When the command line argument is a time resolution, query the observations from the past 24 hours in the 
@@ -164,6 +170,7 @@ for (period in periods) {
       group_by(currency_pair, date_unix) %>% 
       filter(row_number() == 1)
     mongo_connection$insert(new_data)
+    print("Adding newest data to mongo collection.")
   }
   
   # Append the data 
