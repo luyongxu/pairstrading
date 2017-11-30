@@ -40,10 +40,13 @@ if (length(args_period) == 0) {
 #' Sets the command line arguments to NULL so that the command line arguments intended for this script do not get passed to 
 #' the load packages script. 
 commandArgs <- function(...) NULL
-source("./Mean Reversion/TMR.001 Load Packages.R") 
+if (args_period == "none") 
+  source("./Mean Reversion/TMR.001 Load Packages.R") 
+if (args_period != "none") 
+  source("/home/rstudio/kevin_lu_basket_mr/Mean Reversion/TMR.001 Load Packages.R")
 
 #' # 3. Query Poloniex returnTicker Endpoint 
-#' Returns the current price for a given ticker.  
+#' Returns the current price for all tickers.  
 return_ticker <- function() { 
   df <- fromJSON("https://poloniex.com/public?command=returnTicker") %>% 
     map2_df(names(.), ~ as_tibble(.x) %>% mutate(ticker = .y)) %>% 
@@ -121,7 +124,7 @@ for (period in periods) {
                                      end_unix = "9999999999", 
                                      period = period)
     pricing_data_ticker <- bind_rows(pricing_data_ticker, df_chartdata)
-    Sys.sleep(2)
+    Sys.sleep(1)
   } 
   
   # Add latest data from returnTicker endpoint 
@@ -152,7 +155,8 @@ for (period in periods) {
   }
   
   # When the command line argument is update, find the unix timestamp of the most recent observation in the 
-  # collection and only insert observations that are new 
+  # collection and only insert observations that are new. Removes observations from the returnTicker endpoint 
+  # first.  
   if (args_period == "update") { 
     mongo_connection$remove(query = '{ "source" : "return_ticker" }')
     pricing_data_recent <- mongo_connection$find(query = '{}') 
@@ -165,9 +169,9 @@ for (period in periods) {
   # When the command line argument is a time resolution, query the observations from the past 24 hours in the 
   # database, remove them, compare them to the most recent data, and upsert the newest data into the collection.  
   if (args_period %in% c("86400", "14400", "7200", "1800", "900", "300")) { 
+    mongo_connection$remove(query = '{ "source" : "return_ticker" }')
     pricing_data_recent <- mongo_connection$find(query = paste0('{ "date_unix" : { "$gt" : ', start_unix, ' } }'))
     mongo_connection$remove(query = paste0('{ "date_unix" : { "$gt" : ', start_unix, ' } }'))
-    mongo_connection$remove(query = '{ "source" : "return_ticker" }')
     new_data <- pricing_data_ticker %>% 
       bind_rows(pricing_data_recent) %>% 
       filter(date_unix > start_unix) %>% 
