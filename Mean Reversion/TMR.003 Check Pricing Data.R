@@ -44,4 +44,4 @@ mongo_connection <- connect_mongo(time_resolution)
 #' 1504224000 is the unix timestamp for 2017-09-01. 
 pricing_data <- mongo_connection$find(query = '{ "date_unix" : { "$gt" : 1504224000 } }') %>% 
   as_tibble()
-check <- prepare_data(pricing_data, "2017-11-01", "2017-12-01", time_resolution)
+check <- prepare_data(pricing_data, "2017-11-01", "2018-01-01", time_resolution)
