@@ -31,7 +31,7 @@ if (length(args_prediciton) == 0) {
 #' Sets the command line arguments to NULL so that the command line arguments intended for this script do not get passed to
 #' the load packages script. 
 commandArgs <- function(...) NULL
-source("./Mean Reversion/RMR.010 Cross Validate Functions.R")
+source("./Mean Reversion/TMR.003 Pairs Trading Functions.R")
 
 #' # 3. Set Parameters 
 params <- list(time_resolution = 300, 
@@ -62,12 +62,10 @@ if (args_prediciton == "predictions") {
                                                db = "poloniex_ohlc",
                                                url = "mongodb://localhost"))
   pricing_data <- mongo_connection$find(query = '{}') %>% 
-    as_tibble() %>% 
-    filter(date_time <= "2017-11-17") 
+    as_tibble()
 }
 if (args_prediction == "none") { 
-  pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv", col_types = c("iTdddddddci")) %>% 
-    filter(date_time <= "2017-11-17")
+  pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv", col_types = c("iTdddddddci")) 
 }
 
 

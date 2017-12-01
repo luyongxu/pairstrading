@@ -14,7 +14,7 @@
 #' --- 
 
 #' # 1. Source Cross Validate Functions 
-source("./Mean Reversion/RMR.010 Cross Validate Functions.R")
+source("./Mean Reversion/TMR.003 Pairs Trading Functions.R")
 
 #' # 2. Load Data 
 pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv", col_types = c("iTdddddddci")) 

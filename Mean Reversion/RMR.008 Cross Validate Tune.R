@@ -1,5 +1,5 @@
 #' ---
-#' title: "Cross Validate Plots"
+#' title: "Cross Validate Tune"
 #' author: "Kevin Lu"
 #' date: '`r format(Sys.Date(), "%B %d, %Y")`'
 #' output: 
@@ -14,13 +14,13 @@
 #' --- 
 
 #' # 1. Source Cross Validate Functions 
-source("./Mean Reversion/RMR.010 Cross Validate Functions.R")
+source("./Mean Reversion/TMR.003 Pairs Trading Functions.R") 
 
 #' # 2. Load Data 
 pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv", col_types = c("iTdddddddci")) %>% 
   filter(date_time < "2017-10-09")
 
-#' # 3. Parameter List 
+#' # 2. Parameter List 
 #' Description  
 #' A list of parameters passed to the functions below that describe the mean reversion pairs trading strategy.  
 #' 
@@ -58,88 +58,44 @@ pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv", col_types
 #'    cointegration stat.    
 #'   
 
-#' # 4. Set Parameters 
-params <- list(time_resolution = 300, 
-               quote_currency = "USDT", 
-               cointegration_test = "eg", 
-               adf_threshold = -4.0, 
-               distance_threshold = 0.00, 
-               train_window = days(30), 
-               test_window = days(20), 
-               model_type = "raw", 
-               regression_type = "ols", 
-               spread_type = "rolling", 
-               rolling_window = 1440, 
-               signal_logic = "scaled", 
-               signal_scaled_enter = 3.0, 
-               signal_discrete_enter = 3.0, 
-               signal_discrete_exit = 0.2, 
-               signal_stop = 4.5, 
-               signal_reenter = TRUE, 
-               signal_reenter_threshold = 2.00, 
-               pair_allocation = "equal", 
-               pair_allocation_scaling = 1.00) 
-number_pairs <- 8 
+#' # 4. Tune Parameters 
+set.seed(5553) 
+results <- tibble()
+return <- list()
+for (i in 1:1) { 
+  print(str_c("Testing iteration ", i, ".")) 
+  time_resolution <- 300  
+  train_window <- days(sample(3:60, 1)) 
+  params <- list(time_resolution = time_resolution, 
+                 quote_currency = sample(c("USDT", "BTC"), 1), 
+                 cointegration_test = sample(c("eg", "distance"), 1), 
+                 adf_threshold = sample(seq(-2, -4, -0.05), 1), 
+                 distance_threshold = sample(seq(0.05, 0.40, 0.01), 1), 
+                 train_window = train_window, 
+                 test_window = days(sample(3:60, 1)), 
+                 model_type = sample(c("log", "raw"), 1), 
+                 regression_type = "ols", 
+                 spread_type = sample(c("rolling"), 1), 
+                 rolling_window = 86400 / time_resolution * 
+                   min(as.numeric(days(sample(2:60, 1))) / 86400, as.numeric(train_window) / 86400), 
+                 signal_logic = sample(c("scaled"), 1), 
+                 signal_scaled_enter = sample(c(2, 3, 4), 1), 
+                 signal_discrete_enter = sample(seq(1, 3, 0.05), 1), 
+                 signal_discrete_exit = sample(seq(0, 1, 0.05), 1), 
+                 signal_stop = sample(seq(3, 7, 0.05), 1), 
+                 signal_reenter = sample(c(TRUE, FALSE), 1), 
+                 signal_reenter_threshold = sample(seq(0, 2, 0.05), 1), 
+                 pair_allocation = sample(c("equal", "weighted", "scaled"), 1), 
+                 pair_allocation_scaling = sample(seq(1, 2, 0.05), 1))
+  return[[i]] <- backtest_strategy_full(pricing_data = pricing_data, 
+                                        params = params) 
+  results_temp <- bind_cols(params %>% as_tibble(), 
+                            overall_return = return[[i]][["return_strategy_cumulative"]][nrow(return[[i]])]) %>% 
+    mutate(train_window = as.character(train_window), 
+           test_window = as.character(test_window))
+  results <- bind_rows(results, results_temp)
+} 
 
-#' # 5. Cross Validation September 2017
-plot_many(pricing_data = pricing_data,
-          cutoff_date = "2017-09-01",
-          params = params, 
-          number_pairs = number_pairs)
+#' # 5. Examine Results
+print(results)
 
-#' # 6. Cross Validation August 2017
-plot_many(pricing_data = pricing_data,
-          cutoff_date = "2017-08-01",
-          params = params, 
-          number_pairs = number_pairs)
-
-#' # 7. Cross Validation July 2017
-plot_many(pricing_data = pricing_data,
-          cutoff_date = "2017-07-01",
-          params = params, 
-          number_pairs = number_pairs)
-
-#' # 8. Cross Validation June 2017
-plot_many(pricing_data = pricing_data,
-          cutoff_date = "2017-06-01",
-          params = params, 
-          number_pairs = number_pairs)
-
-#' # 9. Cross Validation May 2017
-plot_many(pricing_data = pricing_data,
-          cutoff_date = "2017-05-01",
-          params = params, 
-          number_pairs = number_pairs)
-
-#' # 10. Cross Validation April 2017
-plot_many(pricing_data = pricing_data,
-          cutoff_date = "2017-04-01",
-          params = params, 
-          number_pairs = number_pairs)
-
-#' # 11. Cross Validation March 2017
-plot_many(pricing_data = pricing_data,
-          cutoff_date = "2017-03-01",
-          params = params, 
-          number_pairs = number_pairs)
-
-#' # 12. Cross Validation February 2017
-plot_many(pricing_data = pricing_data,
-          cutoff_date = "2017-02-01",
-          params = params, 
-          number_pairs = number_pairs)
-
-#' # 13. Cross Validation January 2017
-plot_many(pricing_data = pricing_data,
-          cutoff_date = "2017-01-01",
-          params = params, 
-          number_pairs = number_pairs)
-
-#' # 14. Cross Validation Full 
-results <- backtest_strategy_full(pricing_data = pricing_data, 
-                                  params = params)  
-ggplot(results, aes(x = date_time)) + 
-  geom_line(aes(y = return_strategy_cumulative), colour = "blue", size = 1) + 
-  geom_hline(yintercept = 1, colour = "black") + 
-  labs(title = "Strategy Return vs Buy Hold Return", x = "Date", y = "Cumulative Return") 
-print(results[["return_strategy_cumulative"]][nrow(results)]) 

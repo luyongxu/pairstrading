@@ -14,7 +14,7 @@
 #' ---
 
 #' # 1. Load Packages 
-source("./Mean Reversion/RMR.001 Load Packages.R")
+source("./Mean Reversion/TMR.001 Load Packages.R")
 
 #' # 2. Load Data
 pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data clean.csv")

@@ -14,7 +14,7 @@
 #' ---
 
 #' # 1. Source Search Cointegration Combinations 
-source("./Mean Reversion/RMR.007 Search Cointegration Combinations.R", echo = FALSE, print.eval = FALSE)
+source("./Mean Reversion/RMR.004 Search Cointegration Combinations.R", echo = FALSE, print.eval = FALSE)
 
 #' # 2. Prepare Data and Calculate Statistics 
 #' For each time resolution, prepare the pricing data and test for cointegration for all 98 coin pairs. The date of study is 
