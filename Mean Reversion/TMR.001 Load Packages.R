@@ -23,7 +23,7 @@ if (length(args_debug) == 0) {
   debug <- TRUE
 }
 
-#' # 2. Print library Paths and Packages
+#' # 2. Print Library Paths and Packages
 #' The .libPaths() function returns the libraries that R looks in to load packages. There are differences in the 
 #' library path folder list when running scripts using Rscript and running scripts using RStudio. This section 
 #' explicitly prints out the library path and the installed packages in each directory to aid in debugging any 
@@ -39,7 +39,7 @@ if (debug == TRUE) {
   }
 }
 
-#' # 3. Load libraries 
+#' # 3. Load Libraries 
 #' The RStudio Server Amazon Machine Image provided by Louis Aslett (http://www.louisaslett.com/RStudio_AMI/) provides 
 #' an easy way to start an ec2 instance with RStudio Server and all major libraries installed. This machine image installs 
 #' packages in the "/home/rstudio/R/x86_64-pc-linux-gnu-library/3.4" directory. When running scripts using Rscript in the 
@@ -69,6 +69,8 @@ suppressWarnings(suppressMessages({
   library(RcppRoll, lib.loc = library_path)
   library(feather, lib.loc = library_path)
   library(mongolite, lib.loc = library_path)
+  library(shiny, lib.loc = library_path)
+  library(shinydashboard, lib.loc = library_path)
 }))
 
 #' # 4. Print Session Info 

@@ -27,7 +27,7 @@ if (length(args_prediciton) == 0) {
   args_prediciton <- "none" 
 }
 
-#' # 2. Source Cross Validate Functions 
+#' # 2. Source Pairs Trading Functions 
 #' Sets the command line arguments to NULL so that the command line arguments intended for this script do not get passed to
 #' the load packages script. 
 commandArgs <- function(...) NULL
@@ -55,20 +55,10 @@ params <- list(time_resolution = 300,
                pair_allocation = "equal", 
                pair_allocation_scaling = 1.00) 
 
-#' # 4. Query Data 
+#' # 4. Load Data 
 #' Query the mongo database if the script is called using the predictions argument. Otherwise, load the csv file.  
-if (args_prediciton == "predictions") { 
-  mongo_connection <- mongo(collection = str_c("pricing_data_", params[["time_resolution"]],
-                                               db = "poloniex_ohlc",
-                                               url = "mongodb://localhost"))
-  pricing_data <- mongo_connection$find(query = '{}') %>% 
-    as_tibble()
-}
-if (args_prediction == "none") { 
-  pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv", col_types = c("iTdddddddci")) 
-}
-
-
+# pricing_data <- load_data(source = "csv", time_resolution = "300", start_unix = "1504224000")
+pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data test.csv")
                             
 #' # 5. Initialize Cutoff Date 
 #' Initialize the cutoff date to split the data into a training and test set where the training set is used to 
@@ -91,8 +81,8 @@ predictions <- generate_predictions(pricing_data = pricing_data,
 predictions_current <- predictions %>% 
   group_by(coin_y_name, coin_x_name) %>% 
   filter(row_number() == n()) %>% 
-  select(date_unix, date_time, coin_pair_id, coin_y_name, coin_x_name, coin_y_price, coin_x_price, signal, hedge_ratio, intercept, 
-         coin_y_position, coin_x_position, change_y_position, change_x_position)
+  select(date_unix, date_time, coin_pair_id, coin_y_name, coin_x_name, coin_y_price, coin_x_price, signal, hedge_ratio, 
+         intercept, coin_y_position, coin_x_position, change_y_position, change_x_position)
 
 #' # 8. Print Predictions 
 options(width = 160)
@@ -101,13 +91,5 @@ print(predictions_current %>% select(date_time, coin_y_name, coin_x_name, change
 #' # 8. Export Predictions 
 if (args_prediciton == "predictions") { 
   write_feather(predictions_current, "./Mean Reversion/Output/Feather/predictions.feather") 
-}
-
-#' # 9. Generate Diagnostic Plots 
-if (args_prediciton == "none") { 
-  plot_many(pricing_data = pricing_data, 
-            cutoff_date = cutoff_date, 
-            params = params, 
-            number_pairs = 100)
 }
 
