@@ -69,6 +69,7 @@ suppressWarnings(suppressMessages({
   library(RcppRoll, lib.loc = library_path)
   library(feather, lib.loc = library_path)
   library(mongolite, lib.loc = library_path)
+  library(plotly, lib.loc = library_path) 
   library(shiny, lib.loc = library_path)
   library(shinydashboard, lib.loc = library_path)
 }))
