@@ -56,7 +56,7 @@ load_library <- function(package_name) {
   library_path <- c(.libPaths(), "/home/rstudio/R/x86_64-pc-linux-gnu-library/3.4")
   suppressWarnings(suppressMessages({
     if(require(package_name, character.only = TRUE, lib.loc = library_path) == FALSE) {
-      install.packages(package_name)
+      install.packages(package_name, repos = "https://cloud.r-project.org/")
       require(package_name, character.only = TRUE, lib.loc = library_path)
     }
   }))
