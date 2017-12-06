@@ -51,7 +51,7 @@ if (debug == TRUE) {
 #' the parent library to not load. If this happens, load the dependencies manually first before loading the parent 
 #' library.  
 #' 
-#' The load_library() function will load a library and will install the library first if necessary.  
+#' The load_library() function will load a package and will install the package first if necessary.  
 load_library <- function(package_name) { 
   library_path <- c(.libPaths(), "/home/rstudio/R/x86_64-pc-linux-gnu-library/3.4")
   suppressWarnings(suppressMessages({

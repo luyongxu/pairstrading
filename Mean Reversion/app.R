@@ -19,8 +19,7 @@ source("./Mean Reversion/TMR.003 Pairs Trading Functions.R")
 
 #' # 2. UI Header 
 ui_header <- dashboardHeader(
-  title = "Pairs Trading Dashboard", 
-  dropdownMenuOutput("menu_notifications")
+  title = "Pairs Trading Dashboard"
 )
 
 #' # 3. UI Sidebar 
@@ -58,10 +57,10 @@ ui_body <- dashboardBody(
         infoBoxOutput("infoBox_signal", width = 3), 
         infoBoxOutput("infoBox_coin_y_position", width = 3), 
         infoBoxOutput("infoBox_coin_x_position", width = 3), 
-        box(plotOutput("plot_return", height = 250), title = "Model Return vs Buy Hold Return", collapsible = TRUE), 
-        box(plotOutput("plot_signal", height = 250), title = "Spread vs Trading Signal", collapsible = TRUE), 
-        box(plotOutput("plot_prices", height = 250), title = "Prices Over the Train and Test Sets", collapsible = TRUE), 
-        box(plotOutput("plot_coefficients", height = 250), title = "Hedge Ratio and Intercept", collapsible = TRUE)
+        box(plotOutput("plot_return", height = 300), title = "Model Return vs Buy Hold Return", collapsible = TRUE), 
+        box(plotOutput("plot_signal", height = 300), title = "Spread vs Trading Signal", collapsible = TRUE), 
+        box(plotOutput("plot_prices", height = 300), title = "Prices Over the Train and Test Sets", collapsible = TRUE), 
+        box(plotOutput("plot_coefficients", height = 300), title = "Hedge Ratio and Intercept", collapsible = TRUE)
       )
     ), 
     
@@ -128,16 +127,16 @@ server <- function(input, output) {
                  pair_allocation = "equal", 
                  pair_allocation_scaling = 1.00) 
   
-  # 6.1 Query Data 
+  # 6.2 Query Data 
   pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv") 
   
-  # 6.2 Initialize Cutoff Date 
+  # 6.3 Initialize Cutoff Date 
   cutoff_date <- as.Date("2017-11-01")
   while (Sys.Date() - days(as.numeric(str_match(params[["test_window"]], "(\\d*)d*")[, 2])) > cutoff_date) { 
     cutoff_date <- cutoff_date + days(as.numeric(str_match(params[["test_window"]], "(\\d*)d*")[, 2]))
   }
   
-  # 6.3 Create Train and Test Sets 
+  # 6.4 Create Train and Test Sets 
   train <- prepare_data(pricing_data = pricing_data, 
                         start_date = as.Date(cutoff_date) - params[["train_window"]], 
                         end_date = as.Date(cutoff_date), 
@@ -147,59 +146,62 @@ server <- function(input, output) {
                        end_date = as.Date(cutoff_date) + params[["test_window"]], 
                        params = params) 
   
-  # 6.4 Select Coin Pairs 
+  # 6.5 Select Coin Pairs 
   coin_pairs <- create_pairs(params = params) 
   selected_pairs <- select_pairs(train = train, 
                                  coin_pairs = coin_pairs, 
                                  params = params) %>% 
     mutate(text = str_c("(", row_number(), ") ", coin_y, ", ", coin_x)) 
   
-  # 6.5 Create Selected Pairs List 
+  # 6.6 Create Selected Pairs List 
   selected_pairs_list <- selected_pairs[["text"]] %>% as.list()
   
-  # 6.6 Generate Predictions 
-  predictions <- generate_predictions(pricing_data, cutoff_date, params)
-  
-  # 6.6 Current Predictions 
-  current_predictions <- predictions %>% 
-    group_by(coin_pair_id) %>% 
-    filter(row_number() == n()) %>% 
-    mutate(date = as.character(as.Date(date_time)), 
-           time = as.character(strftime(date_time, format="%H:%M:%S", tz = "GMT"))) %>%
-    select("ID" = coin_pair_id, "Date" = date, "Time" = time, "Coin Y" = coin_y_name, "Coin X" = coin_x_name, 
-           "Coin Y Price" = coin_y_price, "Coin X Price" = coin_x_price, "ADF Stat" = cointegration_stat, 
-           "Signal" = signal, "Spread Z-Score" = spread_z, "Hedge Ratio" = hedge_ratio, "Intercept" = intercept, 
-           "Coin Y Position" = coin_y_position, "Coin X Position" = coin_x_position, "Return" = cumulative_return)
-  
-  # 6.7 Selected Coin Pair
-  selected_pair <- predictions %>% 
-    group_by(coin_pair_id) %>% 
-    filter(row_number() == n(), 
-           coin_pair_id == 1)
-  
-  # 6.8 Calculate Strategy Return
-  return_strategy <- calculate_return(df_strategy = predictions, params = params)
-  test <- test %>% mutate(return_strategy = return_strategy[["cumulative_return"]])
-  
-  # 6.9 Generate plots 
-  plots <- plot_single(train = train, 
-                       test = test, 
-                       coin_y = current_predictions[["Coin Y"]][1], 
-                       coin_x = current_predictions[["Coin X"]][1], 
-                       params = params, 
-                       print = FALSE)
-
-  # 6.10 Notification Menu
-  output[["menu_notifications"]] <- renderMenu({ 
-    dropdownMenu(type = "notifications", notificationItem(text = "Last updated 5 minutes ago.", status = "success"))
-  })
-  
-  # 6.11 Select coin pair select menu
+  # 6.7 Select coin pair select menu
   output[["select_pair"]] <- renderUI({
     selectInput("coin_pair", label = "Select a coin pair: ", choices = selected_pairs_list)
   })
   
-  # 6.12 Plot in the overview tab 
+  # 6.8 Generate Predictions 
+  predictions <- generate_predictions(pricing_data, cutoff_date, params)
+  
+  # 6.9 Current Predictions 
+  current_predictions <- predictions %>% 
+    group_by(coin_pair_id) %>% 
+    filter(row_number() == n()) %>% 
+    mutate(date = as.character(as.Date(date_time)), 
+           time = as.character(strftime(date_time, format="%H:%M:%S", tz = "GMT")))
+  
+  # 6.10 Calculate Strategy Return
+  return_strategy <- calculate_return(df_strategy = predictions, params = params)
+  test <- test %>% mutate(return_strategy = return_strategy[["cumulative_return"]])
+  
+  # 6.11 Selected Coin Pair
+  selected_coin_y <- reactive({ 
+    selected_coin_y <- input[["coin_pair"]] %>% 
+      str_match("(\\(\\d*\\)\\s)([A-Z_]*)(\\,\\s)([A-Z_]*)") %>% 
+      .[3]
+  })
+  selected_coin_x <- reactive({
+    selected_coin_x <- input[["coin_pair"]] %>% 
+      str_match("(\\(\\d*\\)\\s)([A-Z_]*)(\\,\\s)([A-Z_]*)") %>% 
+      .[5]
+  })
+
+  # 6.12 Generate plots 
+  plots <- reactive({
+    withProgress({
+      plots <- plot_single(train = train, 
+                           test = test, 
+                           coin_y = selected_coin_y(), 
+                           coin_x = selected_coin_x(), 
+                           params = params, 
+                           print = FALSE)
+      setProgress(value = 1, message = "Plots created.")
+      plots
+    }, value = 0.5, message = "Creating plots.")
+  })  
+  
+  # 6.13 Plot in the overview tab 
   output[["plot_backtest"]] <- renderPlot({
     ggplot(test, aes(x = date_time)) + 
       geom_line(aes(y = return_strategy, colour = "Strategy"), size = 1) +
@@ -210,56 +212,81 @@ server <- function(input, output) {
   }) 
   
   # 6.13 Table in the overview tab 
-  output[["table_backtest"]] <- renderTable(current_predictions, hover = TRUE, spacing = "m", align = "l", digits = 2)
+  output[["table_backtest"]] <- renderTable({
+    current_predictions %>%
+      select("ID" = coin_pair_id, "Date" = date, "Time" = time, "Coin Y" = coin_y_name, "Coin X" = coin_x_name, 
+             "Coin Y Price" = coin_y_price, "Coin X Price" = coin_x_price, "ADF Stat" = cointegration_stat, 
+             "Signal" = signal, "Spread Z-Score" = spread_z, "Hedge Ratio" = hedge_ratio, "Intercept" = intercept, 
+             "Coin Y Position" = coin_y_position, "Coin X Position" = coin_x_position, "Return" = cumulative_return)
+  }, hover = TRUE, spacing = "m", align = "l", digits = 2)
   
   # 6.14 Information boxes in the plots tab 
   output[["infoBox_zscore"]] <- renderInfoBox({ 
-    value <- round(selected_pair[["spread_z"]], 2)
+    value <- current_predictions %>% 
+      filter(coin_y_name == selected_coin_y(), 
+             coin_x_name == selected_coin_x()) %>% 
+      .[["spread_z"]] %>% 
+      round(2)
     infoBox(title = "Spread Z-Score", value = value, color = "blue", fill = TRUE, icon = icon("asterisk"))
   })
   output[["infoBox_signal"]] <- renderInfoBox({ 
-    value <- round(selected_pair[["signal"]], 2)
+    value <- current_predictions %>% 
+      filter(coin_y_name == selected_coin_y(), 
+             coin_x_name == selected_coin_x()) %>% 
+      .[["signal"]] %>% 
+      round(2)
     infoBox(title = "Signal", value = value, color = "blue", fill = TRUE, icon = icon("signal"))
   })
   output[["infoBox_coin_y_position"]] <- renderInfoBox({ 
-    value <- round(selected_pair[["coin_y_position"]], 2)
+    value <- current_predictions %>% 
+      filter(coin_y_name == selected_coin_y(), 
+             coin_x_name == selected_coin_x()) %>% 
+      .[["coin_y_position"]] %>% 
+      round(2)
     color <- ifelse(value > 0, "green", "red")
     color <- ifelse(value == 0, "black", color)
-    infoBox(title = "Coin Y Position", value = value, color = color, fill = TRUE, icon = icon("circle"))
+    infoBox(title = str_c(selected_coin_y(), " Position (Y)"), 
+            value = value, color = color, fill = TRUE, icon = icon("circle"))
   })
   output[["infoBox_coin_x_position"]] <- renderInfoBox({ 
-    value <- round(selected_pair[["coin_x_position"]], 2)
+    value <- current_predictions %>% 
+      filter(coin_y_name == selected_coin_y(), 
+             coin_x_name == selected_coin_x()) %>% 
+      .[["coin_x_position"]] %>% 
+      round(2)
     color <- ifelse(value > 0, "green", "red")
     color <- ifelse(value == 0, "black", color)
-    infoBox(title = "Coin X Position", value = value, color = color, fill = TRUE, icon = icon("circle-o"))
+    infoBox(title = str_c(selected_coin_x(), " Position (X)"), 
+            value = value, color = color, fill = TRUE, icon = icon("circle-o"))
   })
 
   # 6.15 Plots in the plots tab 
   output[["plot_return"]] <- renderPlot({
-    plots[["plot_return"]]
+    plots()[["plot_return"]]
   })
   output[["plot_signal"]] <- renderPlot({
-    plots[["plot_signal"]]
+    plots()[["plot_signal"]]
   })
   output[["plot_prices"]] <- renderPlot({
-    plots[["plot_prices"]]
+    plots()[["plot_prices"]]
   })
   output[["plot_coefficients"]] <- renderPlot({
-    plots[["plot_coefficients"]]
+    plots()[["plot_coefficients"]]
   })
   
   # 6.16 Table in trades tab 
   output[["table_trades"]] <- renderDataTable({
-    df_predictions <- predictions %>% 
+    df_trades <- predictions %>% 
       arrange(desc(date_time)) %>% 
-      filter(coin_y_name == selected_pair[["coin_y_name"]] & coin_x_name == selected_pair[["coin_x_name"]]) %>% 
+      filter(coin_y_name == selected_coin_y(), 
+             coin_x_name == selected_coin_x()) %>% 
       mutate(date = as.character(as.Date(date_time)), 
              time = as.character(strftime(date_time, format="%H:%M:%S", tz = "GMT"))) %>%
       select("Date" = date, "Time" = time, "Coin Y" = coin_y_name, "Coin X" = coin_x_name, "Coin Y Price" = coin_y_price, 
              "Coin X Price" = coin_x_price, "Signal" = signal, "Coin Y Position" = coin_y_position, 
              "Coin X Position" = coin_x_position, "Change Y Position" = change_y_position, 
              "Change X Position" = change_x_position)
-    head(df_predictions, 100)
+    head(df_trades, 100)
   })
   
   # 6.17 Text in logs tab 

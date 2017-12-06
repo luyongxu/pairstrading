@@ -64,7 +64,7 @@ pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv")
 #' Initialize the cutoff date to split the data into a training and test set where the training set is used to 
 #' select cointegrated coin pairs and predictions are made over the test set. The cutoff date is initialized to 
 #' an arbitrary date which represents the date that the strategy first began to trade. The cutoff date is then 
-#' moved forward in time when new coin selection occurs so that current predictions can be made.  
+#' moved forward in time so new coin selection occurs at the proper interval as determined by the parameter set.    
 cutoff_date <- as.Date("2017-11-01")
 while (Sys.Date() - days(as.numeric(str_match(params[["test_window"]], "(\\d*)d*")[, 2])) > cutoff_date) { 
   cutoff_date <- cutoff_date + days(as.numeric(str_match(params[["test_window"]], "(\\d*)d*")[, 2]))

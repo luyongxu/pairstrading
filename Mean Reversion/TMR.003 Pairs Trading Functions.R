@@ -253,6 +253,10 @@ select_pairs <- function(train, coin_pairs, params) {
                    coin_pairs = coin_pairs, 
                    params = params)
   
+  # TEMPORARILY REDUCE COIN PAIR SELECTION FOR SHINY APP
+  df <- df %>%
+    filter(row_number() <= 2)
+  
   # If cointegration test uses the Engle-Granger method, filter by adf threshold 
   if (params[["cointegration_test"]] == "eg") 
     df <- df %>% filter(cointegration_stat <= params[["adf_threshold"]]) 
@@ -359,7 +363,7 @@ train_model <- function(train, test, coin_y, coin_x, params) {
       pca_beta <- pca_model[["rotation"]][1, 1] / pca_model[["rotation"]][2, 1] 
       pca_intercept <- pca_model[["center"]][1] - pca_beta * pca_model[["center"]][2] 
       train <- train %>% 
-        mutate(spread = train[[coin_y]] - pca_beta * train[[coin_x]] - pca_intercept) 
+        mutate(spread = train[[coin_y]] - train[[coin_x]] * pca_beta - pca_intercept) 
       test <- test %>% 
         mutate(spread = test[[coin_y]] - test[[coin_x]] * rolling_coef[["hedge_ratio"]] - rolling_coef[["intercept"]]) 
     } 
@@ -851,7 +855,7 @@ backtest_strategy_full <- function(pricing_data, params) {
 
 #' # 14. Plot Single Function 
 #' Description  
-#' Create plots of a cointegration-based mean reversion trading strategy of a single coin pair conprised of 
+#' Create plots of a cointegration-based mean reversion trading strategy of a single coin pair comprised of 
 #' coin y and coin x. There are two plots created by this function. The first plot displays the spread transformed 
 #' into z-score with three red lines at -2, 0, and 2. A green line indicates the signal which can take values -1, 
 #' 0, and +1. The second plot displays the cumulative return of the model in blue. Two additional lines show the buy 
@@ -876,7 +880,6 @@ plot_single <- function(train, test, coin_y, coin_x, params, print) {
                        coin_x = coin_x, 
                        params = params) 
   
-
   # Calculate prices for coins and beginning and ending dates over the train and test sets
   df_plot_a <- backtest_pair(train = train, 
                            test = test, 
@@ -1017,7 +1020,7 @@ plot_many <- function(pricing_data, cutoff_date, params, number_pairs) {
   } 
   
   # Calculate overall return of strategy over this single test set and plot the cumulative return 
-  print("Creating plots for overall strategy.")
+  print("Creating plot for overall strategy.")
   df_strategy <- backtest_strategy(train = train, 
                                    test = test, 
                                    selected_pairs = selected_pairs, 
