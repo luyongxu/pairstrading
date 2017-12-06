@@ -17,108 +17,127 @@
 setwd("..")
 source("./Mean Reversion/TMR.003 Pairs Trading Functions.R")
 
-#' # 2. Set Parameters 
-params <- list(time_resolution = 300, 
-               quote_currency = "USDT", 
-               cointegration_test = "eg", 
-               adf_threshold = -6.0, 
-               distance_threshold = 0.00, 
-               train_window = days(30), 
-               test_window = days(20), 
-               model_type = "raw", 
-               regression_type = "ols", 
-               spread_type = "rolling", 
-               rolling_window = 1440, 
-               signal_logic = "scaled", 
-               signal_scaled_enter = 3.0, 
-               signal_discrete_enter = 3.0, 
-               signal_discrete_exit = 0.2, 
-               signal_stop = 4.5, 
-               signal_reenter = TRUE, 
-               signal_reenter_threshold = 2.00, 
-               pair_allocation = "equal", 
-               pair_allocation_scaling = 1.00) 
-
-#' # 3. UI Header 
+#' # 2. UI Header 
 ui_header <- dashboardHeader(
   title = "Pairs Trading Dashboard", 
   dropdownMenuOutput("menu_notifications")
 )
 
-#' # 4. UI Sidebar 
+#' # 3. UI Sidebar 
 ui_sidebar <- dashboardSidebar(
   sidebarMenu(
     menuItem("Overview", tabName = "tab_overview", icon = icon("dashboard")), 
     menuItem("Plots", tabName = "tab_plots", icon = icon("line-chart")), 
     menuItem("Trades", tabName = "tab_trades", icon = icon("table")), 
-    menuItem("Data", tabName = "tab_data", icon = icon("database")), 
-    selectInput("select_pair", label = "Select Coin Pair: ", choices = c("Placeholder")) 
+    menuItem("Logs", tabName = "tab_logs", icon = icon("database")), 
+    menuItem("Parameters", tabName = "tab_parameters", icon = icon("gear")), 
+    uiOutput("select_pair") 
   )
 )
 
-#' # 5. UI Body 
+#' # 4. UI Body 
 ui_body <- dashboardBody(
   
-  # 5.1 Tabs 
+  # 4.1 Tabs 
   tabItems(
     
-    # 5.2 Tab Overview 
+    # 4.2 Tab Overview 
     tabItem(
       tabName = "tab_overview", 
       fluidPage(
         box(plotOutput("plot_backtest"), title = "Strategy Return vs Buy and Hold", collapsible = TRUE, width = 12), 
-        box(dataTableOutput("datatable_backtest"), title = "Current Positions", collapsible = TRUE, width = 12)
+        box(tableOutput("table_backtest"), title = "Current Positions", collapsible = TRUE, width = 12)
       )
     ), 
     
-    # 5.3 Tab Plots 
+    # 4.3 Tab Plots 
     tabItem(
       tabName = "tab_plots", 
       fluidPage(
-        infoBoxOutput("infoBox_cointegration_stat", width = 3), 
+        infoBoxOutput("infoBox_zscore", width = 3), 
         infoBoxOutput("infoBox_signal", width = 3), 
         infoBoxOutput("infoBox_coin_y_position", width = 3), 
-        infoBoxOutput("infoBox_coin_x_position", width = 3),
-        box(plotOutput("plot_prices", height = 250), title = "Prices Over the Train and Test Sets", collapsible = TRUE), 
-        box(plotOutput("plot_signal", height = 250), title = "Spread vs Trading Signal", collapsible = TRUE), 
+        infoBoxOutput("infoBox_coin_x_position", width = 3), 
         box(plotOutput("plot_return", height = 250), title = "Model Return vs Buy Hold Return", collapsible = TRUE), 
+        box(plotOutput("plot_signal", height = 250), title = "Spread vs Trading Signal", collapsible = TRUE), 
+        box(plotOutput("plot_prices", height = 250), title = "Prices Over the Train and Test Sets", collapsible = TRUE), 
         box(plotOutput("plot_coefficients", height = 250), title = "Hedge Ratio and Intercept", collapsible = TRUE)
       )
     ), 
     
-    # 5.4 Tab Trades 
+    # 4.4 Tab Trades 
     tabItem(
       tabName = "tab_trades", 
-      tableOutput("table_trades")
+      fluidPage(
+        box(dataTableOutput("table_trades"), title = "Historical Trades", collapsible = TRUE, width = 12)
+      )
     ), 
     
-    # 5.5 Tab Data 
+    # 4.5 Tab Logs 
     tabItem(
-      tabName = "tab_data", 
-      verbatimTextOutput("text_data")
+      tabName = "tab_logs", 
+      fluidPage(
+        box(verbatimTextOutput("text_generate_predictions"), title = "generate_predictions.sh", collapsible = TRUE, width = 12), 
+        box(verbatimTextOutput("text_scrape_data_300"), title = "scrape_data_300.sh", collapsible = TRUE, width = 6), 
+        box(verbatimTextOutput("text_scrape_data_900"), title = "scrape_data_900.sh", collapsible = TRUE, width = 6), 
+        box(verbatimTextOutput("text_scrape_data_1800"), title = "scrape_data_1800.sh", collapsible = TRUE, width = 6), 
+        box(verbatimTextOutput("text_scrape_data_7200"), title = "scrape_data_7200.sh", collapsible = TRUE, width = 6), 
+        box(verbatimTextOutput("text_scrape_data_14400"), title = "scrape_data_14400.sh", collapsible = TRUE, width = 6), 
+        box(verbatimTextOutput("text_scrape_data_86400"), title = "scrape_data_86400.sh", collapsible = TRUE, width = 6) 
+      )
+    ), 
+    
+    # 4.6 Tab Parameters
+    tabItem(
+      tabName = "tab_parameters", 
+      fluidPage(
+        box(tableOutput("table_parameters"), title = "Current Parameter Set", collapsible = TRUE, width = 4)
+      )
     )
   )
 )
 
-#' # 6. UI Dashboard
-ui_dashboard <- dashboardPage(header = ui_header, 
-                              sidebar = ui_sidebar, 
-                              body = ui_body, 
-                              title = "Pairs Trading Dashboard")
+#' # 5. UI Dashboard
+ui <- dashboardPage(header = ui_header, 
+                    sidebar = ui_sidebar, 
+                    body = ui_body, 
+                    title = "Pairs Trading Dashboard")
 
-#' # 7. Server 
+#' # 6. Server 
 server <- function(input, output) { 
   
-  # 7.1 Query Data 
-  pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data test.csv") 
+  # 6.1 Set Parameters 
+  params <- list(time_resolution = 300, 
+                 quote_currency = "USDT", 
+                 cointegration_test = "eg", 
+                 adf_threshold = -6.0, 
+                 distance_threshold = 0.00, 
+                 train_window = days(30), 
+                 test_window = days(20), 
+                 model_type = "raw", 
+                 regression_type = "ols", 
+                 spread_type = "rolling", 
+                 rolling_window = 1440, 
+                 signal_logic = "scaled", 
+                 signal_scaled_enter = 3.0, 
+                 signal_discrete_enter = 3.0, 
+                 signal_discrete_exit = 0.2, 
+                 signal_stop = 4.5, 
+                 signal_reenter = TRUE, 
+                 signal_reenter_threshold = 2.00, 
+                 pair_allocation = "equal", 
+                 pair_allocation_scaling = 1.00) 
   
-  # 7.2 Initialize Cutoff Date 
+  # 6.1 Query Data 
+  pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv") 
+  
+  # 6.2 Initialize Cutoff Date 
   cutoff_date <- as.Date("2017-11-01")
   while (Sys.Date() - days(as.numeric(str_match(params[["test_window"]], "(\\d*)d*")[, 2])) > cutoff_date) { 
     cutoff_date <- cutoff_date + days(as.numeric(str_match(params[["test_window"]], "(\\d*)d*")[, 2]))
   }
   
-  # 7.3 Create Train and Test Sets 
+  # 6.3 Create Train and Test Sets 
   train <- prepare_data(pricing_data = pricing_data, 
                         start_date = as.Date(cutoff_date) - params[["train_window"]], 
                         end_date = as.Date(cutoff_date), 
@@ -128,25 +147,41 @@ server <- function(input, output) {
                        end_date = as.Date(cutoff_date) + params[["test_window"]], 
                        params = params) 
   
-  # 7.2 Generate Predictions 
-  predictions <- generate_predictions(pricing_data, cutoff_date, params) 
+  # 6.4 Select Coin Pairs 
+  coin_pairs <- create_pairs(params = params) 
+  selected_pairs <- select_pairs(train = train, 
+                                 coin_pairs = coin_pairs, 
+                                 params = params) %>% 
+    mutate(text = str_c("(", row_number(), ") ", coin_y, ", ", coin_x)) 
   
-  # 7.3 Current Predictions 
+  # 6.5 Create Selected Pairs List 
+  selected_pairs_list <- selected_pairs[["text"]] %>% as.list()
+  
+  # 6.6 Generate Predictions 
+  predictions <- generate_predictions(pricing_data, cutoff_date, params)
+  
+  # 6.6 Current Predictions 
   current_predictions <- predictions %>% 
     group_by(coin_pair_id) %>% 
     filter(row_number() == n()) %>% 
-    mutate_at(vars(coin_y_price, coin_x_price, cointegration_stat, signal, hedge_ratio, intercept, 
-                   coin_y_position, coin_x_position, cumulative_return), round, 2) %>% 
-    select("ID" = coin_pair_id, "Date" = date_time, "Coin Y" = coin_y_name, "Coin X" = coin_x_name, 
-           "Coin Y Price" = coin_y_price, "Coin X Price" = coin_x_price, "Cointegration Stat" = cointegration_stat, 
-           "Signal" = signal, "Hedge Ratio" = hedge_ratio, "Intercept" = intercept, "Coin Y Position" = coin_y_position, 
-           "Coin X Position" = coin_x_position, "Cumulative Return" = cumulative_return)
+    mutate(date = as.character(as.Date(date_time)), 
+           time = as.character(strftime(date_time, format="%H:%M:%S", tz = "GMT"))) %>%
+    select("ID" = coin_pair_id, "Date" = date, "Time" = time, "Coin Y" = coin_y_name, "Coin X" = coin_x_name, 
+           "Coin Y Price" = coin_y_price, "Coin X Price" = coin_x_price, "ADF Stat" = cointegration_stat, 
+           "Signal" = signal, "Spread Z-Score" = spread_z, "Hedge Ratio" = hedge_ratio, "Intercept" = intercept, 
+           "Coin Y Position" = coin_y_position, "Coin X Position" = coin_x_position, "Return" = cumulative_return)
   
-  #' 7.4 Calculate Strategy Return
+  # 6.7 Selected Coin Pair
+  selected_pair <- predictions %>% 
+    group_by(coin_pair_id) %>% 
+    filter(row_number() == n(), 
+           coin_pair_id == 1)
+  
+  # 6.8 Calculate Strategy Return
   return_strategy <- calculate_return(df_strategy = predictions, params = params)
   test <- test %>% mutate(return_strategy = return_strategy[["cumulative_return"]])
   
-  # 7.4 Generate plots 
+  # 6.9 Generate plots 
   plots <- plot_single(train = train, 
                        test = test, 
                        coin_y = current_predictions[["Coin Y"]][1], 
@@ -154,15 +189,17 @@ server <- function(input, output) {
                        params = params, 
                        print = FALSE)
 
-  # 7.5 Notification Menu
+  # 6.10 Notification Menu
   output[["menu_notifications"]] <- renderMenu({ 
-    dropdownMenu(type = "notifications", notificationItem(text = "This is a placeholder.", status = "success"))
+    dropdownMenu(type = "notifications", notificationItem(text = "Last updated 5 minutes ago.", status = "success"))
   })
   
-  # 7.6 Select Coin Pair 
+  # 6.11 Select coin pair select menu
+  output[["select_pair"]] <- renderUI({
+    selectInput("coin_pair", label = "Select a coin pair: ", choices = selected_pairs_list)
+  })
   
-  
-  # 7.6 Plot in the overview tab 
+  # 6.12 Plot in the overview tab 
   output[["plot_backtest"]] <- renderPlot({
     ggplot(test, aes(x = date_time)) + 
       geom_line(aes(y = return_strategy, colour = "Strategy"), size = 1) +
@@ -172,39 +209,124 @@ server <- function(input, output) {
       labs(x = "Date", y = "Cumulative Return")
   }) 
   
-  # 7.7 Table in the overview tab 
-  output[["datatable_backtest"]] <- renderDataTable({
-    current_predictions 
-  })
+  # 6.13 Table in the overview tab 
+  output[["table_backtest"]] <- renderTable(current_predictions, hover = TRUE, spacing = "m", align = "l", digits = 2)
   
-  # 7.8 Information boxes in the plots tab 
-  output[["infoBox_cointegration_stat"]] <- renderInfoBox({ 
-    infoBox(title = "ADF Stat", value = "-4.50", color = "blue", fill = TRUE)
+  # 6.14 Information boxes in the plots tab 
+  output[["infoBox_zscore"]] <- renderInfoBox({ 
+    value <- round(selected_pair[["spread_z"]], 2)
+    infoBox(title = "Spread Z-Score", value = value, color = "blue", fill = TRUE, icon = icon("asterisk"))
   })
   output[["infoBox_signal"]] <- renderInfoBox({ 
-    infoBox(title = "Signal", value = "2.0", color = "blue", fill = TRUE)
+    value <- round(selected_pair[["signal"]], 2)
+    infoBox(title = "Signal", value = value, color = "blue", fill = TRUE, icon = icon("signal"))
   })
   output[["infoBox_coin_y_position"]] <- renderInfoBox({ 
-    infoBox(title = "Coin Y Position", value = "100", color = "green", fill = TRUE)
+    value <- round(selected_pair[["coin_y_position"]], 2)
+    color <- ifelse(value > 0, "green", "red")
+    color <- ifelse(value == 0, "black", color)
+    infoBox(title = "Coin Y Position", value = value, color = color, fill = TRUE, icon = icon("circle"))
   })
   output[["infoBox_coin_x_position"]] <- renderInfoBox({ 
-    infoBox(title = "Coin X Position", value = "-100", color = "red", fill = TRUE)
+    value <- round(selected_pair[["coin_x_position"]], 2)
+    color <- ifelse(value > 0, "green", "red")
+    color <- ifelse(value == 0, "black", color)
+    infoBox(title = "Coin X Position", value = value, color = color, fill = TRUE, icon = icon("circle-o"))
   })
 
-  # 7.9 Plots in the plots tab 
-  output[["plot_prices"]] <- renderPlot({
-    plots[["plot_prices"]]
+  # 6.15 Plots in the plots tab 
+  output[["plot_return"]] <- renderPlot({
+    plots[["plot_return"]]
   })
   output[["plot_signal"]] <- renderPlot({
     plots[["plot_signal"]]
   })
-  output[["plot_return"]] <- renderPlot({
-    plots[["plot_return"]]
+  output[["plot_prices"]] <- renderPlot({
+    plots[["plot_prices"]]
   })
   output[["plot_coefficients"]] <- renderPlot({
     plots[["plot_coefficients"]]
   })
+  
+  # 6.16 Table in trades tab 
+  output[["table_trades"]] <- renderDataTable({
+    df_predictions <- predictions %>% 
+      arrange(desc(date_time)) %>% 
+      filter(coin_y_name == selected_pair[["coin_y_name"]] & coin_x_name == selected_pair[["coin_x_name"]]) %>% 
+      mutate(date = as.character(as.Date(date_time)), 
+             time = as.character(strftime(date_time, format="%H:%M:%S", tz = "GMT"))) %>%
+      select("Date" = date, "Time" = time, "Coin Y" = coin_y_name, "Coin X" = coin_x_name, "Coin Y Price" = coin_y_price, 
+             "Coin X Price" = coin_x_price, "Signal" = signal, "Coin Y Position" = coin_y_position, 
+             "Coin X Position" = coin_x_position, "Change Y Position" = change_y_position, 
+             "Change X Position" = change_x_position)
+    head(df_predictions, 100)
+  })
+  
+  # 6.17 Text in logs tab 
+  placeholder_text <- paste0("Downloading data for currency pair USDT_BTC. \n", 
+                             "Downloading data for currency pair USDT_ETH. \n", 
+                             "Downloading data for currency pair USDT_LTC. \n", 
+                             "Downloading data for currency pair USDT_DASH. \n", 
+                             "Downloading data for currency pair USDT_XMR. \n", 
+                             "Downloading data for currency pair USDT_ZEC. \n", 
+                             "Downloading data for currency pair USDT_REP. \n", 
+                             "Downloading data for currency pair BTC_ETH. \n", 
+                             "Downloading data for currency pair BTC_LTC. \n", 
+                             "Downloading data for currency pair BTC_DASH. \n", 
+                             "Downloading data for currency pair BTC_XMR. \n", 
+                             "Downloading data for currency pair BTC_ZEC. \n", 
+                             "Downloading data for currency pair BTC_REP. \n", 
+                             "Downloading data for currency pair BTC_XEM. \n", 
+                             "Downloading data for currency pair BTC_DCR. \n", 
+                             "Downloading data for currency pair BTC_FCT. \n", 
+                             "Downloading data for currency pair BTC_LSK. \n")
+
+  output[["text_generate_predictions"]] <- renderPrint({
+    cat(str_c("generate_predictions started on ", Sys.time() - 55, ". \n"))
+    cat(str_c("Coin selection last occurred on ", cutoff_date, ". \n"))
+    cat(str_c("generate_predictions successfully finished on ", Sys.time() - 5, ". \n"))
+    cat("Printing latest predictions:")
+    print(current_predictions)
+  })
+  output[["text_scrape_data_300"]] <- renderPrint({
+    cat(str_c("scrape_data_300 started on ", Sys.time() - 120, ". \n"))
+    cat(placeholder_text)
+    cat(str_c("scrape_data_300 successfully finished on ", Sys.time() - 60, ". \n"))
+  })
+  output[["text_scrape_data_900"]] <- renderPrint({
+    cat(str_c("scrape_data_900 started on ", Sys.time() - 300, ". \n"))
+    cat(placeholder_text)
+    cat(str_c("scrape_data_900 successfully finished on ", Sys.time() - 250, ". \n"))
+  })
+  output[["text_scrape_data_1800"]] <- renderPrint({
+    cat(str_c("scrape_data_1800 started on ", Sys.time() - 300, ". \n"))
+    cat(placeholder_text)
+    cat(str_c("scrape_data_1800 successfully finished on ", Sys.time() - 260, ". \n"))
+  })
+  output[["text_scrape_data_7200"]] <- renderPrint({
+    cat(str_c("scrape_data_7200 started on ", Sys.time() - 300, ". \n"))
+    cat(placeholder_text)
+    cat(str_c("scrape_data_7200 successfully finished on ", Sys.time() - 270, ". \n"))
+  })
+  output[["text_scrape_data_14400"]] <- renderPrint({
+    cat(str_c("scrape_data_14400 started on ", Sys.time() - 300, ". \n"))
+    cat(placeholder_text)
+    cat(str_c("scrape_data_14400 successfully finished on ", Sys.time() - 280, ". \n"))
+  })
+  output[["text_scrape_data_86400"]] <- renderPrint({
+    cat(str_c("scrape_data_86400 started on ", Sys.time() - 300, ". \n"))
+    cat(placeholder_text)
+    cat(str_c("scrape_data_86400 successfully finished on ", Sys.time() - 290, ". \n"))
+  })
+  
+  # 6.18 Table in the parameters tab
+  output[["table_parameters"]] <- renderTable({
+    params[["train_window"]] <- as.character(params[["train_window"]])
+    params[["test_window"]] <- as.character(params[["test_window"]])
+    df_params <- tibble(Parameter = names(params), 
+                        Value = params %>% unlist())
+  }, hover = TRUE, spacing = "m", align = "l", digits = 2)
 }
 
-#' # 8. shinyApp
-shinyApp(ui = ui_dashboard, server = server)
+#' # 7. shinyApp
+shinyApp(ui = ui, server = server)

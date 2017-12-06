@@ -58,26 +58,25 @@ params <- list(time_resolution = 300,
 #' # 4. Load Data 
 #' Query the mongo database if the script is called using the predictions argument. Otherwise, load the csv file.  
 # pricing_data <- load_data(source = "csv", time_resolution = "300", start_unix = "1504224000")
-pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data test.csv")
+pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv")
                             
 #' # 5. Initialize Cutoff Date 
 #' Initialize the cutoff date to split the data into a training and test set where the training set is used to 
 #' select cointegrated coin pairs and predictions are made over the test set. The cutoff date is initialized to 
-#' an arbitrary date which represents the date. The cutoff date is then moved forward in time so that current 
-#' predictions can be made.  
+#' an arbitrary date which represents the date that the strategy first began to trade. The cutoff date is then 
+#' moved forward in time when new coin selection occurs so that current predictions can be made.  
 cutoff_date <- as.Date("2017-11-01")
-test_window <- days(as.numeric(str_match(params[["test_window"]], "(\\d*)d*")[, 2]))
-while (Sys.Date() - test_window > cutoff_date) { 
-  cutoff_date <- cutoff_date + test_window
+while (Sys.Date() - days(as.numeric(str_match(params[["test_window"]], "(\\d*)d*")[, 2])) > cutoff_date) { 
+  cutoff_date <- cutoff_date + days(as.numeric(str_match(params[["test_window"]], "(\\d*)d*")[, 2]))
 }
 print(str_c("Coin pair selection last occured on ", cutoff_date, "."))
 
 #' # 6. Generate Predictions 
 predictions <- generate_predictions(pricing_data = pricing_data, 
-                                    cutoff_date = "2017-11-01", 
+                                    cutoff_date = cutoff_date, 
                                     params = params)
 
-#' # 7. Extract Current Predictions
+#' # 7. Extract Current Predictions 
 predictions_current <- predictions %>% 
   group_by(coin_y_name, coin_x_name) %>% 
   filter(row_number() == n()) %>% 

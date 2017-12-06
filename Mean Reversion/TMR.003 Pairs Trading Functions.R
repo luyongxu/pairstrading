@@ -104,7 +104,8 @@ prepare_data <- function(pricing_data, start_date, end_date, params) {
            date_time >= start_date, 
            date_time < end_date) %>% 
     select(date_unix, date_time, close, currency_pair) %>% 
-    spread(currency_pair, close) 
+    spread(currency_pair, close) %>% 
+    mutate_all(na.locf)
   return(df)
 } 
 
@@ -594,6 +595,7 @@ backtest_pair <- function(train, test, coin_y, coin_x, params) {
                                        params = params), 
              hedge_ratio = model[["hedge_ratio"]], 
              intercept = model[["intercept"]], 
+             spread_z = model[["spread_z"]], 
              coin_y_return = test[[coin_y]] / lag(test[[coin_y]], 1) - 1, 
              coin_x_return = test[[coin_x]] / lag(test[[coin_x]], 1) - 1, 
              coin_y_position = test[[coin_y]] * signal * 1                      *  1, 
@@ -626,6 +628,7 @@ backtest_pair <- function(train, test, coin_y, coin_x, params) {
                                        params = params), 
              hedge_ratio = model[["hedge_ratio"]], 
              intercept = model[["intercept"]], 
+             spread_z = model[["spread_z"]], 
              coin_y_return = test[[coin_y]] / lag(test[[coin_y]], 1) - 1, 
              coin_x_return = test[[coin_x]] / lag(test[[coin_x]], 1) - 1, 
              coin_y_position = signal * 1                      *  1, 
@@ -907,14 +910,15 @@ plot_single <- function(train, test, coin_y, coin_x, params, print) {
   # Calculate intercept and hedge ratio for the model over the test set 
   df_plot_c <- df_plot_b %>% 
     select(date_time, intercept, hedge_ratio) %>% 
-    gather(data = ., key = "parameter", value = "value", intercept, hedge_ratio)
+    gather(data = ., key = "parameter", value = "value", intercept, hedge_ratio) %>% 
+    mutate(parameter = ifelse(parameter == "intercept", "Intercept", parameter), 
+           parameter = ifelse(parameter == "hedge_ratio", "Hedge Ratio", parameter))
   
   # This plot plots the price of both coins over the train and test sets 
   plot_prices <- ggplot(data = df_plot_a) + 
     geom_line(aes(x = date_time, y = coin_y_price / index[["coin_y_price"]], colour = "Coin Y"), size = 0.5, alpha = 0.5) + 
     geom_line(aes(x = date_time, y = coin_x_price / index[["coin_x_price"]], colour = "Coin X"), size = 0.5, alpha = 0.5) + 
-    geom_rect(data = dates %>% filter(source == "train"), mapping = aes(xmin = start, xmax = end, ymin = -Inf, ymax = +Inf), 
-              fill = "darkblue", alpha = 0.2) + 
+    geom_vline(data = dates %>% filter(source == "train"), mapping = aes(xintercept = end)) + 
     scale_colour_manual(name = "Prices", values = c("Coin Y" = "darkred", "Coin X" = "darkgreen")) + 
     labs(subtitle = str_c(coin_y, " and ", coin_x), x = "Date", y = "Indexed Prices")
 
