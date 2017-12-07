@@ -107,9 +107,9 @@ server <- function(input, output) {
   
   # 6.1 Set Parameters 
   params <- list(time_resolution = 300, 
-                 quote_currency = "USDT", 
+                 quote_currency = "BTC", 
                  cointegration_test = "eg", 
-                 adf_threshold = -6.0, 
+                 adf_threshold = -5.03, 
                  distance_threshold = 0.00, 
                  train_window = days(30), 
                  test_window = days(20), 
@@ -162,7 +162,9 @@ server <- function(input, output) {
   })
   
   # 6.8 Generate Predictions 
-  predictions <- generate_predictions(pricing_data, cutoff_date, params)
+  predictions <- generate_predictions(pricing_data, cutoff_date, params) %>% 
+    mutate(coin_y_position = coin_y_position * 100, 
+           coin_x_position = coin_x_position * 100)
   
   # 6.9 Current Predictions 
   current_predictions <- predictions %>% 
@@ -312,7 +314,7 @@ server <- function(input, output) {
     cat(str_c("generate_predictions started on ", Sys.time() - 55, ". \n"))
     cat(str_c("Coin selection last occurred on ", cutoff_date, ". \n"))
     cat(str_c("generate_predictions successfully finished on ", Sys.time() - 5, ". \n"))
-    cat("Printing latest predictions:")
+    cat("Printing latest predictions: \n")
     print(current_predictions)
   })
   output[["text_scrape_data_300"]] <- renderPrint({

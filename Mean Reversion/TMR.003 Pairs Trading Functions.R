@@ -253,9 +253,16 @@ select_pairs <- function(train, coin_pairs, params) {
                    coin_pairs = coin_pairs, 
                    params = params)
   
-  # TEMPORARILY REDUCE COIN PAIR SELECTION FOR SHINY APP
+  # Temporarily reduce coin pair selection for shiny app
+  # df <- df %>%
+  #   filter(row_number() <= 2)
+  
+  # Temporarily choose coin pairs for shiny app
   df <- df %>%
-    filter(row_number() <= 2)
+    filter(coin_y != "USDT_REP", 
+           coin_x != "USDT_REP", 
+           coin_y != "BTC_REP", 
+           coin_x != "BTC_REP")
   
   # If cointegration test uses the Engle-Granger method, filter by adf threshold 
   if (params[["cointegration_test"]] == "eg") 
