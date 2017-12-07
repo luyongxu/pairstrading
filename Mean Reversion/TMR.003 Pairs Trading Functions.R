@@ -929,7 +929,7 @@ plot_single <- function(train, test, coin_y, coin_x, params, print) {
     geom_line(aes(x = date_time, y = coin_y_price / index[["coin_y_price"]], colour = "Coin Y"), size = 0.5, alpha = 0.5) + 
     geom_line(aes(x = date_time, y = coin_x_price / index[["coin_x_price"]], colour = "Coin X"), size = 0.5, alpha = 0.5) + 
     geom_vline(data = dates %>% filter(source == "train"), mapping = aes(xintercept = end)) + 
-    scale_colour_manual(name = "Prices", values = c("Coin Y" = "darkred", "Coin X" = "darkgreen")) + 
+    scale_colour_manual(name = "Prices", labels = c(coin_x, coin_y), values = c("darkgreen", "darkred")) + 
     labs(subtitle = str_c(coin_y, " and ", coin_x), x = "Date", y = "Indexed Prices")
 
   # This plot plots the spread z-score and signal 
@@ -948,7 +948,7 @@ plot_single <- function(train, test, coin_y, coin_x, params, print) {
     geom_line(aes(y = return_buyhold_y, colour = "Coin Y"), size = 0.5, alpha = 0.4) + 
     geom_line(aes(y = return_buyhold_x, colour = "Coin X"), size = 0.5, alpha = 0.4) + 
     geom_hline(yintercept = 1, colour = "black") + 
-    scale_colour_manual(name = "Return", values = c("Model" = "darkblue", "Coin Y" = "darkred", "Coin X" = "darkgreen")) + 
+    scale_colour_manual(name = "Return", labels = c(coin_x, coin_y, "Model"), values = c("darkgreen", "darkred", "darkblue")) + 
     labs(subtitle = str_c(coin_y, " and ", coin_x), x = "Date", y = "Cumulative Return")
   
   # This plot plots the intercept and hedge ratio over the test set 

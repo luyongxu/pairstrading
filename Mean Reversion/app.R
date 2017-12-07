@@ -30,6 +30,7 @@ ui_sidebar <- dashboardSidebar(
     menuItem("Trades", tabName = "tab_trades", icon = icon("table")), 
     menuItem("Logs", tabName = "tab_logs", icon = icon("database")), 
     menuItem("Parameters", tabName = "tab_parameters", icon = icon("gear")), 
+    selectInput("select_quote_currency", label = "Select a quote currency: ", choices = c("BTC", "USDT")), selected = "BTC", 
     uiOutput("select_pair") 
   )
 )
@@ -106,76 +107,110 @@ ui <- dashboardPage(header = ui_header,
 server <- function(input, output) { 
   
   # 6.1 Set Parameters 
-  params <- list(time_resolution = 300, 
-                 quote_currency = "BTC", 
-                 cointegration_test = "eg", 
-                 adf_threshold = -5.03, 
-                 distance_threshold = 0.00, 
-                 train_window = days(30), 
-                 test_window = days(20), 
-                 model_type = "raw", 
-                 regression_type = "ols", 
-                 spread_type = "rolling", 
-                 rolling_window = 1440, 
-                 signal_logic = "scaled", 
-                 signal_scaled_enter = 3.0, 
-                 signal_discrete_enter = 3.0, 
-                 signal_discrete_exit = 0.2, 
-                 signal_stop = 4.5, 
-                 signal_reenter = TRUE, 
-                 signal_reenter_threshold = 2.00, 
-                 pair_allocation = "equal", 
-                 pair_allocation_scaling = 1.00) 
+  params <- reactive({
+    list(time_resolution = 300, 
+         quote_currency = input[["select_quote_currency"]], 
+         cointegration_test = "eg", 
+         adf_threshold = -5.03, 
+         distance_threshold = 0.00, 
+         train_window = days(30), 
+         test_window = days(20), 
+         model_type = "raw", 
+         regression_type = "ols", 
+         spread_type = "rolling", 
+         rolling_window = 1440, 
+         signal_logic = "scaled", 
+         signal_scaled_enter = 3.0, 
+         signal_discrete_enter = 3.0, 
+         signal_discrete_exit = 0.2, 
+         signal_stop = 4.5, 
+         signal_reenter = TRUE, 
+         signal_reenter_threshold = 2.00, 
+         pair_allocation = "equal", 
+         pair_allocation_scaling = 1.00) 
+  })
   
   # 6.2 Query Data 
-  pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv") 
+  pricing_data <- reactive({
+    withProgress({
+      df <- read_csv("./Mean Reversion/Raw Data/pricing data.csv") 
+      setProgress(value = 1, message = "Querying data complete.")
+      df
+    }, value = 0.5, message = "Querying data.")
+  })
   
   # 6.3 Initialize Cutoff Date 
-  cutoff_date <- as.Date("2017-11-01")
-  while (Sys.Date() - days(as.numeric(str_match(params[["test_window"]], "(\\d*)d*")[, 2])) > cutoff_date) { 
-    cutoff_date <- cutoff_date + days(as.numeric(str_match(params[["test_window"]], "(\\d*)d*")[, 2]))
-  }
+  cutoff_date <- reactive({
+    cutoff_date <- as.Date("2017-11-01")
+    while (Sys.Date() - days(as.numeric(str_match(params()[["test_window"]], "(\\d*)d*")[, 2])) > cutoff_date) { 
+      cutoff_date <- cutoff_date + days(as.numeric(str_match(params()[["test_window"]], "(\\d*)d*")[, 2]))
+    }
+    cutoff_date
+  })
   
   # 6.4 Create Train and Test Sets 
-  train <- prepare_data(pricing_data = pricing_data, 
-                        start_date = as.Date(cutoff_date) - params[["train_window"]], 
-                        end_date = as.Date(cutoff_date), 
-                        params = params) 
-  test <- prepare_data(pricing_data = pricing_data, 
-                       start_date = as.Date(cutoff_date), 
-                       end_date = as.Date(cutoff_date) + params[["test_window"]], 
-                       params = params) 
-  
+  train <- reactive({
+    prepare_data(pricing_data = pricing_data(), 
+                 start_date = as.Date(cutoff_date()) - params()[["train_window"]], 
+                 end_date = as.Date(cutoff_date()), 
+                 params = params()) 
+  })
+  test <- reactive({
+    prepare_data(pricing_data = pricing_data(), 
+                 start_date = as.Date(cutoff_date()), 
+                 end_date = as.Date(cutoff_date()) + params()[["test_window"]], 
+                 params = params()) 
+  })
+    
   # 6.5 Select Coin Pairs 
-  coin_pairs <- create_pairs(params = params) 
-  selected_pairs <- select_pairs(train = train, 
-                                 coin_pairs = coin_pairs, 
-                                 params = params) %>% 
-    mutate(text = str_c("(", row_number(), ") ", coin_y, ", ", coin_x)) 
+  coin_pairs <- reactive({
+    create_pairs(params = params()) 
+  })
+  selected_pairs <- reactive({
+    select_pairs(train = train(), 
+                 coin_pairs = coin_pairs(), 
+                 params = params()) %>% 
+      mutate(text = str_c("(", row_number(), ") ", coin_y, ", ", coin_x)) 
+  })
   
   # 6.6 Create Selected Pairs List 
-  selected_pairs_list <- selected_pairs[["text"]] %>% as.list()
-  
+  selected_pairs_list <- reactive({
+    selected_pairs()[["text"]] %>% as.list()
+  })
+    
   # 6.7 Select coin pair select menu
   output[["select_pair"]] <- renderUI({
-    selectInput("coin_pair", label = "Select a coin pair: ", choices = selected_pairs_list)
+    selectInput("coin_pair", label = "Select a coin pair: ", choices = selected_pairs_list())
   })
   
   # 6.8 Generate Predictions 
-  predictions <- generate_predictions(pricing_data, cutoff_date, params) %>% 
-    mutate(coin_y_position = coin_y_position * 100, 
-           coin_x_position = coin_x_position * 100)
+  predictions <- reactive({
+    withProgress({
+      predictions <- generate_predictions(pricing_data(), cutoff_date(), params()) %>% 
+        mutate(coin_y_position = coin_y_position * 100, 
+               coin_x_position = coin_x_position * 100)
+      setProgress(value = 1, message = "Predictions generated.")
+      predictions
+    }, value = 0.5, message = "Generating latest predictions.")
+  })
   
   # 6.9 Current Predictions 
-  current_predictions <- predictions %>% 
-    group_by(coin_pair_id) %>% 
-    filter(row_number() == n()) %>% 
-    mutate(date = as.character(as.Date(date_time)), 
-           time = as.character(strftime(date_time, format="%H:%M:%S", tz = "GMT")))
+  current_predictions <- reactive({
+    predictions() %>% 
+      group_by(coin_pair_id) %>% 
+      filter(row_number() == n()) %>% 
+      mutate(date = as.character(as.Date(date_time)), 
+             time = as.character(strftime(date_time, format="%H:%M:%S", tz = "GMT")))
+  })
   
   # 6.10 Calculate Strategy Return
-  return_strategy <- calculate_return(df_strategy = predictions, params = params)
-  test <- test %>% mutate(return_strategy = return_strategy[["cumulative_return"]])
+  return_strategy <- reactive({
+    calculate_return(df_strategy = predictions(), params = params())
+  })
+  test_return <- reactive({
+    test() %>% 
+      mutate(return_strategy = return_strategy()[["cumulative_return"]])
+  })  
   
   # 6.11 Selected Coin Pair
   selected_coin_y <- reactive({ 
@@ -192,11 +227,11 @@ server <- function(input, output) {
   # 6.12 Generate plots 
   plots <- reactive({
     withProgress({
-      plots <- plot_single(train = train, 
-                           test = test, 
+      plots <- plot_single(train = train(), 
+                           test = test(), 
                            coin_y = selected_coin_y(), 
                            coin_x = selected_coin_x(), 
-                           params = params, 
+                           params = params(), 
                            print = FALSE)
       setProgress(value = 1, message = "Plots created.")
       plots
@@ -205,7 +240,7 @@ server <- function(input, output) {
   
   # 6.13 Plot in the overview tab 
   output[["plot_backtest"]] <- renderPlot({
-    ggplot(test, aes(x = date_time)) + 
+    ggplot(test_return(), aes(x = date_time)) + 
       geom_line(aes(y = return_strategy, colour = "Strategy"), size = 1) +
       geom_line(aes(y = USDT_BTC / USDT_BTC[1], colour = "USDT_BTC"), size = 0.5, alpha = 0.4) +
       geom_hline(yintercept = 1, colour = "black") +
@@ -215,7 +250,7 @@ server <- function(input, output) {
   
   # 6.13 Table in the overview tab 
   output[["table_backtest"]] <- renderTable({
-    current_predictions %>%
+    current_predictions() %>%
       select("ID" = coin_pair_id, "Date" = date, "Time" = time, "Coin Y" = coin_y_name, "Coin X" = coin_x_name, 
              "Coin Y Price" = coin_y_price, "Coin X Price" = coin_x_price, "ADF Stat" = cointegration_stat, 
              "Signal" = signal, "Spread Z-Score" = spread_z, "Hedge Ratio" = hedge_ratio, "Intercept" = intercept, 
@@ -224,7 +259,7 @@ server <- function(input, output) {
   
   # 6.14 Information boxes in the plots tab 
   output[["infoBox_zscore"]] <- renderInfoBox({ 
-    value <- current_predictions %>% 
+    value <- current_predictions() %>% 
       filter(coin_y_name == selected_coin_y(), 
              coin_x_name == selected_coin_x()) %>% 
       .[["spread_z"]] %>% 
@@ -232,7 +267,7 @@ server <- function(input, output) {
     infoBox(title = "Spread Z-Score", value = value, color = "blue", fill = TRUE, icon = icon("asterisk"))
   })
   output[["infoBox_signal"]] <- renderInfoBox({ 
-    value <- current_predictions %>% 
+    value <- current_predictions() %>% 
       filter(coin_y_name == selected_coin_y(), 
              coin_x_name == selected_coin_x()) %>% 
       .[["signal"]] %>% 
@@ -240,7 +275,7 @@ server <- function(input, output) {
     infoBox(title = "Signal", value = value, color = "blue", fill = TRUE, icon = icon("signal"))
   })
   output[["infoBox_coin_y_position"]] <- renderInfoBox({ 
-    value <- current_predictions %>% 
+    value <- current_predictions() %>% 
       filter(coin_y_name == selected_coin_y(), 
              coin_x_name == selected_coin_x()) %>% 
       .[["coin_y_position"]] %>% 
@@ -251,7 +286,7 @@ server <- function(input, output) {
             value = value, color = color, fill = TRUE, icon = icon("circle"))
   })
   output[["infoBox_coin_x_position"]] <- renderInfoBox({ 
-    value <- current_predictions %>% 
+    value <- current_predictions() %>% 
       filter(coin_y_name == selected_coin_y(), 
              coin_x_name == selected_coin_x()) %>% 
       .[["coin_x_position"]] %>% 
@@ -278,7 +313,7 @@ server <- function(input, output) {
   
   # 6.16 Table in trades tab 
   output[["table_trades"]] <- renderDataTable({
-    df_trades <- predictions %>% 
+    df_trades <- predictions() %>% 
       arrange(desc(date_time)) %>% 
       filter(coin_y_name == selected_coin_y(), 
              coin_x_name == selected_coin_x()) %>% 
@@ -312,10 +347,10 @@ server <- function(input, output) {
 
   output[["text_generate_predictions"]] <- renderPrint({
     cat(str_c("generate_predictions started on ", Sys.time() - 55, ". \n"))
-    cat(str_c("Coin selection last occurred on ", cutoff_date, ". \n"))
+    cat(str_c("Coin selection last occurred on ", cutoff_date(), ". \n"))
     cat(str_c("generate_predictions successfully finished on ", Sys.time() - 5, ". \n"))
     cat("Printing latest predictions: \n")
-    print(current_predictions)
+    print(current_predictions())
   })
   output[["text_scrape_data_300"]] <- renderPrint({
     cat(str_c("scrape_data_300 started on ", Sys.time() - 120, ". \n"))
@@ -350,6 +385,7 @@ server <- function(input, output) {
   
   # 6.18 Table in the parameters tab
   output[["table_parameters"]] <- renderTable({
+    params <- params()
     params[["train_window"]] <- as.character(params[["train_window"]])
     params[["test_window"]] <- as.character(params[["test_window"]])
     df_params <- tibble(Parameter = names(params), 
