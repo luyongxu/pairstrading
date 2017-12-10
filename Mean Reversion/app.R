@@ -46,7 +46,7 @@ ui_body <- dashboardBody(
       tabName = "tab_overview", 
       fluidPage(
         box(plotOutput("plot_backtest"), title = "Strategy Return vs Buy and Hold", collapsible = TRUE, width = 12), 
-        box(tableOutput("table_backtest"), title = "Current Positions", collapsible = TRUE, width = 12)
+        box(formattableOutput("table_backtest"), title = "Current Positions", collapsible = TRUE, width = 12)
       )
     ), 
     
@@ -58,10 +58,10 @@ ui_body <- dashboardBody(
         infoBoxOutput("infoBox_signal", width = 3), 
         infoBoxOutput("infoBox_coin_y_position", width = 3), 
         infoBoxOutput("infoBox_coin_x_position", width = 3), 
-        box(plotOutput("plot_return", height = 300), title = "Model Return vs Buy Hold Return", collapsible = TRUE), 
-        box(plotOutput("plot_signal", height = 300), title = "Spread vs Trading Signal", collapsible = TRUE), 
-        box(plotOutput("plot_prices", height = 300), title = "Prices Over the Train and Test Sets", collapsible = TRUE), 
-        box(plotOutput("plot_coefficients", height = 300), title = "Hedge Ratio and Intercept", collapsible = TRUE)
+        box(plotOutput("plot_return", height = 360), title = "Model Return vs Buy Hold Return", collapsible = TRUE), 
+        box(plotOutput("plot_signal", height = 360), title = "Spread vs Trading Signal", collapsible = TRUE), 
+        box(plotOutput("plot_prices", height = 360), title = "Prices Over the Train and Test Sets", collapsible = TRUE), 
+        box(plotOutput("plot_coefficients", height = 360), title = "Hedge Ratio and Intercept", collapsible = TRUE)
       )
     ), 
     
@@ -77,13 +77,21 @@ ui_body <- dashboardBody(
     tabItem(
       tabName = "tab_logs", 
       fluidPage(
-        box(verbatimTextOutput("text_generate_predictions"), title = "generate_predictions.sh", collapsible = TRUE, width = 12), 
-        box(verbatimTextOutput("text_scrape_data_300"), title = "scrape_data_300.sh", collapsible = TRUE, width = 6), 
-        box(verbatimTextOutput("text_scrape_data_900"), title = "scrape_data_900.sh", collapsible = TRUE, width = 6), 
-        box(verbatimTextOutput("text_scrape_data_1800"), title = "scrape_data_1800.sh", collapsible = TRUE, width = 6), 
-        box(verbatimTextOutput("text_scrape_data_7200"), title = "scrape_data_7200.sh", collapsible = TRUE, width = 6), 
-        box(verbatimTextOutput("text_scrape_data_14400"), title = "scrape_data_14400.sh", collapsible = TRUE, width = 6), 
-        box(verbatimTextOutput("text_scrape_data_86400"), title = "scrape_data_86400.sh", collapsible = TRUE, width = 6) 
+        fluidRow(
+          box(verbatimTextOutput("text_generate_predictions"), title = "generate_predictions.sh", collapsible = TRUE, width = 12)
+        ), 
+        fluidRow(
+          box(verbatimTextOutput("text_scrape_data_300"), title = "scrape_data_300.sh", collapsible = TRUE, width = 6), 
+          box(verbatimTextOutput("text_scrape_data_900"), title = "scrape_data_900.sh", collapsible = TRUE, width = 6)
+        ), 
+        fluidRow(
+          box(verbatimTextOutput("text_scrape_data_1800"), title = "scrape_data_1800.sh", collapsible = TRUE, width = 6), 
+          box(verbatimTextOutput("text_scrape_data_7200"), title = "scrape_data_7200.sh", collapsible = TRUE, width = 6)
+        ),
+        fluidRow(
+          box(verbatimTextOutput("text_scrape_data_14400"), title = "scrape_data_14400.sh", collapsible = TRUE, width = 6), 
+          box(verbatimTextOutput("text_scrape_data_86400"), title = "scrape_data_86400.sh", collapsible = TRUE, width = 6) 
+        )
       )
     ), 
     
@@ -104,7 +112,7 @@ ui <- dashboardPage(header = ui_header,
                     title = "Pairs Trading Dashboard")
 
 #' # 6. Server 
-server <- function(input, output) { 
+server <- function(input, output, session) { 
   
   # 6.1 Set Parameters 
   params <- reactive({
@@ -132,45 +140,66 @@ server <- function(input, output) {
   
   # 6.2 Query Data 
   pricing_data <- reactive({
-    withProgress({
-      df <- read_csv("./Mean Reversion/Raw Data/pricing data.csv") 
+    withProgress(value = 0.5, message = "Querying data.", expr = {
+      invalidateLater(300000, session)
+      df <- load_data(source = "mongodb", time_resolution = "300", start_unix = "1504224000")
       setProgress(value = 1, message = "Querying data complete.")
       df
-    }, value = 0.5, message = "Querying data.")
+    })
   })
   
   # 6.3 Initialize Cutoff Date 
   cutoff_date <- reactive({
-    cutoff_date <- as.Date("2017-11-01")
-    while (Sys.Date() - days(as.numeric(str_match(params()[["test_window"]], "(\\d*)d*")[, 2])) > cutoff_date) { 
-      cutoff_date <- cutoff_date + days(as.numeric(str_match(params()[["test_window"]], "(\\d*)d*")[, 2]))
-    }
-    cutoff_date
+    withProgress(value = 0.5, message = "Finding latest cutoff date.", expr = {
+      cutoff_date <- as.Date("2017-11-01")
+      while (Sys.Date() - days(as.numeric(str_match(params()[["test_window"]], "(\\d*)d*")[, 2])) > cutoff_date) { 
+        cutoff_date <- cutoff_date + days(as.numeric(str_match(params()[["test_window"]], "(\\d*)d*")[, 2]))
+      }
+      setProgress(value = 1, message = "Finding latest cutoff date complete.")
+      cutoff_date
+    })
   })
   
   # 6.4 Create Train and Test Sets 
   train <- reactive({
-    prepare_data(pricing_data = pricing_data(), 
-                 start_date = as.Date(cutoff_date()) - params()[["train_window"]], 
-                 end_date = as.Date(cutoff_date()), 
-                 params = params()) 
+    withProgress(value = 0.5, message = "Creating train set.", expr = {
+      train <- prepare_data(pricing_data = pricing_data(), 
+                            start_date = as.Date(cutoff_date()) - params()[["train_window"]], 
+                            end_date = as.Date(cutoff_date()), 
+                            params = params()) 
+      setProgress(value = 1, message = "Creating train set complete.")
+      train
+    })
   })
   test <- reactive({
-    prepare_data(pricing_data = pricing_data(), 
-                 start_date = as.Date(cutoff_date()), 
-                 end_date = as.Date(cutoff_date()) + params()[["test_window"]], 
-                 params = params()) 
+    withProgress(value = 0.5, message = "Creating test set.", expr = {
+      test <- prepare_data(pricing_data = pricing_data(), 
+                           start_date = as.Date(cutoff_date()), 
+                           end_date = as.Date(cutoff_date()) + params()[["test_window"]], 
+                           params = params()) 
+      setProgress(value = 1, message = "Creating test set complete.")
+      test
+    })
   })
     
   # 6.5 Select Coin Pairs 
   coin_pairs <- reactive({
-    create_pairs(params = params()) 
+    withProgress(value = 0.5, message = "Creating coin pairs.", expr = {
+      coin_pairs <- create_pairs(params = params()) 
+      setProgress(value = 1, message = "Creating coin pairs complete.")
+      coin_pairs
+    })
+
   })
   selected_pairs <- reactive({
-    select_pairs(train = train(), 
-                 coin_pairs = coin_pairs(), 
-                 params = params()) %>% 
-      mutate(text = str_c("(", row_number(), ") ", coin_y, ", ", coin_x)) 
+    withProgress(value = 0.5, message = "Selecting coin pairs.", expr = {
+      selected_pairs <- select_pairs(train = train(), 
+                                     coin_pairs = coin_pairs(), 
+                                     params = params()) %>% 
+        mutate(text = str_c("(", row_number(), ") ", coin_y, ", ", coin_x)) 
+      setProgress(value = 1, message = "Selecting coin pairs complete.")
+      selected_pairs
+    })
   })
   
   # 6.6 Create Selected Pairs List 
@@ -185,13 +214,22 @@ server <- function(input, output) {
   
   # 6.8 Generate Predictions 
   predictions <- reactive({
-    withProgress({
+    withProgress(value = 0.5, message = "Generating latest predictions.", expr = {
       predictions <- generate_predictions(pricing_data(), cutoff_date(), params()) %>% 
         mutate(coin_y_position = coin_y_position * 100, 
-               coin_x_position = coin_x_position * 100)
-      setProgress(value = 1, message = "Predictions generated.")
+               coin_x_position = coin_x_position * 100) %>% 
+        mutate(coin_y_price = round(coin_y_price, 4), 
+               coin_x_price = round(coin_x_price, 4), 
+               cointegration_stat = round(cointegration_stat, 2), 
+               spread_z = round(spread_z, 2), 
+               hedge_ratio = round(hedge_ratio, 2), 
+               intercept = round(intercept, 2), 
+               coin_y_position = round(coin_y_position, 2), 
+               coin_x_position = round(coin_x_position, 2), 
+               cumulative_return = round(cumulative_return, 4))
+        setProgress(value = 1, message = "Predictions generated.")
       predictions
-    }, value = 0.5, message = "Generating latest predictions.")
+    })
   })
   
   # 6.9 Current Predictions 
@@ -202,7 +240,7 @@ server <- function(input, output) {
       mutate(date = as.character(as.Date(date_time)), 
              time = as.character(strftime(date_time, format="%H:%M:%S", tz = "GMT")))
   })
-  
+   
   # 6.10 Calculate Strategy Return
   return_strategy <- reactive({
     calculate_return(df_strategy = predictions(), params = params())
@@ -226,7 +264,7 @@ server <- function(input, output) {
 
   # 6.12 Generate plots 
   plots <- reactive({
-    withProgress({
+    withProgress(value = 0.5, message = "Creating plots.", expr = {
       plots <- plot_single(train = train(), 
                            test = test(), 
                            coin_y = selected_coin_y(), 
@@ -235,27 +273,52 @@ server <- function(input, output) {
                            print = FALSE)
       setProgress(value = 1, message = "Plots created.")
       plots
-    }, value = 0.5, message = "Creating plots.")
+    })
   })  
   
   # 6.13 Plot in the overview tab 
-  output[["plot_backtest"]] <- renderPlot({
-    ggplot(test_return(), aes(x = date_time)) + 
-      geom_line(aes(y = return_strategy, colour = "Strategy"), size = 1) +
-      geom_line(aes(y = USDT_BTC / USDT_BTC[1], colour = "USDT_BTC"), size = 0.5, alpha = 0.4) +
-      geom_hline(yintercept = 1, colour = "black") +
-      scale_color_manual(name = "Return", values = c("Strategy" = "darkblue", "USDT_BTC" = "darkred")) +
-      labs(x = "Date", y = "Cumulative Return")
-  }) 
+  output[["plot_backtest"]] <- renderPlot({ 
+    test_return <- test_return() %>% 
+      mutate(return_USDT_BTC = USDT_BTC / USDT_BTC[1], 
+             return_strategy_USD = return_strategy * return_USDT_BTC)
+    if(params()[["quote_currency"]] == "USDT") { 
+      plot_strategy <- ggplot(test_return, aes(x = date_time)) +
+        geom_line(aes(y = return_strategy, colour = "Strategy"), size = 1) +
+        geom_line(aes(y = USDT_BTC / USDT_BTC[1], colour = "USDT_BTC"), size = 0.5, alpha = 0.4) +
+        geom_hline(yintercept = 1, colour = "black") +
+        scale_color_manual(name = "Return", values = c("Strategy" = "darkblue", "USDT_BTC" = "darkred")) +
+        labs(title = "Strategy Return vs Buy Hold Return", x = "Date", y = "Cumulative Return")
+    }
+    if(params()[["quote_currency"]] == "BTC") { 
+      plot_strategy <- ggplot(test_return, aes(x = date_time)) +
+        geom_line(aes(y = return_strategy, colour = "Strategy in BTC"), size = 1) + 
+        geom_line(aes(y = return_strategy_USD, colour = "Strategy in USD"), size = 1) + 
+        geom_line(aes(y = return_USDT_BTC, colour = "USDT_BTC in USD"), size = 0.5, alpha = 0.4) +
+        geom_hline(yintercept = 1, colour = "black") +
+        scale_color_manual(name = "Return", values = c("Strategy in BTC" = "gray", 
+                                                       "Strategy in USD" = "darkblue", 
+                                                       "USDT_BTC in USD" = "darkred")) +
+        labs(title = "Strategy Return vs Buy Hold Return", x = "Date", y = "Cumulative Return")
+    }
+    plot_strategy
+  })
   
   # 6.13 Table in the overview tab 
-  output[["table_backtest"]] <- renderTable({
-    current_predictions() %>%
+  output[["table_backtest"]] <- renderFormattable({ 
+    df <- current_predictions()  %>% 
       select("ID" = coin_pair_id, "Date" = date, "Time" = time, "Coin Y" = coin_y_name, "Coin X" = coin_x_name, 
              "Coin Y Price" = coin_y_price, "Coin X Price" = coin_x_price, "ADF Stat" = cointegration_stat, 
-             "Signal" = signal, "Spread Z-Score" = spread_z, "Hedge Ratio" = hedge_ratio, "Intercept" = intercept, 
-             "Coin Y Position" = coin_y_position, "Coin X Position" = coin_x_position, "Return" = cumulative_return)
-  }, hover = TRUE, spacing = "m", align = "l", digits = 2)
+             "Hedge Ratio" = hedge_ratio, "Intercept" = intercept, "Signal" = signal, "Spread Z-Score" = spread_z, 
+             "Coin Y Position" = coin_y_position, "Coin X Position" = coin_x_position, "Cumulative Return" = cumulative_return)
+    sign_formatter <- formatter("span", 
+      style = x ~ style(color = ifelse(x > 0, "blue", ifelse(x < 0, "red", "black"))))
+    formattable(df, list(
+      "Signal" = color_tile("lightcoral", "lightblue"), 
+      "Spread Z-Score" = sign_formatter, 
+      area(col = c("Coin Y Position", "Coin X Position")) ~ sign_formatter, 
+      "Cumulative Return" = color_bar("lightgreen")
+    ))
+  })
   
   # 6.14 Information boxes in the plots tab 
   output[["infoBox_zscore"]] <- renderInfoBox({ 
@@ -327,23 +390,7 @@ server <- function(input, output) {
   })
   
   # 6.17 Text in logs tab 
-  placeholder_text <- paste0("Downloading data for currency pair USDT_BTC. \n", 
-                             "Downloading data for currency pair USDT_ETH. \n", 
-                             "Downloading data for currency pair USDT_LTC. \n", 
-                             "Downloading data for currency pair USDT_DASH. \n", 
-                             "Downloading data for currency pair USDT_XMR. \n", 
-                             "Downloading data for currency pair USDT_ZEC. \n", 
-                             "Downloading data for currency pair USDT_REP. \n", 
-                             "Downloading data for currency pair BTC_ETH. \n", 
-                             "Downloading data for currency pair BTC_LTC. \n", 
-                             "Downloading data for currency pair BTC_DASH. \n", 
-                             "Downloading data for currency pair BTC_XMR. \n", 
-                             "Downloading data for currency pair BTC_ZEC. \n", 
-                             "Downloading data for currency pair BTC_REP. \n", 
-                             "Downloading data for currency pair BTC_XEM. \n", 
-                             "Downloading data for currency pair BTC_DCR. \n", 
-                             "Downloading data for currency pair BTC_FCT. \n", 
-                             "Downloading data for currency pair BTC_LSK. \n")
+  placeholder_text <- "Placeholder text."
 
   output[["text_generate_predictions"]] <- renderPrint({
     cat(str_c("generate_predictions started on ", Sys.time() - 55, ". \n"))
@@ -353,34 +400,34 @@ server <- function(input, output) {
     print(current_predictions())
   })
   output[["text_scrape_data_300"]] <- renderPrint({
-    cat(str_c("scrape_data_300 started on ", Sys.time() - 120, ". \n"))
-    cat(placeholder_text)
-    cat(str_c("scrape_data_300 successfully finished on ", Sys.time() - 60, ". \n"))
+    invalidateLater(1000, session)
+    text <- read_lines("./Logs/scrape_data_300.log") %>% tail(38)
+    cat(text, sep = "\n")
   })
   output[["text_scrape_data_900"]] <- renderPrint({
-    cat(str_c("scrape_data_900 started on ", Sys.time() - 300, ". \n"))
-    cat(placeholder_text)
-    cat(str_c("scrape_data_900 successfully finished on ", Sys.time() - 250, ". \n"))
+    invalidateLater(1000, session)
+    text <- read_lines("./Logs/scrape_data_900.log") %>% tail(38)
+    cat(text, sep = "\n")
   })
   output[["text_scrape_data_1800"]] <- renderPrint({
-    cat(str_c("scrape_data_1800 started on ", Sys.time() - 300, ". \n"))
-    cat(placeholder_text)
-    cat(str_c("scrape_data_1800 successfully finished on ", Sys.time() - 260, ". \n"))
+    invalidateLater(1000, session)
+    text <- read_lines("./Logs/scrape_data_1800.log") %>% tail(38)
+    cat(text, sep = "\n")
   })
   output[["text_scrape_data_7200"]] <- renderPrint({
-    cat(str_c("scrape_data_7200 started on ", Sys.time() - 300, ". \n"))
-    cat(placeholder_text)
-    cat(str_c("scrape_data_7200 successfully finished on ", Sys.time() - 270, ". \n"))
+    invalidateLater(1000, session)
+    text <- read_lines("./Logs/scrape_data_7200.log") %>% tail(38)
+    cat(text, sep = "\n")
   })
   output[["text_scrape_data_14400"]] <- renderPrint({
-    cat(str_c("scrape_data_14400 started on ", Sys.time() - 300, ". \n"))
-    cat(placeholder_text)
-    cat(str_c("scrape_data_14400 successfully finished on ", Sys.time() - 280, ". \n"))
+    invalidateLater(1000, session)
+    text <- read_lines("./Logs/scrape_data_14400.log") %>% tail(38)
+    cat(text, sep = "\n")
   })
   output[["text_scrape_data_86400"]] <- renderPrint({
-    cat(str_c("scrape_data_86400 started on ", Sys.time() - 300, ". \n"))
-    cat(placeholder_text)
-    cat(str_c("scrape_data_86400 successfully finished on ", Sys.time() - 290, ". \n"))
+    invalidateLater(1000, session)
+    text <- read_lines("./Logs/scrape_data_86400.log") %>% tail(38)
+    cat(text, sep = "\n")
   })
   
   # 6.18 Table in the parameters tab

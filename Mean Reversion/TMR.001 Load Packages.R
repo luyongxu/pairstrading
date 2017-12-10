@@ -81,6 +81,8 @@ load_library("mongolite")
 load_library("plotly")
 load_library("shiny")
 load_library("shinydashboard")
+load_library("DT")
+load_library("formattable")
 
 #' # 4. Print Session Info 
 #' A debugging step used to verify that all libraries have been loaded properly.  

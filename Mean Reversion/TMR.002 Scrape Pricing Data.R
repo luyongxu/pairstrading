@@ -100,6 +100,7 @@ if (args_period %in% c("update", "rebuild", "none")) {
 if (args_period %in% c("86400", "14400", "7200", "1800", "900", "300")) { 
   periods <- args_period
   start_unix <- as.character(round(as.numeric(Sys.time())) - 86400)
+  print(str_c("scrape_data_", args_period, ".sh started on ", Sys.time(), "."))
 } 
 
 #' # 7. Download Pricing Data 
@@ -180,6 +181,7 @@ for (period in periods) {
       filter(row_number() == 1)
     mongo_connection$insert(new_data)
     print("Adding newest data to mongo collection.")
+    print(str_c("scrape_data_", args_period, ".sh successfully completed on ", Sys.time(), "."))
   }
   
   # Append the data 
@@ -194,9 +196,10 @@ if (args_period == "none") {
 } 
 
 #' # 9. Summary
-print(pricing_data)
-glimpse(pricing_data)
-summary(pricing_data) 
+cat("\n")
+print("Observation counts of latest timestamps:")
+pricing_data %>% count(date_time) %>% filter(row_number() >= n() - 10)
+cat("\n")
 
 #' # 10. Clean
 rm(return_ticker, return_chartdata, period, periods, ticker, tickers, args_period, start_unix, commandArgs, 

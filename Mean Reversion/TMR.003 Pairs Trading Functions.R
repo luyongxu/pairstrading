@@ -1037,12 +1037,32 @@ plot_many <- function(pricing_data, cutoff_date, params, number_pairs) {
   test <- test %>% mutate(return_strategy = return_strategy[["cumulative_return"]])
   
   # This plot plots the overall return of the strategy versus the buy-and-hold return of USDT_BTC
-  print(ggplot(test, aes(x = date_time)) +
-          geom_line(aes(y = return_strategy, colour = "Strategy"), size = 1) +
-          geom_line(aes(y = USDT_BTC / USDT_BTC[1], colour = "USDT_BTC"), size = 0.5, alpha = 0.4) +
-          geom_hline(yintercept = 1, colour = "black") +
-          scale_color_manual(name = "Return", values = c("Strategy" = "darkblue", "USDT_BTC" = "darkred")) +
-          labs(title = "Strategy Return vs Buy Hold Return", x = "Date", y = "Cumulative Return"))
+  # If the param set uses BTC as the quote currency, plot the return of the strategy in both USD and BTC terms
+  if(params[["quote_currency"]] == "USDT") { 
+    plot_strategy <- ggplot(test, aes(x = date_time)) +
+      geom_line(aes(y = return_strategy, colour = "Strategy"), size = 1) +
+      geom_line(aes(y = USDT_BTC / USDT_BTC[1], colour = "USDT_BTC"), size = 0.5, alpha = 0.4) +
+      geom_hline(yintercept = 1, colour = "black") +
+      scale_color_manual(name = "Return", values = c("Strategy" = "darkblue", "USDT_BTC" = "darkred")) +
+      labs(title = "Strategy Return vs Buy Hold Return", x = "Date", y = "Cumulative Return")
+  }
+  if(params[["quote_currency"]] == "BTC") { 
+    test <- test %>% 
+      mutate(return_USDT_BTC = USDT_BTC / USDT_BTC[1], 
+             return_strategy_USD = return_strategy * return_USDT_BTC)
+    plot_strategy <- ggplot(test, aes(x = date_time)) +
+      geom_line(aes(y = return_strategy, colour = "Strategy in BTC"), size = 1) + 
+      geom_line(aes(y = return_strategy_USD, colour = "Strategy in USD"), size = 1) + 
+      geom_line(aes(y = return_USDT_BTC, colour = "USDT_BTC in USD"), size = 0.5, alpha = 0.4) +
+      geom_hline(yintercept = 1, colour = "black") +
+      scale_color_manual(name = "Return", values = c("Strategy in BTC" = "gray", "Strategy in USD" = "darkblue", 
+        "USDT_BTC in USD" = "darkred")) +
+      labs(title = "Strategy Return vs Buy Hold Return", x = "Date", y = "Cumulative Return")
+  }
+  
+  # Print the plot
+  print(plot_strategy)
+  
 } 
 
 #' # 16. Generate Predictions Function   
