@@ -60,7 +60,7 @@ test_cointegration <- function(coin_y, coin_x) {
 #' of the coin with itself are removed. There are a total of 98 coin combinations. 
 create_coins <- function() { 
   coins_usdt <- c("USDT_BTC", "USDT_DASH", "USDT_ETH", "USDT_LTC", "USDT_REP", "USDT_XMR", "USDT_ZEC")
-  coins_btc <- c("BTC_DASH", "BTC_ETH", "BTC_LTC", "BTC_REP", "BTC_XEM", "BTC_XMR", "BTC_ZEC")
+  coins_btc <- c("BTC_DASH", "BTC_ETH", "BTC_LTC", "BTC_REP", "BTC_XEM", "BTC_XMR", "BTC_ZEC", "BTC_DCR", "BTC_FCT", "BTC_LSK")
   coin_pairs <- rbind(expand.grid(coins_usdt, coins_usdt), expand.grid(coins_btc, coins_btc)) %>% 
     as_tibble() %>% 
     rename(coin_y = Var1, coin_x = Var2) %>% 

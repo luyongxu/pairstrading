@@ -36,21 +36,22 @@ render_wrapper <- function(filename, output) {
 } 
 
 #' # 2. Render Research
-render_wrapper("RMR.001 Load Packages", "html_document")
-render_wrapper("RMR.002 Scrape Pricing Data", "html_document")
-render_wrapper("RMR.003 Clean Pricing Data", "html_document")
-render_wrapper("RMR.004 Plot Pricing Data", "html_document")
-render_wrapper("RMR.005 Test Cointegration", "html_document")
-render_wrapper("RMR.006 Test Stationarity", "html_document")
-render_wrapper("RMR.007 Search Cointegration Combinations", "html_document")
-render_wrapper("RMR.008 Plot Cointegration Combinations", "html_document")
-render_wrapper("RMR.009 Test Optimal Cointegration", "html_document")
-render_wrapper("RMR.010 Cross Validate Functions", "html_document") 
-render_wrapper("RMR.011 Cross Validate Plots", "html_document") 
-render_wrapper("RMR.012 Cross Validate Tune", "html_document")
-render_wrapper("RMR.013 Examine Tuning Parameters", "html_document")
-render_wrapper("RMR.014 Export Feather", "html_document")
-render_wrapper("RMR.015 Generate Predictions", "html_document")
+render_wrapper("TMR.001 Load Packages", "html_document")
+render_wrapper("TMR.002 Scrape Pricing Data", "html_document")
+render_wrapper("TMR.003 Pairs Trading Functions", "html_document") 
+render_wrapper("TMR.004 Check Pricing Data", "html_document") 
+render_wrapper("TMR.005 Generate Predictions", "html_document") 
+
+render_wrapper("RMR.001 Plot Pricing Data", "html_document")
+render_wrapper("RMR.002 Test Cointegration", "html_document")
+render_wrapper("RMR.003 Test Stationarity", "html_document")
+render_wrapper("RMR.004 Search Cointegration Combinations", "html_document")
+render_wrapper("RMR.005 Plot Cointegration Combinations", "html_document")
+render_wrapper("RMR.006 Test Optimal Cointegration", "html_document")
+render_wrapper("RMR.007 Cross Validate Plots", "html_document") 
+render_wrapper("RMR.008 Cross Validate Tune", "html_document")
+render_wrapper("RMR.009 Examine Tuning Parameters", "html_document")
+render_wrapper("RMR.010 Export Feather", "html_document")
 
 #' # 3. Beep 
 beepr::beep(1)

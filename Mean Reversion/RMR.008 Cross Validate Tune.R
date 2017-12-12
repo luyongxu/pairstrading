@@ -17,8 +17,7 @@
 source("./Mean Reversion/TMR.003 Pairs Trading Functions.R") 
 
 #' # 2. Load Data 
-pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv", col_types = c("iTdddddddci")) %>% 
-  filter(date_time < "2017-10-09")
+pricing_data <- load_data(source = "csv", time_resolution = "300", start_unix = "0000000000")
 
 #' # 2. Parameter List 
 #' Description  

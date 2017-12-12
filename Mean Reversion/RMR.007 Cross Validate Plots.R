@@ -17,8 +17,7 @@
 source("./Mean Reversion/TMR.003 Pairs Trading Functions.R")
 
 #' # 2. Load Data 
-pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv", col_types = c("iTdddddddci")) %>% 
-  filter(date_time < "2017-10-09")
+pricing_data <- load_data(source = "csv", time_resolution = "300")
 
 #' # 3. Parameter List 
 #' Description  
@@ -79,7 +78,7 @@ params <- list(time_resolution = 300,
                signal_reenter_threshold = 2.00, 
                pair_allocation = "equal", 
                pair_allocation_scaling = 1.00) 
-number_pairs <- 8 
+number_pairs <- 1
 
 #' # 5. Cross Validation September 2017
 plot_many(pricing_data = pricing_data,

@@ -23,7 +23,7 @@ if (length(args_debug) == 0) {
   debug <- TRUE
 }
 
-#' # 2. Print library Paths and Packages
+#' # 2. Print Library Paths and Packages
 #' The .libPaths() function returns the libraries that R looks in to load packages. There are differences in the 
 #' library path folder list when running scripts using Rscript and running scripts using RStudio. This section 
 #' explicitly prints out the library path and the installed packages in each directory to aid in debugging any 
@@ -39,7 +39,7 @@ if (debug == TRUE) {
   }
 }
 
-#' # 3. Load libraries 
+#' # 3. Load Libraries 
 #' The RStudio Server Amazon Machine Image provided by Louis Aslett (http://www.louisaslett.com/RStudio_AMI/) provides 
 #' an easy way to start an ec2 instance with RStudio Server and all major libraries installed. This machine image installs 
 #' packages in the "/home/rstudio/R/x86_64-pc-linux-gnu-library/3.4" directory. When running scripts using Rscript in the 
@@ -50,26 +50,39 @@ if (debug == TRUE) {
 #' library. When library dependencies are loaded, they may also be looking in incorrect library paths and may cause 
 #' the parent library to not load. If this happens, load the dependencies manually first before loading the parent 
 #' library.  
-library_path <- c("/home/rstudio/R/x86_64-pc-linux-gnu-library/3.4", .libPaths())
-suppressWarnings(suppressMessages({
-  library(cli, lib.loc = library_path)
-  library(tidyr, lib.loc = library_path)
-  library(readr, lib.loc = library_path)
-  library(purrr, lib.loc = library_path) 
-  library(dplyr, lib.loc = library_path)
-  library(forcats, lib.loc = library_path)
-  library(stringr, lib.loc = library_path)
-  library(tidyselect, lib.loc = library_path)
-  library(tidyverse, lib.loc = library_path)
-  library(lubridate, lib.loc = library_path)
-  library(jsonlite, lib.loc = library_path)
-  library(urca, lib.loc = library_path)
-  library(zoo, lib.loc = library_path)
-  library(bindrcpp, lib.loc = library_path)
-  library(RcppRoll, lib.loc = library_path)
-  library(feather, lib.loc = library_path)
-  library(mongolite, lib.loc = library_path)
-}))
+#' 
+#' The load_library() function will load a package and will install the package first if necessary.  
+load_library <- function(package_name) { 
+  library_path <- c(.libPaths(), "/home/rstudio/R/x86_64-pc-linux-gnu-library/3.4")
+  suppressWarnings(suppressMessages({
+    if(require(package_name, character.only = TRUE, lib.loc = library_path) == FALSE) {
+      install.packages(package_name, repos = "https://cloud.r-project.org/")
+      require(package_name, character.only = TRUE, lib.loc = library_path)
+    }
+  }))
+}
+load_library("cli")
+load_library("tidyr")
+load_library("readr")
+load_library("purrr")
+load_library("dplyr")
+load_library("forcats")
+load_library("stringr")
+load_library("tidyselect")
+load_library("tidyverse")
+load_library("lubridate")
+load_library("jsonlite")
+load_library("urca")
+load_library("zoo")
+load_library("bindrcpp")
+load_library("RcppRoll")
+load_library("feather")
+load_library("mongolite")
+load_library("plotly")
+load_library("shiny")
+load_library("shinydashboard")
+load_library("DT")
+load_library("formattable")
 
 #' # 4. Print Session Info 
 #' A debugging step used to verify that all libraries have been loaded properly.  
@@ -82,4 +95,4 @@ if (debug == TRUE) {
 options(scipen = 999)
 
 #' # 6. Clean
-rm(args_debug, debug, library_path)
+rm(args_debug, debug, load_library)
