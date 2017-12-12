@@ -17,7 +17,7 @@
 source("./Mean Reversion/TMR.003 Pairs Trading Functions.R") 
 
 #' # 2. Query Data 
-pricing_data <- load_data(source = "mongodb", time_resolution = "300", start_unix = "1504224000")
+pricing_data <- load_data(source = "csv", time_resolution = "300", start_unix = "1504224000")
 
 #' # 3. Prepare Data 
 check <- prepare_data(pricing_data, "2017-11-01", "2018-01-01", list(time_resolution = "300"))

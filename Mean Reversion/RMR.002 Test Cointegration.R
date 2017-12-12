@@ -17,7 +17,7 @@
 source("./Mean Reversion/TMR.001 Load Packages.R")
 
 #' # 2. Load Data
-pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data clean.csv")
+pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv")
 
 #' # 3. Spread Data 
 #' Data was previous gathered in tidy format. For preliminary analysis, filter data to daily time resolution and data after 
@@ -58,8 +58,8 @@ test_cointegration <- function(coin_y, coin_x) {
 #' Two sets of currency pairs are examined: currency pairs where USDT is the quote currency and currency pairs where BTC 
 #' is the quote currency. All combinations of coins within each set of currency pairs are created. Combinations that consist 
 #' of the coin with itself are removed. There are a total of 98 coin combinations. 
-coins_usdt <- c("USDT_BTC", "USDT_DASH", "USDT_ETH", "USDT_LTC", "USDT_REP", "USDT_XEM", "USDT_XMR", "USDT_ZEC")
-coins_btc <- c("BTC_DASH", "BTC_ETH", "BTC_LTC", "BTC_REP", "BTC_XEM", "BTC_XMR", "BTC_ZEC")
+coins_usdt <- c("USDT_BTC", "USDT_DASH", "USDT_ETH", "USDT_LTC", "USDT_REP", "USDT_XMR", "USDT_ZEC")
+coins_btc <- c("BTC_DASH", "BTC_ETH", "BTC_LTC", "BTC_REP", "BTC_XEM", "BTC_XMR", "BTC_ZEC", "BTC_DCR", "BTC_FCT", "BTC_LSK")
 coin_pairs <- rbind(expand.grid(coins_usdt, coins_usdt), expand.grid(coins_btc, coins_btc)) %>% 
   as_tibble() %>% 
   rename(coin_y = Var1, coin_x = Var2) %>% 

@@ -68,8 +68,7 @@ for (i in 1:nrow(params_results)) {
   backtest <- backtest_strategy(train = train, 
                                 test = test, 
                                 selected_pairs = selected_pairs, 
-                                params = params, 
-                                feather = TRUE) %>% 
+                                params = params) %>% 
     mutate(params_id = i, 
            params = paste(map2_chr(names(params), params, str_c, sep = " "), collapse = ", ")) 
   

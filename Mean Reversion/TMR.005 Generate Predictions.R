@@ -37,7 +37,7 @@ source("./Mean Reversion/TMR.003 Pairs Trading Functions.R")
 params <- list(time_resolution = 300, 
                quote_currency = "USDT", 
                cointegration_test = "eg", 
-               adf_threshold = -5.0, 
+               adf_threshold = -4.0, 
                distance_threshold = 0.00, 
                train_window = days(30), 
                test_window = days(20), 
@@ -57,9 +57,8 @@ params <- list(time_resolution = 300,
 
 #' # 4. Load Data 
 #' Query the mongo database if the script is called using the predictions argument. Otherwise, load the csv file.  
-# pricing_data <- load_data(source = "csv", time_resolution = "300", start_unix = "1504224000")
-pricing_data <- read_csv("./Mean Reversion/Raw Data/pricing data.csv")
-                            
+pricing_data <- load_data(source = "csv", time_resolution = "300", start_unix = "1504224000")
+
 #' # 5. Initialize Cutoff Date 
 #' Initialize the cutoff date to split the data into a training and test set where the training set is used to 
 #' select cointegrated coin pairs and predictions are made over the test set. The cutoff date is initialized to 
