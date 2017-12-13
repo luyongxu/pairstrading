@@ -31,9 +31,49 @@ if (length(args_prediciton) == 0) {
 #' Sets the command line arguments to NULL so that the command line arguments intended for this script do not get passed to
 #' the load packages script. 
 commandArgs <- function(...) NULL
-source("./Mean Reversion/TMR.003 Pairs Trading Functions.R")
+source("./Mean Reversion/TMR.003 Data Wrangling Functions.R")
+source("./Mean Reversion/TMR.004 Coin Selection Functions.R")
+source("./Mean Reversion/TMR.005 Model Functions.R")
+source("./Mean Reversion/TMR.006 Backtesting Functions.R")
+source("./Mean Reversion/TMR.007 Plot Functions.R")
+source("./Mean Reversion/TMR.008 Generate Predictions Functions.R")
 
 #' # 3. Set Parameters 
+#' Description  
+#' A list of parameters passed to the functions below that describe the mean reversion pairs trading strategy.  
+#' 
+#' Arguments  
+#' time_resolution: The number of seconds that each observation spans. Takes values 300, 900, 1800, 7200, 14400, 
+#'   and 86400.   
+#' quote_currency: A string indicating the quote currency of the currency pairs. Takes values "USDT" or "BTC".  
+#' cointegration_test: A string indicating whether the Engle-Granger method or distance method is used to test for 
+#'   cointegration. Takes values "eg", "tls", or "distance".  
+#' adf_threshold: The threshold for the ADF test statistic. Pairs below this threshold are selected when using 
+#'   the Engle-Granger method.  
+#' distance_threshold: The threshold for the rmse of the coins normalized prices. Pairs below this threshold are 
+#'   selected when using the distance method.  
+#' train_window: A lubridate period object representing the length of time the train set covers.  
+#' test_window: A lubridate period object representing the length of time the the test set covers.  
+#' model_type: A string indicating whether raw prices or log prices should be used. Takes value "raw" or "log".  
+#' regression_type: A string indicating whether OLS, TLS, or a non-parametric regression should be used. Takes values 
+#'   "ols", "tls", or "non-parametric".  
+#' spread_type: A string indicating whether the regression uses a rolling or fixed window. Takes value "rolling" or 
+#'   "fixed".  
+#' rolling_window: The number of observations used in the lookback window of a rolling linear regression.  
+#' signal_logic: A string indicating which logic to use to generate signals. Takes values "scaled" or "discrete".  
+#' signal_scaled_enter: The z-score threshold indicating the z-score that the signal is fully scaled in when the 
+#'   signal logic is scaled.  
+#' signal_discrete_enter: The z-score threshold for entering a position when the signal logic is discrete.  
+#' signal_discrete_exit: The z-score threshold for exiting a position when the signal logic is discrete.  
+#' signal_stop: A threshold for the spread z-score beyond which the strategy stops trading the coin pair.  
+#' signal_reenter: A boolean indicating whether the strategy should reenter positions after exceeding the 
+#'     signal_stop threshold once the spread z-score returns to a reasonable range.  
+#' signal_reenter_threshold: The z-score threshold for reentering a position if signal_reenter is TRUE. 
+#' pair_allocation: A string indicating whether the capital allocation to the coin pairs should be equal or weighted. 
+#'   Takes values "equal", "weighted", and "scaled".  
+#'  pair_allocation_scaling: A double indicating the volatility scaling applied to the cointegration stat when the pair 
+#'    allocation is scaled. Higher numbers are associated with greater weight being placed on coin pairs with a high 
+#'    cointegration stat.  
 params <- list(time_resolution = 300, 
                quote_currency = "USDT", 
                cointegration_test = "eg", 
