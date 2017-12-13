@@ -38,9 +38,14 @@ render_wrapper <- function(filename, output) {
 #' # 2. Render Research
 render_wrapper("TMR.001 Load Packages", "html_document")
 render_wrapper("TMR.002 Scrape Pricing Data", "html_document")
-render_wrapper("TMR.003 Pairs Trading Functions", "html_document") 
-render_wrapper("TMR.004 Check Pricing Data", "html_document") 
-render_wrapper("TMR.005 Generate Predictions", "html_document") 
+render_wrapper("TMR.003 Data Wrangling Functions", "html_document") 
+render_wrapper("TMR.004 Coin Selection Functions", "html_document") 
+render_wrapper("TMR.005 Model Functions", "html_document") 
+render_wrapper("TMR.006 Backtesting Functions", "html_document") 
+render_wrapper("TMR.007 Plot Functions", "html_document") 
+render_wrapper("TMR.008 Generate Predictions Functions", "html_document") 
+render_wrapper("TMR.009 Check Pricing Data", "html_document")
+render_wrapper("TMR.010 Generate Predictions", "html_document")
 
 render_wrapper("RMR.001 Plot Pricing Data", "html_document")
 render_wrapper("RMR.002 Test Cointegration", "html_document")

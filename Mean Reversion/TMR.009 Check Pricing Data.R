@@ -13,8 +13,13 @@
 #'     fig_height: 5 
 #' ---
 
-#' # 1. Load Pairs Trading Functions 
-source("./Mean Reversion/TMR.003 Pairs Trading Functions.R") 
+#' # 1. Source Functions 
+source("./Mean Reversion/TMR.003 Data Wrangling Functions.R")
+source("./Mean Reversion/TMR.004 Coin Selection Functions.R")
+source("./Mean Reversion/TMR.005 Model Functions.R")
+source("./Mean Reversion/TMR.006 Backtesting Functions.R")
+source("./Mean Reversion/TMR.007 Plot Functions.R")
+source("./Mean Reversion/TMR.008 Generate Predictions Functions.R")
 
 #' # 2. Query Data 
 pricing_data <- load_data(source = "csv", time_resolution = "300", start_unix = "1504224000")
