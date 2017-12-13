@@ -74,6 +74,9 @@ source("./Mean Reversion/TMR.008 Generate Predictions Functions.R")
 #'  pair_allocation_scaling: A double indicating the volatility scaling applied to the cointegration stat when the pair 
 #'    allocation is scaled. Higher numbers are associated with greater weight being placed on coin pairs with a high 
 #'    cointegration stat.  
+#'  return_calc: A string indicating the position calculation used in calculating the return of the strategy. Can take values 
+#'    maximum or actual which refer to setting the denominator in the return calculation to the maximum capital allocation 
+#'    to the strategy or the actual amount that was used at the time.  
 params <- list(time_resolution = 300, 
                quote_currency = "USDT", 
                cointegration_test = "eg", 
@@ -93,7 +96,8 @@ params <- list(time_resolution = 300,
                signal_reenter = TRUE, 
                signal_reenter_threshold = 2.00, 
                pair_allocation = "equal", 
-               pair_allocation_scaling = 1.00) 
+               pair_allocation_scaling = 1.00, 
+               return_calc = "maximum") 
 
 #' # 4. Load Data 
 #' Query the mongo database if the script is called using the predictions argument. Otherwise, load the csv file.  

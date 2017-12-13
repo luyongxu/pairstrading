@@ -34,6 +34,9 @@ source("./Mean Reversion/TMR.001 Load Packages.R")
 #' coin_x: A string indicating the independent coin in the coin pair regression.  
 #' params: A list of parameters passed to the functions below that describe the mean reversion pairs trading strategy.  
 #'   model_type: A string indicating whether raw prices or log prices should be used. Takes value "raw" or "log".  
+#'   return_calc: A string indicating the position calculation used in calculating the return of the strategy. Can take values 
+#'     maximum or actual which refer to setting the denominator in the return calculation to the maximum capital allocation 
+#'     to the strategy or the actual amount that was used at the time.  
 #' 
 #' Value  
 #' Returns a dataframe containing the cumulative return of applying the trading strategy to the given coin pair 
@@ -47,67 +50,67 @@ backtest_pair <- function(train, test, coin_y, coin_x, params) {
                        coin_x = coin_x, 
                        params = params)
   
-  # Return calculations if model type uses raw prices. The position and combined return calculations differ 
-  # compared to using log prices. 
+  # Generate signals, prepare model objects, and calculate coin_y and coin_x return 
+  test <- test %>% 
+    mutate(signal = generate_signals(train = train, 
+                                     test = test, 
+                                     coin_y = coin_y, 
+                                     coin_x = coin_x, 
+                                     model = model, 
+                                     params = params), 
+           hedge_ratio = model[["hedge_ratio"]], 
+           intercept = model[["intercept"]], 
+           spread_z = model[["spread_z"]], 
+           coin_y_return = test[[coin_y]] / lag(test[[coin_y]], 1) - 1, 
+           coin_x_return = test[[coin_x]] / lag(test[[coin_x]], 1) - 1)
+  
+  # Position calculations if model uses raw or log prices. 
   if (params[["model_type"]] == "raw") { 
     test <- test %>% 
-      mutate(signal = generate_signals(train = train, 
-                                       test = test, 
-                                       coin_y = coin_y, 
-                                       coin_x = coin_x, 
-                                       model = model, 
-                                       params = params), 
-             hedge_ratio = model[["hedge_ratio"]], 
-             intercept = model[["intercept"]], 
-             spread_z = model[["spread_z"]], 
-             coin_y_return = test[[coin_y]] / lag(test[[coin_y]], 1) - 1, 
-             coin_x_return = test[[coin_x]] / lag(test[[coin_x]], 1) - 1, 
-             coin_y_position = test[[coin_y]] * signal * 1                      *  1, 
-             coin_x_position = test[[coin_x]] * signal * model[["hedge_ratio"]] * -1, 
-             change_y_position = coin_y_position - lag(coin_y_position, 1) - lag(coin_y_position, 1) * coin_y_return, 
-             change_x_position = coin_x_position - lag(coin_x_position, 1) - lag(coin_x_position, 1) * coin_x_return, 
-             coin_y_pnl = lag(coin_y_position, 1) * coin_y_return, 
-             coin_x_pnl = lag(coin_x_position, 1) * coin_x_return, 
-             combined_position = abs(coin_y_position) + abs(coin_x_position), 
-             combined_pnl = coin_y_pnl + coin_x_pnl, 
-             combined_return = combined_pnl / lag(combined_position, 1)) %>% 
-      mutate_all(funs(ifelse(is.na(.), 0, .))) %>% 
-      mutate(cumulative_return = cumprod(1 + combined_return), 
-             date_time = as.POSIXct(date_time, origin = "1970-01-01")) 
+      mutate(coin_y_position = test[[coin_y]] * signal * 1           *  1, 
+             coin_x_position = test[[coin_x]] * signal * hedge_ratio * -1)
   } 
-  
-  # Return calculations if model uses log prices to test for cointegration. The combined return calculation 
-  # is calculated relative to the maximum capital allocation to the coin pair.  
   if (params[["model_type"]] == "log") { 
     test <- test %>% 
-      mutate(coin_y_name = coin_y, 
-             coin_x_name = coin_x, 
-             coin_y_price = test[[coin_y]], 
-             coin_x_price = test[[coin_x]], 
-             signal = generate_signals(train = train, 
-                                       test = test, 
-                                       coin_y = coin_y, 
-                                       coin_x = coin_x, 
-                                       model = model, 
-                                       params = params), 
-             hedge_ratio = model[["hedge_ratio"]], 
-             intercept = model[["intercept"]], 
-             spread_z = model[["spread_z"]], 
-             coin_y_return = test[[coin_y]] / lag(test[[coin_y]], 1) - 1, 
-             coin_x_return = test[[coin_x]] / lag(test[[coin_x]], 1) - 1, 
-             coin_y_position = signal * 1                      *  1, 
-             coin_x_position = signal * model[["hedge_ratio"]] * -1, 
-             change_y_position = coin_y_position - lag(coin_y_position, 1) - lag(coin_y_position, 1) * coin_y_return, 
-             change_x_position = coin_x_position - lag(coin_x_position, 1) - lag(coin_x_position, 1) * coin_x_return, 
-             coin_y_pnl = lag(coin_y_position, 1) * coin_y_return, 
-             coin_x_pnl = lag(coin_x_position, 1) * coin_x_return, 
-             combined_position = abs(coin_y_position) + abs(coin_x_position), 
-             combined_pnl = coin_y_pnl + coin_x_pnl, 
-             combined_return = combined_pnl / (1 + abs(model[["hedge_ratio"]]))) %>% 
-      mutate_all(funs(ifelse(is.na(.), 0, .))) %>% 
-      mutate(cumulative_return = cumprod(1 + combined_return), 
-             date_time = as.POSIXct(date_time, origin = "1970-01-01")) 
+      mutate(coin_y_position = signal * 1           *  1, 
+             coin_x_position = signal * hedge_ratio * -1)
   } 
+  
+  # Profit and loss calculation 
+  test <- test %>% 
+    mutate(change_y_position = coin_y_position - lag(coin_y_position, 1) - lag(coin_y_position, 1) * coin_y_return, 
+           change_x_position = coin_x_position - lag(coin_x_position, 1) - lag(coin_x_position, 1) * coin_x_return, 
+           coin_y_pnl = lag(coin_y_position, 1) * coin_y_return, 
+           coin_x_pnl = lag(coin_x_position, 1) * coin_x_return,
+           combined_pnl = coin_y_pnl + coin_x_pnl) 
+  
+  # Return calculation 
+  if (params[["model_type"]] == "raw" & params[["return_calc"]] == "actual") { 
+    test <- test %>% 
+      mutate(combined_position = abs(coin_y_position) + abs(coin_x_position), 
+             combined_return = combined_pnl / lag(combined_position, 1))
+  }
+  if (params[["model_type"]] == "log" & params[["return_calc"]] == "actual") { 
+    test <- test %> %
+      mutate(combined_position = abs(coin_y_position) + abs(coin_x_position), 
+             combined_return = combined_pnl / lag(combined_position, 1))
+  }
+  if (params[["model_type"]] == "raw" & params[["return_calc"]] == "maximum") { 
+    test <- test %>% 
+      mutate(combined_position = abs(test[[coin_y]]) + abs(test[[coin_x]] * hedge_ratio), 
+             combined_return = combined_pnl / lag(combined_position, 1))
+  }
+  if (params[["model_type"]] == "log" & params[["return_calc"]] == "maximum") { 
+    test <- test %> %
+      mutate(combined_position = 1 + abs(hedge_ratio), 
+             combined_return = combined_pnl / lag(combined_position, 1))
+  }
+
+  # Calculate cumulative return 
+  test <- test %>% 
+    mutate_all(funs(ifelse(is.na(.), 0, .))) %>% 
+    mutate(cumulative_return = cumprod(1 + combined_return), 
+           date_time = as.POSIXct(date_time, origin = "1970-01-01")) 
   
   # Add training observations, add additional columns, and clean the dataframe 
   df_backtest <- bind_rows(train %>% mutate(source = "train"), test %>% mutate(source = "test")) %>% 
