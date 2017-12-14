@@ -14,8 +14,9 @@
 #' ---
 
 #' # 1. Capture Command Line Arguments 
-#' This script when called through the command line using Rscript has the option of including one argument that takes the 
-#' following values: 300, 900, 1800, 7200, 14400, 86400, update and rebuild.  
+#' This script when called through the command line using Rscript has the option of including two arguments. The first 
+#' argument is a period argument that takes the following values: 300, 900, 1800, 7200, 14400, 86400, update and rebuild.  
+#' The second argument contains the path to the working directory. 
 #' 
 #' (1) When the script is called where the argument is a number (300, 900, 1800, 7200, 14400, and 86400), the argument indicates 
 #' the time resolution to download the data for and this argument gets passed to the period parameter in the Poloenix API 
@@ -31,9 +32,13 @@
 #' the collections are recreated, and all historical data is re-inserted in the collections. This option is designed to 
 #' initially populate the database or in the event of some major disruption. NB: THIS OPTION DROPS ALL EXISTING DOCUMENTS 
 #' AND REPOPULATES THE COLLECTIONS SO USE THIS OPTION WITH CAUTION.  
-args_period <- commandArgs(trailingOnly = TRUE)
-if (length(args_period) == 0) { 
-  args_period <- "none" 
+#' 
+args_download <- commandArgs(trailingOnly = TRUE)
+if (length(args_download) == 0) { 
+  args_download <- "none" 
+}
+if (length(args_download) >= 1) { 
+  setwd(args_download[2]) 
 }
 commandArgs <- function(...) NULL
 
@@ -88,14 +93,14 @@ tickers <- c("USDT_BTC", "USDT_ETH", "USDT_LTC", "USDT_DASH", "USDT_XMR", "USDT_
 #' The following periods are of interest: 5-minute, 15-minute, 30-minute, 2-hour, 4-hour, 1-day. If the command line argument 
 #' is update, rebuild, or is missing, all the periods and all historical data are downloaded. If the command line argument is 
 #' one of the time resolutions, only data for that time resolution over the past 24 hours is downloaded. 
-if (args_period %in% c("update", "rebuild", "none")) { 
+if (args_download[1] %in% c("update", "rebuild", "none")) { 
   periods <- c("86400", "14400", "7200", "1800", "900", "300") 
   start_unix <- "0000000000"
 } 
-if (args_period %in% c("86400", "14400", "7200", "1800", "900", "300")) { 
-  periods <- args_period
+if (args_download[1] %in% c("86400", "14400", "7200", "1800", "900", "300")) { 
+  periods <- args_download[1]
   start_unix <- as.character(round(as.numeric(Sys.time())) - 86400)
-  print(str_c("scrape_data_", args_period, ".sh started on ", Sys.time(), "."))
+  print(str_c("scrape_data_", args_download[1], ".sh started on ", Sys.time(), "."))
 } 
 
 #' # 7. Download Pricing Data 
@@ -136,14 +141,14 @@ for (period in periods) {
            period = na.locf(period)) 
   
   # Establish connection to mongo database 
-  if (args_period != "none") { 
+  if (args_download[1] != "none") { 
     mongo_connection <- mongo(collection = str_c("pricing_data_", period), 
                               db = "poloniex_ohlc", 
                               url = "mongodb://localhost") 
   }
 
   # If the command line argument is rebuild, drop the collection, and reinsert all historical data 
-  if (args_period == "rebuild") { 
+  if (args_download[1] == "rebuild") { 
     mongo_connection$insert(tibble(name = "placeholder"))
     mongo_connection$drop() 
     mongo_connection$insert(pricing_data_ticker)
@@ -153,7 +158,7 @@ for (period in periods) {
   # If the command line argument is update, find the unix timestamp of the most recent observation in the 
   # collection and only insert observations that are new. Removes observations from the returnTicker endpoint 
   # first.  
-  if (args_period == "update") { 
+  if (args_download[1] == "update") { 
     mongo_connection$remove(query = '{ "source" : "return_ticker" }')
     pricing_data_recent <- mongo_connection$find(query = '{}') 
     new_data <- pricing_data_ticker %>% 
@@ -164,7 +169,7 @@ for (period in periods) {
 
   # If the command line argument is a time resolution, query the observations from the past 24 hours in the 
   # database, remove them, compare them to the most recent data, and upsert the newest data into the collection.  
-  if (args_period %in% c("86400", "14400", "7200", "1800", "900", "300")) { 
+  if (args_download[1] %in% c("86400", "14400", "7200", "1800", "900", "300")) { 
     mongo_connection$remove(query = '{ "source" : "return_ticker" }')
     pricing_data_recent <- mongo_connection$find(query = paste0('{ "date_unix" : { "$gt" : ', start_unix, ' } }'))
     mongo_connection$remove(query = paste0('{ "date_unix" : { "$gt" : ', start_unix, ' } }'))
@@ -176,7 +181,7 @@ for (period in periods) {
       filter(row_number() == 1)
     mongo_connection$insert(new_data)
     print("Adding newest data to mongo collection.")
-    print(str_c("scrape_data_", args_period, ".sh successfully completed on ", Sys.time(), "."))
+    print(str_c("scrape_data_", args_download[1], ".sh successfully completed on ", Sys.time(), "."))
   }
   
   # Append the data 
@@ -186,7 +191,7 @@ for (period in periods) {
 
 #' # 8. Save Data to CSV 
 #' Save data to csv only if no argument was passed in the command line.  
-if (args_period == "none") { 
+if (args_download[1] == "none") { 
   write_csv(pricing_data, "./data/pricing-data.csv")
 } 
 
@@ -197,5 +202,5 @@ pricing_data %>% count(date_time) %>% filter(row_number() >= n() - 10)
 cat("\n")
 
 #' # 10. Clean
-rm(return_ticker, return_chartdata, period, periods, ticker, tickers, args_period, start_unix, commandArgs, 
+rm(return_ticker, return_chartdata, period, periods, ticker, tickers, args_download, start_unix, commandArgs, 
    df_chartdata, df_ticker, pricing_data_ticker, mongo_connection)
