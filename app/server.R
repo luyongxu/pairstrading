@@ -25,7 +25,6 @@ source("./src/07-model-functions.R")
 source("./src/08-backtesting-functions.R")
 source("./src/09-plot-functions.R")
 source("./src/10-generate-predictions-functions.R")
-setwd(wd)
 
 #' # 1. Server 
 server <- function(input, output, session) { 
@@ -43,7 +42,7 @@ server <- function(input, output, session) {
       invalidateLater(300000, session)
       wd <- getwd() 
       setwd("..")
-      df <- load_data(source = "csv", time_resolution = "300", start_unix = "1504224000")
+      df <- load_data(source = "mongodb", time_resolution = "300", start_unix = "1504224000")
       setwd(wd)
       setProgress(value = 1, message = "Querying data complete.")
       return(df)
@@ -53,7 +52,7 @@ server <- function(input, output, session) {
   # 4. Initialize Cutoff Date 
   cutoff_date <- reactive({
     withProgress(value = 0.5, message = "Finding latest cutoff date.", expr = {
-      cutoff_date <- set_cutoff_date(initial_date = "2017-11-01", params = params())
+      cutoff_date <- set_cutoff_date(initial_date = "2017-11-05", params = params())
       return(cutoff_date)
     })
   })
@@ -292,6 +291,8 @@ server <- function(input, output, session) {
              intercept = round(intercept, 2), 
              coin_y_position = round(coin_y_position, 4), 
              coin_x_position = round(coin_x_position, 4), 
+             change_y_position = round(change_y_position, 4), 
+             change_x_position = round(change_x_position, 4), 
              cumulative_return = round(cumulative_return, 4)) %>% 
       arrange(desc(date_time)) %>% 
       filter(coin_y_name == selected_coin_y(), 

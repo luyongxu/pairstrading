@@ -37,7 +37,7 @@ args_download <- commandArgs(trailingOnly = TRUE)
 if (length(args_download) == 0) { 
   args_download <- "none" 
 }
-if (length(args_download) >= 1) { 
+if (length(args_download) == 2) { 
   setwd(args_download[2]) 
 }
 commandArgs <- function(...) NULL
