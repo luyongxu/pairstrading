@@ -3,5 +3,5 @@
 .RData
 .Ruserdata
 *.feather
-/Mean Reversion/Raw Data/
-/Logs/*.log
+/data/*.csv
+/logs/*.log
