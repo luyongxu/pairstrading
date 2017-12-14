@@ -2,6 +2,7 @@
 .Rhistory
 .RData
 .Ruserdata
+
 *.feather
 /data/*.csv
 /logs/*.log
