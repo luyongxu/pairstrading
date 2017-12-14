@@ -1,5 +1,5 @@
 #' ---
-#' title: "Cross Validate Strategy"
+#' title: "Backtesting Functions"
 #' author: "Kevin Lu"
 #' date: '`r format(Sys.Date(), "%B %d, %Y")`'
 #' output: 
@@ -101,7 +101,7 @@ backtest_pair <- function(train, test, coin_y, coin_x, params) {
              combined_return = combined_pnl / lag(combined_position, 1))
   }
   if (params[["model_type"]] == "log" & params[["return_calc"]] == "maximum") { 
-    test <- test %> %
+    test <- test %>%
       mutate(combined_position = 1 + abs(hedge_ratio), 
              combined_return = combined_pnl / lag(combined_position, 1))
   }

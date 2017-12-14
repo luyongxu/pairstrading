@@ -1,5 +1,5 @@
 #' ---
-#' title: "Cross Validate Strategy"
+#' title: "Plot Functions"
 #' author: "Kevin Lu"
 #' date: '`r format(Sys.Date(), "%B %d, %Y")`'
 #' output: 

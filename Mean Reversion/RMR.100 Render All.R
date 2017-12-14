@@ -46,6 +46,7 @@ render_wrapper("TMR.007 Plot Functions", "html_document")
 render_wrapper("TMR.008 Generate Predictions Functions", "html_document") 
 render_wrapper("TMR.009 Check Pricing Data", "html_document")
 render_wrapper("TMR.010 Generate Predictions", "html_document")
+render_wrapper("TMR.011 Send Notifications", "html_document")
 
 render_wrapper("RMR.001 Plot Pricing Data", "html_document")
 render_wrapper("RMR.002 Test Cointegration", "html_document")

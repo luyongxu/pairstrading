@@ -1,5 +1,5 @@
 #' ---
-#' title: "Cross Validate Strategy"
+#' title: "Generate Predictions Functions"
 #' author: "Kevin Lu"
 #' date: '`r format(Sys.Date(), "%B %d, %Y")`'
 #' output: 

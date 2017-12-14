@@ -396,8 +396,6 @@ server <- function(input, output, session) {
   })
   
   # 6.17 Text in logs tab 
-  placeholder_text <- "Placeholder text."
-
   output[["text_generate_predictions"]] <- renderPrint({
     cat(str_c("generate_predictions started on ", Sys.time() - 55, ". \n"))
     cat(str_c("Coin selection last occurred on ", cutoff_date(), ". \n"))

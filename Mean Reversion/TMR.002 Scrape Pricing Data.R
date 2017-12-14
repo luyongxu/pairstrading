@@ -43,7 +43,7 @@ commandArgs <- function(...) NULL
 if (args_period == "none") 
   source("./Mean Reversion/TMR.001 Load Packages.R") 
 if (args_period != "none") 
-  source("/home/rstudio/kevin_lu_basket_mr/Mean Reversion/TMR.001 Load Packages.R")
+  source("/home/rstudio/kevin_lu_basket_mr/Mean Reversion/TMR.001 Load Packages.R") 
 
 #' # 3. Query Poloniex returnTicker Endpoint 
 #' Returns the current price for all tickers.  
