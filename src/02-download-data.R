@@ -83,124 +83,149 @@ return_chartdata <- function(currency_pair, start_unix, end_unix, period) {
   return(df)
 } 
 
-#' # 5. Create List of Tickers 
-#' The following tickers are of interest: USDT_BTC, USDT_ETH, USDT_LTC, USDT_DASH, USDT_XMR, USDT_ZEC, USDT_REP, BTC_XEM, 
-#' BTC_ETH, BTC_LTC, BTC_DASH, BTC_XMR, BTC_ZEC, BTC_REP, BTC_XEM, BTC_DCR, BTC_FCT, BTC_LSK.
-tickers <- c("USDT_BTC", "USDT_ETH", "USDT_LTC", "USDT_DASH", "USDT_XMR", "USDT_ZEC", "USDT_REP", 
-             "BTC_ETH", "BTC_LTC", "BTC_DASH", "BTC_XMR", "BTC_ZEC", "BTC_REP", "BTC_XEM", "BTC_DCR", "BTC_FCT", "BTC_LSK")
+#' # 5. Set Start Unix 
+#' Returns the start unix parameter used in the return_chartdata() function depending on the arguments that are passed 
+#' in the command line.  
+set_start_unix <- function(args_download) { 
+  
+  # If the command line argument is update, rebuild, or none, then all historical data is downloaded
+  if (args_download[1] %in% c("update", "rebuild", "none")) 
+    start_unix <- "0000000000"
+  
+  # If the command line argument only specifies one time resolution, then data over the past 24 hours is downloaded
+  if (args_download[1] %in% c("86400", "14400", "7200", "1800", "900", "300")) 
+    start_unix <- as.character(round(as.numeric(Sys.time())) - 86400)
 
-#' # 6. Create List of Periods
-#' The following periods are of interest: 5-minute, 15-minute, 30-minute, 2-hour, 4-hour, 1-day. If the command line argument 
-#' is update, rebuild, or is missing, all the periods and all historical data are downloaded. If the command line argument is 
-#' one of the time resolutions, only data for that time resolution over the past 24 hours is downloaded. 
-if (args_download[1] %in% c("update", "rebuild", "none")) { 
-  periods <- c("86400", "14400", "7200", "1800", "900", "300") 
-  start_unix <- "0000000000"
-} 
-if (args_download[1] %in% c("86400", "14400", "7200", "1800", "900", "300")) { 
-  periods <- args_download[1]
-  start_unix <- as.character(round(as.numeric(Sys.time())) - 86400)
-  print(str_c("scrape_data_", args_download[1], ".sh started on ", Sys.time(), "."))
-} 
+  # Return start_unix
+  return(start_unix)
+}
 
-#' # 7. Download Pricing Data 
-#' Download pricing data for each ticker and period length combination. 
-# Initialize a tibble for containing the results for all tickers and all period length combinations 
-pricing_data <- tibble()
+#' # 6. Set Periods
+#' Returns a vector of periods depending on the arguments that are passed in the command line. 
+set_periods <- function(args_download) { 
+  
+  # If the command line argument is update, rebuild, or none, set the periods vector to all time resolutions 
+  if (args_download[1] %in% c("update", "rebuild", "none")) 
+    periods <- c("86400", "14400", "7200", "1800", "900", "300") 
 
-# Download data for each time resolution 
-for (period in periods) { 
-  print(str_c("Downloading data for period length ", period, "."))
+  # If the command line argument only specifies one time resolution, set the periods vector to that time resolution 
+  if (args_download[1] %in% c("86400", "14400", "7200", "1800", "900", "300")) 
+    periods <- args_download[1]
+
+  # Return periods
+  return(periods)
+}
+
+#' # 7. Save Data 
+#' Once the data has been downloaded, this function saves the data to a csv file or in the mongo database. 
+save_data <- function(pricing_data, period, args_download) { 
   
-  # Initialize a tibble for containing the results of all tickers within a period length 
-  pricing_data_ticker <- tibble() 
+  # If the command line argument is none, save the data as a csv file 
+  if (args_download[1] == "none") { 
+    write_csv(pricing_data, str_c("./data/pricing-data-", period, ".csv"))
+    print("Saving data to csv file.")
+  }
   
-  # Download data for each ticker within each time resolution and return results in a dataframe. 
-  # Data from the returnChartdata endpoint is used for historical data and data from the returnTicker 
-  # endpoint is used for the latest value. 
-  for (ticker in tickers) { 
-    print(str_c("Downloading data for currency pair ", ticker, ".")) 
-    df_chartdata <- return_chartdata(currency_pair = ticker, 
-                                     start_unix = start_unix, 
-                                     end_unix = "9999999999", 
-                                     period = period)
-    pricing_data_ticker <- bind_rows(pricing_data_ticker, df_chartdata)
-    Sys.sleep(1)
-  } 
-  
-  # Add latest data from returnTicker endpoint 
-  df_ticker <- return_ticker() %>% 
-    filter(currency_pair %in% tickers)
-  pricing_data_ticker <- bind_rows(pricing_data_ticker, df_ticker)
-  
-  # Clean data 
-  pricing_data_ticker <- pricing_data_ticker %>% 
-    arrange(currency_pair, date_unix) %>% 
-    group_by(currency_pair) %>% 
-    mutate(close = na.locf(close), 
-           period = na.locf(period)) 
-  
-  # Establish connection to mongo database 
+  # If the command line argument exists, establish connection to mongo database 
   if (args_download[1] != "none") { 
     mongo_connection <- mongo(collection = str_c("pricing_data_", period), 
                               db = "poloniex_ohlc", 
                               url = "mongodb://localhost") 
   }
-
+  
   # If the command line argument is rebuild, drop the collection, and reinsert all historical data 
   if (args_download[1] == "rebuild") { 
     mongo_connection$insert(tibble(name = "placeholder"))
     mongo_connection$drop() 
-    mongo_connection$insert(pricing_data_ticker)
+    mongo_connection$insert(pricing_data)
     print("Rebuilding mongo collection.")
   }
   
   # If the command line argument is update, find the unix timestamp of the most recent observation in the 
   # collection and only insert observations that are new. Removes observations from the returnTicker endpoint 
-  # first.  
+  # first. 
   if (args_download[1] == "update") { 
     mongo_connection$remove(query = '{ "source" : "return_ticker" }')
-    pricing_data_recent <- mongo_connection$find(query = '{}') 
-    new_data <- pricing_data_ticker %>% 
-      filter(date_unix > max(pricing_data_recent[["date_unix"]]))
+    mongo_data <- mongo_connection$find(query = '{}') 
+    new_data <- pricing_data %>% 
+      filter(date_unix > max(mongo_data[["date_unix"]]))
     mongo_connection$insert(new_data)
     print("Updating mongo collection.")
   }
-
+  
   # If the command line argument is a time resolution, query the observations from the past 24 hours in the 
   # database, remove them, compare them to the most recent data, and upsert the newest data into the collection.  
   if (args_download[1] %in% c("86400", "14400", "7200", "1800", "900", "300")) { 
     mongo_connection$remove(query = '{ "source" : "return_ticker" }')
-    pricing_data_recent <- mongo_connection$find(query = paste0('{ "date_unix" : { "$gt" : ', start_unix, ' } }'))
+    mongo_data <- mongo_connection$find(query = paste0('{ "date_unix" : { "$gt" : ', start_unix, ' } }'))
     mongo_connection$remove(query = paste0('{ "date_unix" : { "$gt" : ', start_unix, ' } }'))
-    new_data <- pricing_data_ticker %>% 
-      bind_rows(pricing_data_recent) %>% 
+    new_data <- pricing_data %>% 
+      bind_rows(mongo_data) %>% 
       filter(date_unix > start_unix) %>% 
       distinct() %>% 
       group_by(currency_pair, date_unix) %>% 
       filter(row_number() == 1)
     mongo_connection$insert(new_data)
-    print("Adding newest data to mongo collection.")
-    print(str_c("scrape_data_", args_download[1], ".sh successfully completed on ", Sys.time(), "."))
+    print("Adding most recent data to mongo collection.")
   }
-  
-  # Append the data 
-  pricing_data <- pricing_data %>% 
-    bind_rows(pricing_data_ticker) 
 }
 
-#' # 8. Save Data to CSV 
-#' Save data to csv only if no argument was passed in the command line.  
-if (args_download[1] == "none") { 
-  write_csv(pricing_data, "./data/pricing-data.csv")
-} 
+#' # 8. Download Data 
+download_data <- function(tickers, args_download) { 
+  
+  # Set periods and start_unix
+  periods <- set_periods(args_download = args_download)
+  start_unix <- set_start_unix(args_download = args_download)
+  
+  # Download data for each time resolution 
+  for (period in periods) { 
+    print(str_c("Downloading data for period length ", period, "."))
+    
+    # Initialize a tibble for containing the results of all tickers within a period length 
+    pricing_data <- tibble() 
+    
+    # Download data for each ticker within each time resolution and return results in a dataframe. 
+    # Data from the returnChartdata endpoint is used for historical data and data from the returnTicker 
+    # endpoint is used for the latest value. 
+    for (ticker in tickers) { 
+      print(str_c("Downloading data for currency pair ", ticker, ".")) 
+      df_chartdata <- return_chartdata(currency_pair = ticker, 
+                                       start_unix = start_unix, 
+                                       end_unix = "9999999999", 
+                                       period = period)
+      pricing_data <- bind_rows(pricing_data, df_chartdata)
+    } 
+    
+    # Add latest data from returnTicker endpoint 
+    df_ticker <- return_ticker() %>% 
+      filter(currency_pair %in% tickers)
+    pricing_data <- bind_rows(pricing_data, df_ticker)
+    
+    # Clean data 
+    pricing_data <- pricing_data %>% 
+      arrange(currency_pair, date_unix) %>% 
+      group_by(currency_pair) %>% 
+      mutate(close = na.locf(close), 
+             period = na.locf(period)) %>% 
+      ungroup()
+    
+    # Save the data 
+    save_data(pricing_data = pricing_data, 
+              period = period, 
+              args_download = args_download)
+    
+    # Print summary 
+    cat(str_c("Successfully downloaded data for time resolution ", period, "."))
+    cat("\n")
+    cat("Observation counts of latest timestamps: \n")
+    print(pricing_data %>% count(date_time) %>% filter(row_number() >= n() - 10))
+    cat("\n")
+  }
+}
 
-#' # 9. Summary
-cat("\n")
-print("Observation counts of latest timestamps:")
-pricing_data %>% count(date_time) %>% filter(row_number() >= n() - 10)
-cat("\n")
-
-#' # 10. Clean
-rm(return_ticker, return_chartdata, period, periods, ticker, tickers, args_download, start_unix, commandArgs, 
-   df_chartdata, df_ticker, pricing_data_ticker, mongo_connection)
+#' # 9. Run Download Data 
+download_data(
+  tickers = c("USDT_BTC", "USDT_ETH", "USDT_LTC", "USDT_DASH", "USDT_XMR", "USDT_ZEC", "USDT_REP",
+              "BTC_ETH", "BTC_LTC", "BTC_DASH", "BTC_XMR", "BTC_ZEC", "BTC_REP", "BTC_XEM", "BTC_DCR", "BTC_FCT", "BTC_LSK"), 
+  args_download = args_download
+)

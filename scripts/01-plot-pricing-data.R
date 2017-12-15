@@ -17,7 +17,12 @@
 source("./src/01-load-packages.R")
 
 #' # 2. Load Data
-pricing_data <- read_csv("./data/pricing-data.csv")
+pricing_data <- bind_rows(read_csv("./data/pricing-data-300.csv"), 
+                          read_csv("./data/pricing-data-900.csv"), 
+                          read_csv("./data/pricing-data-1800.csv"), 
+                          read_csv("./data/pricing-data-7200.csv"), 
+                          read_csv("./data/pricing-data-14400.csv"), 
+                          read_csv("./data/pricing-data-86400.csv"))
 
 #' # 3. Plot Data 
 #' Plots were compared visually with data on CoinMarketCap.com. Overall data quality for daily time resolution is good. 

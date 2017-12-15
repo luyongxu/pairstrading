@@ -13,14 +13,7 @@
 #'     fig_height: 5 
 #' --- 
 
-#' # 1. Capture Command Line Arguments 
-args_period <- commandArgs(trailingOnly = TRUE)
-if (length(args_period) == 0) { 
-  args_period <- "none" 
-}
-commandArgs <- function(...) NULL
-
-#' # 2. Load Packages 
+#' # 1. Load Packages 
 source("./src/01-load-packages.R")
 
 #' # 3. Load Logs 

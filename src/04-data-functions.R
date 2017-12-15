@@ -30,7 +30,7 @@ load_data <- function(source, time_resolution, start_unix = "0000000000") {
   
   # Loads from csv file 
   if (source == "csv") { 
-    pricing_data <- read_csv("./data/pricing-data.csv", col_types = c("dTdddddddcic")) %>% 
+    pricing_data <- read_csv(str_c("./data/pricing-data-", time_resolution, ".csv"), col_types = c("dTdddddddcic")) %>% 
       filter(date_unix >= as.numeric(start_unix))
   }
   

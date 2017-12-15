@@ -15,9 +15,9 @@
 
 #' # 1. Set Parameters Function 
 #' Description  
-#' Generates a list of parameters that describes the pairs trading strategy. These parameters are passed to functions.  
+#' Generates a list of parameters that describes the pairs trading strategy. 
 #' 
-#' List of Parameters    
+#' Arguments    
 #' time_resolution: The number of seconds that each observation spans. Takes values 300, 900, 1800, 7200, 14400, 
 #'   and 86400.   
 #' quote_currency: A string indicating the quote currency of the currency pairs. Takes values "USDT" or "BTC".  
@@ -55,28 +55,83 @@
 #'    
 #' Value  
 #' Returns a list of parameters.  
-set_params <- function() { 
-  params <- list(time_resolution = 300, 
-                 quote_currency = "BTC", 
-                 cointegration_test = "eg", 
-                 adf_threshold = -4.5, 
-                 distance_threshold = 0.00, 
-                 train_window = days(30), 
-                 test_window = days(20), 
-                 model_type = "raw", 
-                 regression_type = "ols", 
-                 spread_type = "rolling", 
-                 rolling_window = 1440, 
-                 signal_logic = "scaled", 
-                 signal_scaled_enter = 3.0, 
-                 signal_discrete_enter = 3.0, 
-                 signal_discrete_exit = 0.2, 
-                 signal_stop = 4.5, 
-                 signal_reenter = TRUE, 
-                 signal_reenter_threshold = 2.00, 
-                 pair_allocation = "equal", 
-                 pair_allocation_scaling = 1.00, 
-                 return_calc = "maximum") 
+set_params <- function(time_resolution, quote_currency, cointegration_test, adf_threshold, distance_threshold, train_window, 
+                       test_window, model_type, regression_type, spread_type, rolling_window, signal_logic, signal_scaled_enter, 
+                       signal_discrete_enter, signal_discrete_exit, signal_stop, signal_reenter, signal_reenter_threshold, 
+                       pair_allocation, pair_allocation_scaling, return_calc) { 
+  params <- list(time_resolution = time_resolution, 
+                 quote_currency = quote_currency, 
+                 cointegration_test = cointegration_test, 
+                 adf_threshold = adf_threshold, 
+                 distance_threshold = distance_threshold, 
+                 train_window = train_window, 
+                 test_window = test_window, 
+                 model_type = model_type, 
+                 regression_type = regression_type, 
+                 spread_type = spread_type, 
+                 rolling_window = rolling_window, 
+                 signal_logic = signal_logic, 
+                 signal_scaled_enter = signal_scaled_enter, 
+                 signal_discrete_enter = signal_discrete_enter, 
+                 signal_discrete_exit = signal_discrete_exit, 
+                 signal_stop = signal_stop, 
+                 signal_reenter = signal_reenter, 
+                 signal_reenter_threshold = signal_reenter_threshold, 
+                 pair_allocation = pair_allocation, 
+                 pair_allocation_scaling = pair_allocation_scaling, 
+                 return_calc = return_calc) 
   return(params)
 }
 
+#' # 2. Save Params 
+#' Description  
+#' Saves a list of parameters from a file that describes the pairs trading strategy. 
+#' 
+#' Arguments  
+#' params: A list of params.  
+#' filename: The filename of the saved file.    
+#' 
+#' Value  
+#' Returns a list of parameters.  
+save_params <- function(params, filename) { 
+  params <- params %>% unlist()
+  write_csv(params, str_c("./output/params/", filename, ".csv"))
+}
+
+#' # 3. Load Params
+#' Description  
+#' Loads a list of parameters from a file that describes the pairs trading strategy. 
+#' 
+#' Arguments
+#' A file containing the parameters in csv format.  
+#' 
+#' Value  
+#' Returns a list of parameters.  
+load_params <- function(filename) { 
+  params <- read_csv(str_c("./output/params/", filename, ".csv")) %>% 
+    as.list()
+  return(params)
+}
+
+#' # 4. Set Parameters 
+params <- set_params(time_resolution = 300, 
+                     quote_currency = "BTC", 
+                     cointegration_test = "eg", 
+                     adf_threshold = -4.5, 
+                     distance_threshold = 0.00, 
+                     train_window = days(30), 
+                     test_window = days(20), 
+                     model_type = "raw", 
+                     regression_type = "ols", 
+                     spread_type = "rolling", 
+                     rolling_window = 1440, 
+                     signal_logic = "scaled", 
+                     signal_scaled_enter = 3.0, 
+                     signal_discrete_enter = 3.0, 
+                     signal_discrete_exit = 0.2, 
+                     signal_stop = 4.5, 
+                     signal_reenter = TRUE, 
+                     signal_reenter_threshold = 2.00, 
+                     pair_allocation = "equal", 
+                     pair_allocation_scaling = 1.00, 
+                     return_calc = "maximum")
