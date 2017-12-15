@@ -16,19 +16,10 @@
 #' # 1. Load Packages 
 source("./src/01-load-packages.R")
 
-#' # 3. Load Logs 
-#' Load logs from shell scripts.  
-logs <- NULL
-
-#' # 4. Slackr Setup
-slackr_setup(channel = "#alertbot", 
-             username = "pairs_trading_bot", 
-             api_token = "xoxp-120817259600-121069189777-150562361286-48c9bb2f7cadb4f13176d6d2b6acbe51", 
-             echo = TRUE)
-
-#' # 5. Detect Errors 
+#' # 2. Detect Errors 
+#' Description  
 #' Errors can occur when the Poloniex API is unresponsive or there are problems interfacing with the mongo database.  
-#' An example of the Poloniex API being unresponsive is:  
+#' An example of an API request being unresponsive is:  
 #' ```
 #' Error in open.connection(con, "rb") :
 #' Could not resolve host: poloniex.com
@@ -40,7 +31,42 @@ slackr_setup(channel = "#alertbot",
 #' Error: No suitable servers found (`serverSelectionTryOnce` set): [connection timeout calling ismaster on 'localhost:27017']
 #' Execution halted
 #' ```
-# slackr("This is a test of the pairs trading bot. Will notify this channel if there are any failures in 
-#        downloading data or generating predictions.")
+#' 
+#' Arguments  
+#' logfile: filename of the log file  
+#' n: number of lines from the end to read in the file  
+#' 
+#' Value 
+#' Returns TRUE if errors or warnings were detected. Otherwise returns FALSE.  
+detect_errors <- function(logfile, n) { 
+  
+  # Load last n lines of log 
+  log <- read_lines(logfile) %>% tail(n)
+  
+  # Use regular expression to detect warning, error, or execution halted 
+  detect <- logical()
+  for (pattern in c("warning", "error", "execution halted", "Warning", "Error", "Execution halted")) { 
+    detect <- c(detect, str_detect(log, pattern))
+  }
+  
+  # Return TRUE if something is wrong or return FALSE if everything is fine
+  if (TRUE %in% detect)
+    return(TRUE)
+  else
+    return(FALSE)
+  
+}
 
+#' # 3. Notify Slack
+notify_slack <- function(logfile, n, channel, username, api_token) { 
+  
+  # Setup Slack
+  slackr_setup(channel = channel, username = username, api_token = api_token, echo = TRUE)
+  
+  # Notify slack if errors or warnings are detected 
+  detect <- detect_errors(logfile, n)
+  if (detect == TRUE) 
+    slackr(str_c("An error or warning was detected in ", logfile, "."))
+  
+}
 
