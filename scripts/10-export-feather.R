@@ -14,22 +14,22 @@
 #' --- 
 
 #' # 1. Source Pairs Trading Functions 
-source("./src/01-load-packages.R")
-source("./src/03-set-parameters.R")
-source("./src/04-data-functions.R")
-source("./src/05-coin-selection-functions.R")
-source("./src/06-setup-strategy-functions.R")
-source("./src/07-model-functions.R")
-source("./src/08-backtesting-functions.R")
-source("./src/09-plot-functions.R")
-source("./src/10-generate-predictions-functions.R")
+source("./src/util/01-load-packages.R")
+source("./src/util/03-set-parameters.R")
+source("./src/util/04-data-functions.R")
+source("./src/util/05-coin-selection-functions.R")
+source("./src/util/06-setup-strategy-functions.R")
+source("./src/util/07-model-functions.R")
+source("./src/util/08-backtesting-functions.R")
+source("./src/util/09-plot-functions.R")
+source("./src/util/10-generate-predictions-functions.R")
 
 #' # 2. Load Data 
 pricing_data <- load_data(source = "csv", time_resolution = "300", start_unix = "0000000000")
-params_results <- bind_rows(read_csv("./output/parameters/parameter tuning 20171101.csv"), 
-                            read_csv("./output/parameters/parameter tuning 20171102.csv"), 
-                            read_csv("./output/parameters/parameter tuning 20171106.csv"), 
-                            read_csv("./output/parameters/parameter tuning 20171113.csv")) %>% 
+params_results <- bind_rows(read_csv("./output/tuning/parameter-tuning-20171101.csv"), 
+                            read_csv("./output/tuning/parameter-tuning-20171102.csv"), 
+                            read_csv("./output/tuning/parameter-tuning-20171106.csv"), 
+                            read_csv("./output/tuning/parameter-tuning-20171113.csv")) %>% 
   mutate(return_calc = "maximum")
 
 #' # 3. Set Parameters 
@@ -87,4 +87,4 @@ for (i in 1:nrow(params_results)) {
 }
 
 #' # 5. Output Feather of Parameter File 
-write_feather(params_results, "./output/backtest/params_results.feather")
+write_feather(params_results, "./output/backtest/params-results.feather")

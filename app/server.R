@@ -14,24 +14,23 @@
 #' --- 
 
 #' # 1. Source Pairs Trading Functions 
-wd <- getwd() 
-setwd("..")
-source("./src/01-load-packages.R")
-source("./src/03-set-parameters.R")
-source("./src/04-data-functions.R")
-source("./src/05-coin-selection-functions.R")
-source("./src/06-setup-strategy-functions.R")
-source("./src/07-model-functions.R")
-source("./src/08-backtesting-functions.R")
-source("./src/09-plot-functions.R")
-source("./src/10-generate-predictions-functions.R")
+setwd(here::here())
+source("./src/util/01-load-packages.R")
+source("./src/util/03-set-parameters.R")
+source("./src/util/04-data-functions.R")
+source("./src/util/05-coin-selection-functions.R")
+source("./src/util/06-setup-strategy-functions.R")
+source("./src/util/07-model-functions.R")
+source("./src/util/08-backtesting-functions.R")
+source("./src/util/09-plot-functions.R")
+source("./src/util/10-generate-predictions-functions.R")
 
 #' # 1. Server 
 server <- function(input, output, session) { 
   
   # 2. Set Parameters 
   params <- reactive({
-    params <- set_params()
+    params <- load_params("./output/params/params.csv")
     params[["quote_currency"]] <- input[["select_quote_currency"]]
     return(params)
   })
@@ -40,10 +39,7 @@ server <- function(input, output, session) {
   pricing_data <- reactive({
     withProgress(value = 0.5, message = "Querying data.", expr = {
       invalidateLater(300000, session)
-      wd <- getwd() 
-      setwd("..")
       df <- load_data(source = "mongodb", time_resolution = "300", start_unix = "1504224000")
-      setwd(wd)
       setProgress(value = 1, message = "Querying data complete.")
       return(df)
     })
@@ -52,7 +48,7 @@ server <- function(input, output, session) {
   # 4. Initialize Cutoff Date 
   cutoff_date <- reactive({
     withProgress(value = 0.5, message = "Finding latest cutoff date.", expr = {
-      cutoff_date <- set_cutoff_date(initial_date = "2017-11-05", params = params())
+      cutoff_date <- set_cutoff_date(initial_date = "2017-11-01", params = params())
       return(cutoff_date)
     })
   })

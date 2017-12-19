@@ -11,7 +11,7 @@
 
 <meta name="author" content="Kevin Lu" />
 
-<meta name="date" content="2017-12-14" />
+<meta name="date" content="2017-12-18" />
 
 <title>Export Feather</title>
 
@@ -245,30 +245,30 @@ div.tocify {
 
 <h1 class="title toc-ignore">Export Feather</h1>
 <h4 class="author"><em>Kevin Lu</em></h4>
-<h4 class="date"><em>December 14, 2017</em></h4>
+<h4 class="date"><em>December 18, 2017</em></h4>
 
 </div>
 
 
 <div id="source-pairs-trading-functions" class="section level1">
 <h1>1. Source Pairs Trading Functions</h1>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">source</span>(<span class="st">&quot;./src/01-load-packages.R&quot;</span>)
-<span class="kw">source</span>(<span class="st">&quot;./src/03-set-parameters.R&quot;</span>)
-<span class="kw">source</span>(<span class="st">&quot;./src/04-data-functions.R&quot;</span>)
-<span class="kw">source</span>(<span class="st">&quot;./src/05-coin-selection-functions.R&quot;</span>)
-<span class="kw">source</span>(<span class="st">&quot;./src/06-setup-strategy-functions.R&quot;</span>)
-<span class="kw">source</span>(<span class="st">&quot;./src/07-model-functions.R&quot;</span>)
-<span class="kw">source</span>(<span class="st">&quot;./src/08-backtesting-functions.R&quot;</span>)
-<span class="kw">source</span>(<span class="st">&quot;./src/09-plot-functions.R&quot;</span>)
-<span class="kw">source</span>(<span class="st">&quot;./src/10-generate-predictions-functions.R&quot;</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">source</span>(<span class="st">&quot;./src/util/01-load-packages.R&quot;</span>)
+<span class="kw">source</span>(<span class="st">&quot;./src/util/03-set-parameters.R&quot;</span>)
+<span class="kw">source</span>(<span class="st">&quot;./src/util/04-data-functions.R&quot;</span>)
+<span class="kw">source</span>(<span class="st">&quot;./src/util/05-coin-selection-functions.R&quot;</span>)
+<span class="kw">source</span>(<span class="st">&quot;./src/util/06-setup-strategy-functions.R&quot;</span>)
+<span class="kw">source</span>(<span class="st">&quot;./src/util/07-model-functions.R&quot;</span>)
+<span class="kw">source</span>(<span class="st">&quot;./src/util/08-backtesting-functions.R&quot;</span>)
+<span class="kw">source</span>(<span class="st">&quot;./src/util/09-plot-functions.R&quot;</span>)
+<span class="kw">source</span>(<span class="st">&quot;./src/util/10-generate-predictions-functions.R&quot;</span>)</code></pre></div>
 </div>
 <div id="load-data" class="section level1">
 <h1>2. Load Data</h1>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">pricing_data &lt;-<span class="st"> </span><span class="kw">load_data</span>(<span class="dt">source =</span> <span class="st">&quot;csv&quot;</span>, <span class="dt">time_resolution =</span> <span class="st">&quot;300&quot;</span>, <span class="dt">start_unix =</span> <span class="st">&quot;0000000000&quot;</span>)
-params_results &lt;-<span class="st"> </span><span class="kw">bind_rows</span>(<span class="kw">read_csv</span>(<span class="st">&quot;./output/parameters/parameter tuning 20171101.csv&quot;</span>), 
-                            <span class="kw">read_csv</span>(<span class="st">&quot;./output/parameters/parameter tuning 20171102.csv&quot;</span>), 
-                            <span class="kw">read_csv</span>(<span class="st">&quot;./output/parameters/parameter tuning 20171106.csv&quot;</span>), 
-                            <span class="kw">read_csv</span>(<span class="st">&quot;./output/parameters/parameter tuning 20171113.csv&quot;</span>)) <span class="op">%&gt;%</span><span class="st"> </span>
+params_results &lt;-<span class="st"> </span><span class="kw">bind_rows</span>(<span class="kw">read_csv</span>(<span class="st">&quot;./output/tuning/parameter-tuning-20171101.csv&quot;</span>), 
+                            <span class="kw">read_csv</span>(<span class="st">&quot;./output/tuning/parameter-tuning-20171102.csv&quot;</span>), 
+                            <span class="kw">read_csv</span>(<span class="st">&quot;./output/tuning/parameter-tuning-20171106.csv&quot;</span>), 
+                            <span class="kw">read_csv</span>(<span class="st">&quot;./output/tuning/parameter-tuning-20171113.csv&quot;</span>)) <span class="op">%&gt;%</span><span class="st"> </span>
 <span class="st">  </span><span class="kw">mutate</span>(<span class="dt">return_calc =</span> <span class="st">&quot;maximum&quot;</span>)</code></pre></div>
 <pre><code>## Parsed with column specification:
 ## cols(
@@ -397,7 +397,7 @@ cutoff_date &lt;-<span class="st"> &quot;2017-09-01&quot;</span></code></pre></d
 </div>
 <div id="output-feather-of-parameter-file" class="section level1">
 <h1>5. Output Feather of Parameter File</h1>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">write_feather</span>(params_results, <span class="st">&quot;./output/backtest/params_results.feather&quot;</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">write_feather</span>(params_results, <span class="st">&quot;./output/backtest/params-results.feather&quot;</span>)</code></pre></div>
 </div>
 
 

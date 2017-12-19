@@ -11,7 +11,7 @@
 
 <meta name="author" content="Kevin Lu" />
 
-<meta name="date" content="2017-12-14" />
+<meta name="date" content="2017-12-18" />
 
 <title>Plot Cointegration Combinations</title>
 
@@ -245,14 +245,14 @@ div.tocify {
 
 <h1 class="title toc-ignore">Plot Cointegration Combinations</h1>
 <h4 class="author"><em>Kevin Lu</em></h4>
-<h4 class="date"><em>December 14, 2017</em></h4>
+<h4 class="date"><em>December 18, 2017</em></h4>
 
 </div>
 
 
 <div id="load-packages" class="section level1">
 <h1>1. Load Packages</h1>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">source</span>(<span class="st">&quot;./src/01-load-packages.R&quot;</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">source</span>(<span class="st">&quot;./src/util/01-load-packages.R&quot;</span>)</code></pre></div>
 </div>
 <div id="load-data" class="section level1">
 <h1>2. Load Data</h1>
@@ -260,7 +260,7 @@ div.tocify {
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># time_resolution &lt;- sample(c(300, 900, 1800, 7200, 14400, 86400), size = 1) </span>
 <span class="co"># start_date &lt;- sample(seq(from = ymd(&quot;2017-01-01&quot;), to = ymd(&quot;2017-10-01&quot;), by = &quot;1 day&quot;), size = 1)</span>
 <span class="co"># end_date &lt;- sample(seq(from = start_date + 3, to = Sys.Date(), by = &quot;1 day&quot;), size = 1)  </span>
-results_a &lt;-<span class="st"> </span><span class="kw">read_csv</span>(<span class="st">&quot;./output/parameters/search cointegration results A.csv&quot;</span>)</code></pre></div>
+results_a &lt;-<span class="st"> </span><span class="kw">read_csv</span>(<span class="st">&quot;./output/tuning/search-cointegration-results-a.csv&quot;</span>)</code></pre></div>
 <pre><code>## Parsed with column specification:
 ## cols(
 ##   df_stat = col_double(),
@@ -277,7 +277,7 @@ results_a &lt;-<span class="st"> </span><span class="kw">read_csv</span>(<span c
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># time_resolution &lt;- sample(c(300, 900, 1800, 7200, 14400, 86400), size = 1) </span>
 <span class="co"># start_date &lt;- sample(seq(from = ymd(&quot;2017-01-01&quot;), to = ymd(&quot;2017-10-01&quot;), by = &quot;1 day&quot;), size = 1)</span>
 <span class="co"># end_date &lt;- sample(seq(from = start_date + 3, to = start_date + 50, by = &quot;1 day&quot;), size = 1) </span>
-results_b &lt;-<span class="st"> </span><span class="kw">read_csv</span>(<span class="st">&quot;./output/parameters/search cointegration results B.csv&quot;</span>)</code></pre></div>
+results_b &lt;-<span class="st"> </span><span class="kw">read_csv</span>(<span class="st">&quot;./output/tuning/search-cointegration-results-b.csv&quot;</span>)</code></pre></div>
 <pre><code>## Parsed with column specification:
 ## cols(
 ##   df_stat_mean = col_double(),

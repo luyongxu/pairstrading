@@ -11,7 +11,7 @@
 
 <meta name="author" content="Kevin Lu" />
 
-<meta name="date" content="2017-12-14" />
+<meta name="date" content="2017-12-18" />
 
 <title>Cross Validate Tune</title>
 
@@ -245,22 +245,22 @@ div.tocify {
 
 <h1 class="title toc-ignore">Cross Validate Tune</h1>
 <h4 class="author"><em>Kevin Lu</em></h4>
-<h4 class="date"><em>December 14, 2017</em></h4>
+<h4 class="date"><em>December 18, 2017</em></h4>
 
 </div>
 
 
 <div id="source-pairs-trading-functions" class="section level1">
 <h1>1. Source Pairs Trading Functions</h1>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">source</span>(<span class="st">&quot;./src/01-load-packages.R&quot;</span>)
-<span class="kw">source</span>(<span class="st">&quot;./src/03-set-parameters.R&quot;</span>)
-<span class="kw">source</span>(<span class="st">&quot;./src/04-data-functions.R&quot;</span>)
-<span class="kw">source</span>(<span class="st">&quot;./src/05-coin-selection-functions.R&quot;</span>)
-<span class="kw">source</span>(<span class="st">&quot;./src/06-setup-strategy-functions.R&quot;</span>)
-<span class="kw">source</span>(<span class="st">&quot;./src/07-model-functions.R&quot;</span>)
-<span class="kw">source</span>(<span class="st">&quot;./src/08-backtesting-functions.R&quot;</span>)
-<span class="kw">source</span>(<span class="st">&quot;./src/09-plot-functions.R&quot;</span>)
-<span class="kw">source</span>(<span class="st">&quot;./src/10-generate-predictions-functions.R&quot;</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">source</span>(<span class="st">&quot;./src/util/01-load-packages.R&quot;</span>)
+<span class="kw">source</span>(<span class="st">&quot;./src/util/03-set-parameters.R&quot;</span>)
+<span class="kw">source</span>(<span class="st">&quot;./src/util/04-data-functions.R&quot;</span>)
+<span class="kw">source</span>(<span class="st">&quot;./src/util/05-coin-selection-functions.R&quot;</span>)
+<span class="kw">source</span>(<span class="st">&quot;./src/util/06-setup-strategy-functions.R&quot;</span>)
+<span class="kw">source</span>(<span class="st">&quot;./src/util/07-model-functions.R&quot;</span>)
+<span class="kw">source</span>(<span class="st">&quot;./src/util/08-backtesting-functions.R&quot;</span>)
+<span class="kw">source</span>(<span class="st">&quot;./src/util/09-plot-functions.R&quot;</span>)
+<span class="kw">source</span>(<span class="st">&quot;./src/util/10-generate-predictions-functions.R&quot;</span>)</code></pre></div>
 </div>
 <div id="load-data" class="section level1">
 <h1>2. Load Data</h1>
@@ -268,7 +268,7 @@ div.tocify {
 </div>
 <div id="tune-parameters" class="section level1">
 <h1>3. Tune Parameters</h1>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">set.seed</span>(<span class="dv">5553</span>) 
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">set.seed</span>(<span class="dv">1</span>) 
 results &lt;-<span class="st"> </span><span class="kw">tibble</span>()
 return &lt;-<span class="st"> </span><span class="kw">list</span>()
 <span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span><span class="dv">1</span>) { 
@@ -307,28 +307,28 @@ return &lt;-<span class="st"> </span><span class="kw">list</span>()
 } </code></pre></div>
 <pre><code>## [1] &quot;Testing iteration 1.&quot;
 ## [1] &quot;Cross validating strategy.&quot;
-## [1] &quot;Using train set from 2016-12-25 to 2017-01-01.&quot;
-## [1] &quot;Using test set from 2017-01-01 to 2017-02-26.&quot;
+## [1] &quot;Using train set from 2016-12-14 to 2017-01-01.&quot;
+## [1] &quot;Using test set from 2017-01-01 to 2017-02-25.&quot;
 ## [1] &quot;Cross validating strategy.&quot;
-## [1] &quot;Using train set from 2017-02-19 to 2017-02-26.&quot;
-## [1] &quot;Using test set from 2017-02-26 to 2017-04-23.&quot;
+## [1] &quot;Using train set from 2017-02-07 to 2017-02-25.&quot;
+## [1] &quot;Using test set from 2017-02-25 to 2017-04-21.&quot;
 ## [1] &quot;Cross validating strategy.&quot;
-## [1] &quot;Using train set from 2017-04-16 to 2017-04-23.&quot;
-## [1] &quot;Using test set from 2017-04-23 to 2017-06-18.&quot;
+## [1] &quot;Using train set from 2017-04-03 to 2017-04-21.&quot;
+## [1] &quot;Using test set from 2017-04-21 to 2017-06-15.&quot;
 ## [1] &quot;Cross validating strategy.&quot;
-## [1] &quot;Using train set from 2017-06-11 to 2017-06-18.&quot;
-## [1] &quot;Using test set from 2017-06-18 to 2017-08-13.&quot;
+## [1] &quot;Using train set from 2017-05-28 to 2017-06-15.&quot;
+## [1] &quot;Using test set from 2017-06-15 to 2017-08-09.&quot;
 ## [1] &quot;Cross validating strategy.&quot;
-## [1] &quot;Using train set from 2017-08-06 to 2017-08-13.&quot;
-## [1] &quot;Using test set from 2017-08-13 to 2017-10-08.&quot;</code></pre>
+## [1] &quot;Using train set from 2017-07-22 to 2017-08-09.&quot;
+## [1] &quot;Using test set from 2017-08-09 to 2017-10-03.&quot;</code></pre>
 </div>
 <div id="examine-results" class="section level1">
-<h1>5. Examine Results</h1>
+<h1>4. Examine Results</h1>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">print</span>(results)</code></pre></div>
 <pre><code>## # A tibble: 1 x 22
 ##   time_resolution quote_currency cointegration_test adf_threshold
 ##             &lt;dbl&gt;          &lt;chr&gt;              &lt;chr&gt;         &lt;dbl&gt;
-## 1             300           USDT           distance          -2.7
+## 1             300           USDT           distance         -3.85
 ## # ... with 18 more variables: distance_threshold &lt;dbl&gt;,
 ## #   train_window &lt;chr&gt;, test_window &lt;chr&gt;, model_type &lt;chr&gt;,
 ## #   regression_type &lt;chr&gt;, spread_type &lt;chr&gt;, rolling_window &lt;dbl&gt;,
@@ -337,6 +337,10 @@ return &lt;-<span class="st"> </span><span class="kw">list</span>()
 ## #   signal_stop &lt;dbl&gt;, signal_reenter &lt;lgl&gt;,
 ## #   signal_reenter_threshold &lt;dbl&gt;, pair_allocation &lt;chr&gt;,
 ## #   pair_allocation_scaling &lt;dbl&gt;, return_calc &lt;chr&gt;, overall_return &lt;dbl&gt;</code></pre>
+</div>
+<div id="save-results" class="section level1">
+<h1>5. Save Results</h1>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">write_csv</span>(results, <span class="kw">str_c</span>(<span class="st">&quot;./output/tuning/parameter-tuning-&quot;</span>, <span class="kw">format</span>(<span class="kw">Sys.Date</span>(), <span class="st">&quot;%Y%m%d&quot;</span>)))</code></pre></div>
 </div>
 
 

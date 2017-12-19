@@ -14,10 +14,10 @@
 #' --- 
 
 #' # 1. Load Packages 
-source("./src/01-load-packages.R")
+source("./src/util/01-load-packages.R")
 
 #' # 2. Load Data 
-params <- read_csv("./output/parameters/parameter tuning 20171030.csv")
+params <- read_csv("./output/tuning/parameter-tuning-20171030.csv")
 
 #' # 3. Remove Bug and Outliers
 #' This set of parameters had a bug that affected runs where the pair allocation was set to scaled. These 
@@ -136,10 +136,10 @@ plot_boxplot(single, "pair_allocation", 0, 2)
 #' time resolution is 300, the spread type is rolling, and the signal logic is scaled. These parameters 
 #' have shown to have produced good results.   
 #' 
-params <- bind_rows(read_csv("./output/parameters/parameter tuning 20171101.csv"), 
-                    read_csv("./output/parameters/parameter tuning 20171102.csv"), 
-                    read_csv("./output/parameters/parameter tuning 20171106.csv"), 
-                    read_csv("./output/parameters/parameter tuning 20171113.csv")) 
+params <- bind_rows(read_csv("./output/tuning/parameter-tuning-20171101.csv"), 
+                    read_csv("./output/tuning/parameter-tuning-20171102.csv"), 
+                    read_csv("./output/tuning/parameter-tuning-20171106.csv"), 
+                    read_csv("./output/tuning/parameter-tuning-20171113.csv")) 
 
 #' ## 6.1 Filter Results 
 #' Iterations with an overall return greater than 20 are removed. This removes 49 out of the 1146 iterations 

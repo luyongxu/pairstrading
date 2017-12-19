@@ -14,7 +14,7 @@
 #' ---
 
 #' # 1. Load Packages 
-source("./src/01-load-packages.R")
+source("./src/util/01-load-packages.R")
 
 #' # 2. Load Data
 pricing_data <- bind_rows(read_csv("./data/pricing-data-300.csv"), 
@@ -167,8 +167,8 @@ print(results)
 # start_date <- sample(seq(from = ymd("2017-01-01"), to = ymd("2017-10-01"), by = "1 day"), size = 1)
 # end_date <- sample(seq(from = start_date + 3, to = Sys.Date(), by = "1 day"), size = 1) 
 #' These results were saved using the code below. 
-# write_csv(results, "./Mean Reversion/Raw Data/search cointegration results A.csv") 
-results_a <- read_csv("./output/parameters/search cointegration results A.csv")
+# write_csv(results, "./output/tuning/search-cointegration-results-a.csv") 
+results_a <- read_csv("./output/tuning/search-cointegration-results-a.csv")
 print(results_a)
 
 #' # 11. Results B 
@@ -177,8 +177,8 @@ print(results_a)
 # start_date <- sample(seq(from = ymd("2017-01-01"), to = ymd("2017-10-01"), by = "1 day"), size = 1)
 # end_date <- sample(seq(from = start_date + 3, to = start_date + 50, by = "1 day"), size = 1) 
 #' These results were saved using the code below. 
-# write_csv(results, "./Mean Reversion/Raw Data/search cointegration results B.csv")
-results_b <- read_csv("./output/parameters/search cointegration results B.csv")
+# write_csv(results, "./output/tuning/search-cointegration-results-b.csv")
+results_b <- read_csv("./output/tuning/search-cointegration-results-b.csv")
 print(results_b)
 
 #' # 12. Clean 

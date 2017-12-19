@@ -14,7 +14,7 @@
 #' ---
 
 #' # 1. Load Packages 
-source("./src/01-load-packages.R")
+source("./src/util/01-load-packages.R")
 
 #' # 2. Load Data
 pricing_data <- bind_rows(read_csv("./data/pricing-data-300.csv"), 

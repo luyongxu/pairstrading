@@ -16,7 +16,7 @@
 #' # 1. Source Pairs Trading Functions
 wd <- getwd() 
 setwd("..")
-source("./src/01-load-packages.R")
+source("./src/util/01-load-packages.R")
 setwd(wd)
 
 #' # 1. UI Header 
