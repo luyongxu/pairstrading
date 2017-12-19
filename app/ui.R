@@ -32,8 +32,9 @@ ui_sidebar <- dashboardSidebar(
     menuItem("Trades", tabName = "tab_trades", icon = icon("table")), 
     menuItem("Logs", tabName = "tab_logs", icon = icon("database")), 
     menuItem("Parameters", tabName = "tab_parameters", icon = icon("gear")), 
-    selectInput("select_quote_currency", label = "Select a quote currency: ", choices = c("BTC", "USDT")), selected = "BTC", 
-    uiOutput("select_pair") 
+    selectInput("select_quote_currency", label = "Select a quote currency: ", choices = c("BTC", "USDT"), selected = "BTC"), 
+    uiOutput("select_pair"), 
+    selectInput("select_autorefresh", label = "Automatic refresh: ", choices = c("On", "Off"), selected = "On")
   )
 )
 
@@ -80,7 +81,8 @@ ui_body <- dashboardBody(
       tabName = "tab_logs", 
       fluidPage(
         fluidRow(
-          box(verbatimTextOutput("text_generate_predictions"), title = "generate_predictions.sh", collapsible = TRUE, width = 12)
+          box(verbatimTextOutput("text_generate_current_predictions"), title = "generate_current_predictions.sh", 
+              collapsible = TRUE, width = 12)
         ), 
         fluidRow(
           box(verbatimTextOutput("text_download_data_300"), title = "download_data_300.sh", collapsible = TRUE, width = 6), 
@@ -95,13 +97,8 @@ ui_body <- dashboardBody(
           box(verbatimTextOutput("text_download_data_86400"), title = "download_data_86400.sh", collapsible = TRUE, width = 6) 
         ), 
         fluidRow(
-          box(verbatimTextOutput("text_generate_current_predictions"), title = "generate_current_predictions.sh", 
-              collapsible = TRUE, width = 6), 
-          box(verbatimTextOutput("text_launch_shiny"), title = "launch_shiny.sh", collapsible = TRUE, width = 6) 
-        ), 
-        fluidRow(
-          box(verbatimTextOutput("text_send_notifications"), title = "send_notifications.sh", collapsible = TRUE, width = 6), 
-          box(verbatimTextOutput("text_set_params"), title = "set_params.sh", collapsible = TRUE, width = 6) 
+          box(verbatimTextOutput("text_launch_shiny"), title = "launch_shiny.sh", collapsible = TRUE, width = 6), 
+          box(verbatimTextOutput("text_send_notifications"), title = "send_notifications.sh", collapsible = TRUE, width = 6)
         )
       )
     ), 

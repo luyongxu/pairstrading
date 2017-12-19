@@ -40,6 +40,5 @@ notify_slack(logfile = "./logs/download_data_14400.log", n = n, channel = channe
 notify_slack(logfile = "./logs/download_data_86400.log", n = n, channel = channel, username = username, api_token = api_token)
 notify_slack(logfile = "./logs/generate_current_predictions.log", n = n, channel = channel, username = username, api_token = api_token)
 notify_slack(logfile = "./logs/send_notifications.log", n = n, channel = channel, username = username, api_token = api_token)
-notify_slack(logfile = "./logs/set_params.log", n = n, channel = channel, username = username, api_token = api_token)
 notify_slack(logfile = "./logs/launch_shiny.log", n = n, channel = channel, username = username, api_token = api_token)
 print(str_c("Checked logs for errors at ", Sys.time(), "."))
