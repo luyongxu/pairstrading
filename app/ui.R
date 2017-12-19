@@ -83,16 +83,25 @@ ui_body <- dashboardBody(
           box(verbatimTextOutput("text_generate_predictions"), title = "generate_predictions.sh", collapsible = TRUE, width = 12)
         ), 
         fluidRow(
-          box(verbatimTextOutput("text_scrape_data_300"), title = "scrape_data_300.sh", collapsible = TRUE, width = 6), 
-          box(verbatimTextOutput("text_scrape_data_900"), title = "scrape_data_900.sh", collapsible = TRUE, width = 6)
+          box(verbatimTextOutput("text_download_data_300"), title = "download_data_300.sh", collapsible = TRUE, width = 6), 
+          box(verbatimTextOutput("text_download_data_900"), title = "downloaddata_900.sh", collapsible = TRUE, width = 6)
         ), 
         fluidRow(
-          box(verbatimTextOutput("text_scrape_data_1800"), title = "scrape_data_1800.sh", collapsible = TRUE, width = 6), 
-          box(verbatimTextOutput("text_scrape_data_7200"), title = "scrape_data_7200.sh", collapsible = TRUE, width = 6)
+          box(verbatimTextOutput("text_download_data_1800"), title = "download_data_1800.sh", collapsible = TRUE, width = 6), 
+          box(verbatimTextOutput("text_download_data_7200"), title = "download_data_7200.sh", collapsible = TRUE, width = 6)
         ),
         fluidRow(
-          box(verbatimTextOutput("text_scrape_data_14400"), title = "scrape_data_14400.sh", collapsible = TRUE, width = 6), 
-          box(verbatimTextOutput("text_scrape_data_86400"), title = "scrape_data_86400.sh", collapsible = TRUE, width = 6) 
+          box(verbatimTextOutput("text_download_data_14400"), title = "download_data_14400.sh", collapsible = TRUE, width = 6), 
+          box(verbatimTextOutput("text_download_data_86400"), title = "download_data_86400.sh", collapsible = TRUE, width = 6) 
+        ), 
+        fluidRow(
+          box(verbatimTextOutput("text_generate_current_predictions"), title = "generate_current_predictions.sh", 
+              collapsible = TRUE, width = 6), 
+          box(verbatimTextOutput("text_launch_shiny"), title = "launch_shiny.sh", collapsible = TRUE, width = 6) 
+        ), 
+        fluidRow(
+          box(verbatimTextOutput("text_send_notifications"), title = "send_notifications.sh", collapsible = TRUE, width = 6), 
+          box(verbatimTextOutput("text_set_params"), title = "set_params.sh", collapsible = TRUE, width = 6) 
         )
       )
     ), 

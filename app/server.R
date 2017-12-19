@@ -310,34 +310,34 @@ server <- function(input, output, session) {
     cat("Printing latest predictions: \n")
     print(current_predictions())
   })
-  output[["text_scrape_data_300"]] <- renderPrint({
+  output[["text_download_data_300"]] <- renderPrint({
     invalidateLater(1000, session)
-    text <- read_lines("./logs/scrape_data_300.log") %>% tail(38)
+    text <- read_lines("./logs/download_data_300.log") %>% tail(38)
     cat(text, sep = "\n")
   })
-  output[["text_scrape_data_900"]] <- renderPrint({
+  output[["text_download_data_900"]] <- renderPrint({
     invalidateLater(1000, session)
-    text <- read_lines("./logs/scrape_data_900.log") %>% tail(38)
+    text <- read_lines("./logs/download_data_900.log") %>% tail(38)
     cat(text, sep = "\n")
   })
-  output[["text_scrape_data_1800"]] <- renderPrint({
+  output[["text_download_data_1800"]] <- renderPrint({
     invalidateLater(1000, session)
-    text <- read_lines("./logs/scrape_data_1800.log") %>% tail(38)
+    text <- read_lines("./logs/download_data_1800.log") %>% tail(38)
     cat(text, sep = "\n")
   })
-  output[["text_scrape_data_7200"]] <- renderPrint({
+  output[["text_download_data_7200"]] <- renderPrint({
     invalidateLater(1000, session)
-    text <- read_lines("./logs/scrape_data_7200.log") %>% tail(38)
+    text <- read_lines("./logs/download_data_7200.log") %>% tail(38)
     cat(text, sep = "\n")
   })
-  output[["text_scrape_data_14400"]] <- renderPrint({
+  output[["text_download_data_14400"]] <- renderPrint({
     invalidateLater(1000, session)
-    text <- read_lines("./logs/scrape_data_14400.log") %>% tail(38)
+    text <- read_lines("./logs/download_data_14400.log") %>% tail(38)
     cat(text, sep = "\n")
   })
-  output[["text_scrape_data_86400"]] <- renderPrint({
+  output[["text_download_data_86400"]] <- renderPrint({
     invalidateLater(1000, session)
-    text <- read_lines("./logs/scrape_data_86400.log") %>% tail(38)
+    text <- read_lines("./logs/download_data_86400.log") %>% tail(38)
     cat(text, sep = "\n")
   })
   
