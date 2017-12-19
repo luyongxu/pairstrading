@@ -121,11 +121,12 @@ set_periods <- function(option) {
 #' Arguments  
 #' pricing_data: A dataframe containing the pricing data.  
 #' period: A string indicating candlestick period in seconds. Valid values are 300, 900, 1800, 7200, 14400, and 86400.  
+#' start_unix: A string indicating the start unix timestamp.  
 #' option: See documentation in download_data().  
 #' 
 #' Value 
 #' Does not return a value.  
-save_data <- function(pricing_data, period, option) { 
+save_data <- function(pricing_data, period, start_unix, option) { 
   
   # If the command line argument is none, save the data as a csv file 
   if (option == "none") { 
@@ -246,6 +247,7 @@ download_data <- function(tickers, option) {
     # Save the data 
     save_data(pricing_data = pricing_data, 
               period = period, 
+              start_unix = start_unix, 
               option = option)
     
     # Print summary 

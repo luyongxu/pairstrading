@@ -13,7 +13,17 @@
 #'     fig_height: 5 
 #' ---
 
-#' # 1. Source Pairs Trading Functions 
+#' # 1. Capture Command Line Arguments 
+#' This script when called through the command line using Rscript has the option of including ar arguments that contains 
+#' the path to set the working directory. 
+args_params <- commandArgs(trailingOnly = TRUE)
+if (length(args_params) == 1) { 
+  wd <- args_params[1]
+  setwd(wd) 
+}
+commandArgs <- function(...) NULL
+
+#' # 2. Source Pairs Trading Functions 
 source("./src/util/01-load-packages.R")
 source("./src/util/03-set-parameters.R")
 source("./src/util/04-data-functions.R")
@@ -26,8 +36,8 @@ source("./src/util/10-generate-predictions-functions.R")
 source("./src/util/11-check-data.R")
 source("./src/util/12-generate-current-predictions.R")
 
-#' # 2. Load Params
+#' # 3. Load Params
 params <- load_params("./output/params/params.csv")
 
-#' # 3. Generate Current Predictions
-generate_current_predictions(source = "csv", time_resolution = "300", params = params, initial_date = "2017-11-01")
+#' # 4. Generate Current Predictions
+generate_current_predictions(source = "mongodb", time_resolution = "300", params = params, initial_date = "2017-11-01")

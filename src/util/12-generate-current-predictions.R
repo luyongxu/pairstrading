@@ -42,6 +42,7 @@ generate_current_predictions <- function(source, time_resolution, params, initia
   start_unix <- as.numeric(Sys.time()) - (86400 * 90)
   
   # Load data
+  print(str_c("Generating predictions started at ", Sys.time(), "."))
   print("Loading data.")
   pricing_data <- load_data(source = source, time_resolution = time_resolution, start_unix = start_unix)
 
@@ -67,6 +68,7 @@ generate_current_predictions <- function(source, time_resolution, params, initia
   # Save predictions 
   print("Saving predictions.")
   write_feather(predictions_current, "./output/predictions/current-predictions.feather")
+  print(str_c("Predictions successfully generated at ", Sys.time(), "."))
 
 }
 

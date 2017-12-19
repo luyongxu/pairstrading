@@ -84,6 +84,7 @@ set_params <- function(time_resolution, quote_currency, cointegration_test, adf_
                  pair_allocation = pair_allocation, 
                  pair_allocation_scaling = pair_allocation_scaling, 
                  return_calc = return_calc) 
+  print("Parameters set successfully.")
   return(params)
 }
 
@@ -100,6 +101,7 @@ set_params <- function(time_resolution, quote_currency, cointegration_test, adf_
 save_params <- function(params, filename) { 
   df_params <- params %>% as_tibble()
   write_csv(df_params, filename)
+  print("Parameters saved successfully.")
 }
 
 #' # 4. Load Params
@@ -117,6 +119,7 @@ load_params <- function(filename) {
     mutate(train_window = days(str_match(train_window, "([0-9]*)d.*")[, 2]), 
            test_window = days(str_match(test_window, "([0-9]*)d.*")[, 2])) %>% 
     as.list()
+  print("Parameters loaded successfully.")
   return(list_params)
 }
 

@@ -23,11 +23,11 @@ if (length(args_params) == 1) {
 }
 commandArgs <- function(...) NULL
 
-#' # 1. Load Packages
+#' # 2. Load Packages
 source("./src/util/01-load-packages.R")
 source("./src/util/03-set-parameters.R")
 
-#' # 2. Set Parameters 
+#' # 3. Set Parameters 
 params <- set_params(time_resolution = 300, 
                      quote_currency = "BTC", 
                      cointegration_test = "eg", 
@@ -50,9 +50,9 @@ params <- set_params(time_resolution = 300,
                      pair_allocation_scaling = 1.00, 
                      return_calc = "maximum")
 
-#' # 3. Save Params 
+#' # 4. Save Params 
 save_params(params = params, filename = "./output/params/params.csv")
 
-#' # 4. Load Params
+#' # 5. Load Params
 params <- load_params("./output/params/params.csv")
 
