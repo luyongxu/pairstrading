@@ -36,23 +36,17 @@ server <- function(input, output, session) {
   })
   
   # 2.2 Query Data 
-  pricing_data_initial <- reactive({
-    withProgress(value = 0.5, message = "Querying data.", expr = {
-      invalidateLater(300000, session)
+  pricing_data <- reactive({
+    withProgress(value = 0.5, message = "Querying data.", expr = { 
+      if (input[["select_autorefresh"]] == "On") 
+        invalidateLater(300000, session)
       start_unix <- as.character(as.numeric(Sys.time()) - 86400 * 90)
       df <- load_data(source = "mongodb", time_resolution = params()[["time_resolution"]], start_unix = start_unix)
       setProgress(value = 1, message = "Querying data complete.")
       return(df)
     })
   })
-  pricing_data <- reactive({ 
-    if (input[["select_autorefresh"]] == "On") 
-      df <- pricing_data_initial()
-    if (input[["select_autorefresh"]] == "Off") 
-      df <-isolate(pricing_data_initial())
-    return(df)
-  })
-  
+
   # 2.4 Initialize Cutoff Date 
   cutoff_date <- reactive({
     withProgress(value = 0.5, message = "Finding latest cutoff date.", expr = {
