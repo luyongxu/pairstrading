@@ -49,11 +49,11 @@ plot_single <- function(train, test, coin_y, coin_x, params, print) {
                            coin_y = coin_y, 
                            coin_x = coin_x, 
                            params = params) 
-  dates <- df_plot_a %>% 
+  df_dates <- df_plot_a %>% 
     group_by(source) %>% 
     summarise(start = min(date_time), 
               end = max(date_time)) 
-  index <- df_plot_a %>% 
+  df_index <- df_plot_a %>% 
     filter(source == "train") %>% 
     filter(row_number() == n())
   
@@ -80,11 +80,21 @@ plot_single <- function(train, test, coin_y, coin_x, params, print) {
     mutate(parameter = ifelse(parameter == "intercept", "Intercept", parameter), 
            parameter = ifelse(parameter == "hedge_ratio", "Hedge Ratio", parameter))
   
+  # Calculate average 24-hour return and annualized sharpe ratio
+  df_plot_d <- df_plot_a %>% 
+    filter(source == "test") 
+  time_resolution <- 
+  label_return <- exp(mean(log(1 + df_plot_d[["combined_return"]]))) ^ (86400 / as.numeric(params[["time_resolution"]])) - 1
+  label_sharpe <- ((exp(mean(log(1 + df_plot_d[["combined_return"]]))) - 1) / 
+    sd(df_plot_d[["combined_return"]])) * ((86400 * 252 / as.numeric(params[["time_resolution"]]))^0.5)
+  label_subtitle <- str_c(coin_y, " and ", coin_x, ". Average return of model (24h): ", percent(label_return), ". ", 
+                          "Annualized sharpe ratio: ", round(label_sharpe, 2), ".") 
+  
   # This plot plots the price of both coins over the train and test sets 
-  plot_prices <- ggplot(data = df_plot_a) + 
-    geom_line(aes(x = date_time, y = coin_y_price / index[["coin_y_price"]], colour = "Coin Y"), size = 0.5, alpha = 0.5) + 
-    geom_line(aes(x = date_time, y = coin_x_price / index[["coin_x_price"]], colour = "Coin X"), size = 0.5, alpha = 0.5) + 
-    geom_vline(data = dates %>% filter(source == "train"), mapping = aes(xintercept = end)) + 
+  plot_prices <- ggplot(df_plot_a, aes(x = date_time)) + 
+    geom_line(aes(y = coin_y_price / df_index[["coin_y_price"]], colour = "Coin Y"), size = 0.5, alpha = 0.5) + 
+    geom_line(aes(y = coin_x_price / df_index[["coin_x_price"]], colour = "Coin X"), size = 0.5, alpha = 0.5) + 
+    geom_vline(data = df_dates %>% filter(source == "train"), mapping = aes(xintercept = end)) + 
     scale_colour_manual(name = "Prices", labels = c(coin_x, coin_y), values = c("darkgreen", "darkred")) + 
     labs(subtitle = str_c(coin_y, " and ", coin_x), x = "Date", y = "Indexed Prices")
 
@@ -101,8 +111,8 @@ plot_single <- function(train, test, coin_y, coin_x, params, print) {
   # This plot plots the return of the strategy versus the buy-and-hold return of each coin 
   plot_return <- ggplot(df_plot_b, aes(x = date_time)) + 
     geom_line(aes(y = return_pair, colour = "Model"), size = 1) + 
-    geom_line(aes(y = return_buyhold_y, colour = "Coin Y"), size = 0.5, alpha = 0.4) + 
-    geom_line(aes(y = return_buyhold_x, colour = "Coin X"), size = 0.5, alpha = 0.4) + 
+    geom_line(aes(y = return_buyhold_y, colour = coin_y), size = 0.5, alpha = 0.4) + 
+    geom_line(aes(y = return_buyhold_x, colour = coin_x), size = 0.5, alpha = 0.4) + 
     geom_hline(yintercept = 1, colour = "black") + 
     scale_colour_manual(name = "Return", labels = c(coin_x, coin_y, "Model"), values = c("darkgreen", "darkred", "darkblue")) + 
     labs(subtitle = str_c(coin_y, " and ", coin_x), x = "Date", y = "Cumulative Return")
@@ -113,12 +123,23 @@ plot_single <- function(train, test, coin_y, coin_x, params, print) {
     facet_wrap(~ parameter, ncol = 1, scales = "free_y") + 
     labs(subtitle = str_c(coin_y, " and ", coin_x), x = "Date", y = "Value", colour = "Parameter")
   
+  # This plot plots the distribution of returns for the model, coin y, and coin x
+  plot_distribution <- ggplot(df_plot_d) +  
+    geom_histogram(aes(x = coin_y_return, fill = coin_y), alpha = 0.2, binwidth = 0.0005) + 
+    geom_histogram(aes(x = coin_x_return, fill = coin_x), alpha = 0.2, binwidth = 0.0005) + 
+    geom_histogram(aes(x = combined_return, fill = "Model"), alpha = 0.5, binwidth = 0.0005) + 
+    geom_vline(xintercept = 0, alpha = 0.5) + 
+    coord_cartesian(xlim = c(-0.025, 0.025)) + 
+    scale_fill_manual(name = "Return", labels = c(coin_x, coin_y, "Model"), values = c("darkgreen", "darkred", "darkblue")) + 
+    labs(subtitle = label_subtitle, x = "Return", y = "Count")
+  
   # if print is TRUE, print the plots. This option is used when rendering notebooks. 
   if (print == TRUE) {
     print(plot_prices)
     print(plot_signal)
     print(plot_return)
     print(plot_coefficients)
+    print(plot_distribution)
   }
   
   # If print if false, return the plots in a list. This option is used for the shiny app. 
@@ -126,7 +147,8 @@ plot_single <- function(train, test, coin_y, coin_x, params, print) {
     list(plot_prices = plot_prices, 
          plot_signal = plot_signal, 
          plot_return = plot_return, 
-         plot_coefficients = plot_coefficients)
+         plot_coefficients = plot_coefficients, 
+         plot_distribution = plot_distribution)
   }
 } 
 
