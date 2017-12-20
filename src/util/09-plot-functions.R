@@ -83,7 +83,6 @@ plot_single <- function(train, test, coin_y, coin_x, params, print) {
   # Calculate average 24-hour return and annualized sharpe ratio
   df_plot_d <- df_plot_a %>% 
     filter(source == "test") 
-  time_resolution <- 
   label_return <- exp(mean(log(1 + df_plot_d[["combined_return"]]))) ^ (86400 / as.numeric(params[["time_resolution"]])) - 1
   label_sharpe <- ((exp(mean(log(1 + df_plot_d[["combined_return"]]))) - 1) / 
     sd(df_plot_d[["combined_return"]])) * ((86400 * 252 / as.numeric(params[["time_resolution"]]))^0.5)

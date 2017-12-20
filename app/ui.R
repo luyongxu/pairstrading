@@ -34,7 +34,8 @@ ui_sidebar <- dashboardSidebar(
     menuItem("Parameters", tabName = "tab_parameters", icon = icon("gear")), 
     selectInput("select_quote_currency", label = "Select a quote currency: ", choices = c("BTC", "USDT"), selected = "BTC"), 
     uiOutput("select_pair"), 
-    selectInput("select_autorefresh", label = "Automatic refresh: ", choices = c("On", "Off"), selected = "On")
+    selectInput("select_autorefresh", label = "Automatic refresh: ", choices = c("On", "Off"), selected = "On"), 
+    uiOutput("text_current_time")
   )
 )
 
@@ -57,14 +58,24 @@ ui_body <- dashboardBody(
     tabItem(
       tabName = "tab_plots", 
       fluidPage(
-        infoBoxOutput("infoBox_zscore", width = 3), 
-        infoBoxOutput("infoBox_signal", width = 3), 
-        infoBoxOutput("infoBox_coin_y_position", width = 3), 
-        infoBoxOutput("infoBox_coin_x_position", width = 3), 
-        box(plotOutput("plot_return", height = 360), title = "Model Return vs Buy Hold Return", collapsible = TRUE), 
-        box(plotOutput("plot_signal", height = 360), title = "Spread vs Trading Signal", collapsible = TRUE), 
-        box(plotOutput("plot_prices", height = 360), title = "Prices Over the Train and Test Sets", collapsible = TRUE), 
-        box(plotOutput("plot_coefficients", height = 360), title = "Hedge Ratio and Intercept", collapsible = TRUE)
+        fluidRow( 
+          infoBoxOutput("infoBox_zscore", width = 3), 
+          infoBoxOutput("infoBox_signal", width = 3), 
+          infoBoxOutput("infoBox_coin_y_position", width = 3), 
+          infoBoxOutput("infoBox_coin_x_position", width = 3)
+        ), 
+        fluidRow( 
+          box(plotOutput("plot_return", height = 360), title = "Model Return vs Buy Hold Return", collapsible = TRUE), 
+          box(plotOutput("plot_signal", height = 360), title = "Spread vs Trading Signal", collapsible = TRUE)
+        ), 
+        fluidRow( 
+          box(plotOutput("plot_prices", height = 360), title = "Prices Over the Train and Test Sets", collapsible = TRUE), 
+          box(plotOutput("plot_coefficients", height = 360), title = "Hedge Ratio and Intercept", collapsible = TRUE)
+        ), 
+        fluidRow( 
+          box(plotOutput("plot_distribution", height = 480), title = "Distribution of Returns and Summary Statistics", 
+              collapsible = TRUE, width = 12)
+        )
       )
     ), 
     

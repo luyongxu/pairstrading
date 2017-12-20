@@ -47,7 +47,7 @@ server <- function(input, output, session) {
     })
   })
 
-  # 2.4 Initialize Cutoff Date 
+  # 2.3 Initialize Cutoff Date 
   cutoff_date <- reactive({
     withProgress(value = 0.5, message = "Finding latest cutoff date.", expr = {
       cutoff_date <- set_cutoff_date(initial_date = "2017-11-01", params = params())
@@ -55,7 +55,7 @@ server <- function(input, output, session) {
     })
   })
   
-  # 2.5 Create Train and Test Sets 
+  # 2.4 Create Train and Test Sets 
   train <- reactive({
     withProgress(value = 0.5, message = "Creating train set.", expr = {
       train <- prepare_data(pricing_data = pricing_data(), 
@@ -77,7 +77,7 @@ server <- function(input, output, session) {
     })
   })
   
-  # 2.6 Select Coin Pairs 
+  # 2.5 Create Coin Pairs  
   coin_pairs <- reactive({
     withProgress(value = 0.5, message = "Creating coin pairs.", expr = {
       coin_pairs <- create_pairs(params = params()) 
@@ -85,6 +85,8 @@ server <- function(input, output, session) {
       return(coin_pairs)
     })
   })
+  
+  # 2.6 Select Coin Pairs
   selected_pairs <- reactive({
     withProgress(value = 0.5, message = "Selecting coin pairs.", expr = {
       selected_pairs <- select_pairs(train = train(), 
@@ -105,10 +107,16 @@ server <- function(input, output, session) {
     return(list)
   })
   
-  # 2.8 Select coin pair select menu
+  # 2.8 Select coin pair select menu in the sidebar 
   output[["select_pair"]] <- renderUI({
     input <- selectInput("coin_pair", label = "Select a coin pair: ", choices = selected_pairs_list())
     return(input)
+  })
+  
+  # 2.9 Current time in the sidebar 
+  output[["text_current_time"]] <- renderUI({
+    invalidateLater(1000, session)
+    helpText("Current time: ", Sys.time())
   })
   
   # 2.9 Generate Predictions 
@@ -274,6 +282,9 @@ server <- function(input, output, session) {
   output[["plot_coefficients"]] <- renderPlot({
     plots()[["plot_coefficients"]]
   })
+  output[["plot_distribution"]] <- renderPlot({ 
+    plots()[["plot_distribution"]]
+  })
   
   # 2.18 Table in trades tab 
   output[["table_trades"]] <- renderDataTable({
@@ -302,50 +313,37 @@ server <- function(input, output, session) {
   })
   
   # 2.19 Text in logs tab 
-  output[["text_generate_current_predictions"]] <- renderPrint({
+  display_log <- function(log) { 
     invalidateLater(1000, session)
-    text <- read_lines("./logs/generate_current_predictions.log") %>% tail(38)
-    cat(text, sep = "\n")
+    text <- read_lines(log) %>% tail(38)
+    return(cat(text, sep = "\n"))
+  }
+  output[["text_generate_current_predictions"]] <- renderPrint({
+    display_log("./logs/generate_current_predictions.log")
   })
   output[["text_download_data_300"]] <- renderPrint({
-    invalidateLater(1000, session)
-    text <- read_lines("./logs/download_data_300.log") %>% tail(38)
-    cat(text, sep = "\n")
+    display_log("./logs/download_data_300.log")
   })
   output[["text_download_data_900"]] <- renderPrint({
-    invalidateLater(1000, session)
-    text <- read_lines("./logs/download_data_900.log") %>% tail(38)
-    cat(text, sep = "\n")
+    display_log("./logs/download_data_900.log")
   })
   output[["text_download_data_1800"]] <- renderPrint({
-    invalidateLater(1000, session)
-    text <- read_lines("./logs/download_data_1800.log") %>% tail(38)
-    cat(text, sep = "\n")
+    display_log("./logs/download_data_1800.log")
   })
   output[["text_download_data_7200"]] <- renderPrint({
-    invalidateLater(1000, session)
-    text <- read_lines("./logs/download_data_7200.log") %>% tail(38)
-    cat(text, sep = "\n")
+    display_log("./logs/download_data_7200.log")
   })
   output[["text_download_data_14400"]] <- renderPrint({
-    invalidateLater(1000, session)
-    text <- read_lines("./logs/download_data_14400.log") %>% tail(38)
-    cat(text, sep = "\n")
+    display_log("./logs/download_data_14400.log")
   })
   output[["text_download_data_86400"]] <- renderPrint({
-    invalidateLater(1000, session)
-    text <- read_lines("./logs/download_data_86400.log") %>% tail(38)
-    cat(text, sep = "\n")
+    display_log("./logs/download_data_86400.log")
   })
   output[["text_launch_shiny"]] <- renderPrint({
-    invalidateLater(1000, session)
-    text <- read_lines("./logs/launch_shiny.log") %>% tail(38)
-    cat(text, sep = "\n")
+    display_log("./logs/launch_shiny.log")
   })
   output[["text_send_notifications"]] <- renderPrint({
-    invalidateLater(1000, session)
-    text <- read_lines("./logs/send_notifications.log") %>% tail(38)
-    cat(text, sep = "\n")
+    display_log("./logs/send_notifications.log")
   })
   
   # 2.20 Table in the parameters tab
