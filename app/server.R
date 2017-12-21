@@ -40,8 +40,8 @@ server <- function(input, output, session) {
     withProgress(value = 0.5, message = "Querying data.", expr = { 
       if (input[["select_autorefresh"]] == "On") 
         invalidateLater(300000, session)
-      start_unix <- as.character(as.numeric(Sys.time()) - 86400 * 90)
-      df <- load_data(source = "csv", time_resolution = params()[["time_resolution"]], start_unix = start_unix)
+      start_unix <- as.character(as.numeric(Sys.time()) - 86400 * 50)
+      df <- load_data(source = "mongodb", time_resolution = params()[["time_resolution"]], start_unix = start_unix)
       setProgress(value = 1, message = "Querying data complete.")
       return(df)
     })
