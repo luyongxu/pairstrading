@@ -178,7 +178,7 @@ backtest_strategy <- function(train, test, selected_pairs, params) {
 #' each coin pair.  
 #' 
 #' Value  
-#' A vector containing the return series of the overall strategy over the test set.  
+#' A dataframe containing the return series of the overall strategy over the test set.  
 calculate_return <- function(df_strategy, params) { 
   
   # If no coin pairs were selected, return an empty tibble 

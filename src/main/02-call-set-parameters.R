@@ -31,7 +31,7 @@ source("./src/util/03-set-parameters.R")
 params <- set_params(time_resolution = 300, 
                      quote_currency = "BTC", 
                      cointegration_test = "eg", 
-                     adf_threshold = -4.5, 
+                     adf_threshold = -4.0, 
                      distance_threshold = 0.00, 
                      train_window = days(30), 
                      test_window = days(20), 

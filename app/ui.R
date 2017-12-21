@@ -34,8 +34,7 @@ ui_sidebar <- dashboardSidebar(
     menuItem("Parameters", tabName = "tab_parameters", icon = icon("gear")), 
     selectInput("select_quote_currency", label = "Select a quote currency: ", choices = c("BTC", "USDT"), selected = "BTC"), 
     uiOutput("select_pair"), 
-    selectInput("select_autorefresh", label = "Automatic refresh: ", choices = c("On", "Off"), selected = "On"), 
-    uiOutput("text_current_time")
+    selectInput("select_autorefresh", label = "Automatic refresh: ", choices = c("On", "Off"), selected = "On")
   )
 )
 
@@ -50,7 +49,10 @@ ui_body <- dashboardBody(
       tabName = "tab_overview", 
       fluidPage(
         box(plotOutput("plot_backtest"), title = "Strategy Return vs Buy and Hold", collapsible = TRUE, width = 12), 
-        box(formattableOutput("table_backtest"), title = "Current Positions", collapsible = TRUE, width = 12)
+        box(formattableOutput("table_backtest"), title = "Current Positions", collapsible = TRUE, width = 12), 
+        box(plotOutput("plot_backtest_distribution"), title = "Distribution of Returns and Summary Statistics", 
+            collapsible = TRUE, width = 12), 
+        box(uiOutput("text_last_update"), title = "Last Update", collapsible = TRUE, width = 12)
       )
     ), 
     

@@ -41,7 +41,7 @@ server <- function(input, output, session) {
       if (input[["select_autorefresh"]] == "On") 
         invalidateLater(300000, session)
       start_unix <- as.character(as.numeric(Sys.time()) - 86400 * 90)
-      df <- load_data(source = "mongodb", time_resolution = params()[["time_resolution"]], start_unix = start_unix)
+      df <- load_data(source = "csv", time_resolution = params()[["time_resolution"]], start_unix = start_unix)
       setProgress(value = 1, message = "Querying data complete.")
       return(df)
     })
@@ -113,12 +113,6 @@ server <- function(input, output, session) {
     return(input)
   })
   
-  # 2.9 Current time in the sidebar 
-  output[["text_current_time"]] <- renderUI({
-    invalidateLater(1000, session)
-    helpText("Current time: ", Sys.time())
-  })
-  
   # 2.9 Generate Predictions 
   predictions <- reactive({
     withProgress(value = 0.5, message = "Generating latest predictions.", expr = {
@@ -127,8 +121,19 @@ server <- function(input, output, session) {
       return(predictions)
     })
   })
+  
+  # 2.10 Display last update time 
+  last_update_time <- reactive({ 
+    predictions() 
+    return(Sys.time())
+  })
+  output[["text_last_update"]] <- renderUI({ 
+    invalidateLater(1000, session) 
+    p(class = "text-muted", "Last updated ", round(difftime(Sys.time(), last_update_time(), units = "secs")), 
+      " seconds ago.")
+  })
 
-  # 2.10. Current Predictions 
+  # 2.11 Current Predictions 
   current_predictions <- reactive({
     df <- predictions() %>% 
       group_by(coin_pair_id) %>% 
@@ -138,18 +143,18 @@ server <- function(input, output, session) {
     return(df)
   })
   
-  # 2.11 Calculate Strategy Return
+  # 2.12 Calculate Strategy Return
   return_strategy <- reactive({
     df <- calculate_return(df_strategy = predictions(), params = params())
     return(df)
   })
   test_return <- reactive({
     df <- test() %>% 
-      mutate(return_strategy = return_strategy()[["cumulative_return"]])
+      mutate(cumulative_return_strategy = return_strategy()[["cumulative_return"]])
     return(df)
   })  
   
-  # 2.12 Selected Coin Pair
+  # 2.13 Selected Coin Pair
   selected_coin_y <- reactive({ 
     coin_y <- input[["coin_pair"]] %>% 
       str_match("(\\(\\d*\\)\\s)([A-Z_]*)(\\,\\s)([A-Z_]*)") %>% 
@@ -163,7 +168,7 @@ server <- function(input, output, session) {
     return(coin_x)
   })
   
-  # 2.13 Generate plots 
+  # 2.14 Generate plots 
   plots <- reactive({
     withProgress(value = 0.5, message = "Creating plots.", expr = {
       plots <- plot_single(train = train(), 
@@ -177,34 +182,34 @@ server <- function(input, output, session) {
     })
   })  
   
-  # 2.14 Plot in the overview tab 
+  # 2.15 Plot backtest in the overview tab 
   output[["plot_backtest"]] <- renderPlot({ 
     test_return <- test_return() %>% 
-      mutate(return_USDT_BTC = USDT_BTC / USDT_BTC[1], 
-             return_strategy_USD = return_strategy * return_USDT_BTC)
+      mutate(cumulative_return_USDT_BTC = USDT_BTC / USDT_BTC[1], 
+             cumulative_return_strategy_USD = cumulative_return_strategy * cumulative_return_USDT_BTC)
     if(params()[["quote_currency"]] == "USDT") { 
-      plot_strategy <- ggplot(test_return, aes(x = date_time)) +
-        geom_line(aes(y = return_strategy, colour = "Strategy"), size = 1) +
-        geom_line(aes(y = USDT_BTC / USDT_BTC[1], colour = "USDT_BTC"), size = 0.5, alpha = 0.4) +
+      plot_backtest <- ggplot(test_return, aes(x = date_time)) +
+        geom_line(aes(y = cumulative_return_strategy, colour = "Strategy"), size = 1) +
+        geom_line(aes(y = cumulative_return_USDT_BTC, colour = "USDT_BTC"), size = 0.5, alpha = 0.4) +
         geom_hline(yintercept = 1, colour = "black") +
         scale_color_manual(name = "Return", values = c("Strategy" = "darkblue", "USDT_BTC" = "darkred")) +
         labs(title = "Strategy Return vs Buy Hold Return", x = "Date", y = "Cumulative Return")
     }
     if(params()[["quote_currency"]] == "BTC") { 
-      plot_strategy <- ggplot(test_return, aes(x = date_time)) +
-        geom_line(aes(y = return_strategy, colour = "Strategy in BTC"), size = 1) + 
-        geom_line(aes(y = return_strategy_USD, colour = "Strategy in USD"), size = 1) + 
-        geom_line(aes(y = return_USDT_BTC, colour = "USDT_BTC in USD"), size = 0.5, alpha = 0.4) +
+      plot_backtest <- ggplot(test_return, aes(x = date_time)) +
+        geom_line(aes(y = cumulative_return_strategy, colour = "Strategy in BTC"), size = 1) + 
+        geom_line(aes(y = cumulative_return_strategy_USD, colour = "Strategy in USD"), size = 1) + 
+        geom_line(aes(y = cumulative_return_USDT_BTC, colour = "USDT_BTC in USD"), size = 0.5, alpha = 0.4) +
         geom_hline(yintercept = 1, colour = "black") +
         scale_color_manual(name = "Return", values = c("Strategy in BTC" = "gray", 
                                                        "Strategy in USD" = "darkblue", 
                                                        "USDT_BTC in USD" = "darkred")) +
         labs(title = "Strategy Return vs Buy Hold Return", x = "Date", y = "Cumulative Return")
     }
-    return(plot_strategy)
+    return(plot_backtest)
   })
   
-  # 2.15 Table in the overview tab 
+  # 2.16 Table current predictions in the overview tab 
   output[["table_backtest"]] <- renderFormattable({ 
     df <- current_predictions()  %>% 
       mutate(coin_y_price = round(coin_y_price, 4), 
@@ -229,7 +234,51 @@ server <- function(input, output, session) {
     ))
   })
   
-  # 2.16. Information boxes in the plots tab 
+  # 2.17 Plot backtest distribution in the overview tab 
+  output[["plot_backtest_distribution"]] <- renderPlot({ 
+    test_return <- test_return() %>% 
+      mutate(return_USDT_BTC = USDT_BTC / lag(USDT_BTC, 1) - 1, 
+             return_strategy = cumulative_return_strategy / lag(cumulative_return_strategy, 1) - 1, 
+             return_strategy_USD = (1 + return_strategy) * (1 + return_USDT_BTC) - 1) %>% 
+      filter(!is.na(return_strategy))
+    if(params()[["quote_currency"]] == "USDT") {
+      label_return <- exp(mean(log(1 + test_return[["return_strategy"]]))) ^ 
+        (86400 / as.numeric(params()[["time_resolution"]])) - 1
+      label_sharpe <- ((exp(mean(log(1 + test_return[["return_strategy"]]))) - 1) / 
+                         sd(test_return[["return_strategy"]])) * ((86400 * 252 / as.numeric(params()[["time_resolution"]]))^0.5)
+      label_subtitle <- str_c("Average return of strategy (24h): ", percent(label_return), ". ", 
+                              "Annualized sharpe ratio: ", round(label_sharpe, 2), ".") 
+      plot_backtest_distribution <- ggplot(test_return) +  
+        geom_histogram(aes(x = return_USDT_BTC, fill = "USDT_BTC"), alpha = 0.2, binwidth = 0.0005) + 
+        geom_histogram(aes(x = return_strategy, fill = "Strategy"), alpha = 0.5, binwidth = 0.0005) + 
+        geom_vline(xintercept = 0, alpha = 0.5) + 
+        coord_cartesian(xlim = c(-0.025, 0.025)) + 
+        scale_fill_manual(name = "Return", values = c("Strategy" = "darkblue", 
+                                                      "USDT_BTC" = "darkred")) +
+        labs(subtitle = label_subtitle, x = "Return", y = "Count")
+    }
+    if(params()[["quote_currency"]] == "BTC") { 
+      label_return <- exp(mean(log(1 + test_return[["return_strategy_USD"]]))) ^ 
+        (86400 / as.numeric(params()[["time_resolution"]])) - 1
+      label_sharpe <- ((exp(mean(log(1 + test_return[["return_strategy_USD"]]))) - 1) / 
+                         sd(test_return[["return_strategy_USD"]])) * ((86400 * 252 / as.numeric(params()[["time_resolution"]]))^0.5)
+      label_subtitle <- str_c("Average return of strategy (24h): ", percent(label_return), ". ", 
+                              "Annualized sharpe ratio: ", round(label_sharpe, 2), ".") 
+      plot_backtest_distribution <- ggplot(test_return) +  
+        geom_histogram(aes(x = return_USDT_BTC, fill = "USDT_BTC in USD"), alpha = 0.2, binwidth = 0.0005) + 
+        geom_histogram(aes(x = return_strategy, fill = "Strategy in BTC"), alpha = 0.5, binwidth = 0.0005) + 
+        geom_histogram(aes(x = return_strategy_USD, fill = "Strategy in USD"), alpha = 0.5, binwidth = 0.0005) + 
+        geom_vline(xintercept = 0, alpha = 0.5) + 
+        coord_cartesian(xlim = c(-0.025, 0.025)) + 
+        scale_fill_manual(name = "Return", values = c("Strategy in BTC" = "gray", 
+                                                      "Strategy in USD" = "darkblue", 
+                                                      "USDT_BTC in USD" = "darkred")) +
+        labs(subtitle = label_subtitle, x = "Return", y = "Count")
+    }
+    return(plot_backtest_distribution)
+  })
+  
+  # 2.17 Information boxes in the plots tab 
   output[["infoBox_zscore"]] <- renderInfoBox({ 
     value <- current_predictions() %>% 
       filter(coin_y_name == selected_coin_y(), 
@@ -269,7 +318,7 @@ server <- function(input, output, session) {
             value = value, color = color, fill = TRUE, icon = icon("circle-o"))
   })
   
-  # 2.17 Plots in the plots tab 
+  # 2.18 Plots in the plots tab 
   output[["plot_return"]] <- renderPlot({
     plots()[["plot_return"]]
   })
@@ -286,7 +335,7 @@ server <- function(input, output, session) {
     plots()[["plot_distribution"]]
   })
   
-  # 2.18 Table in trades tab 
+  # 2.19 Table in trades tab 
   output[["table_trades"]] <- renderDataTable({
     df_trades <- predictions() %>% 
       mutate(coin_y_price = round(coin_y_price, 4), 
@@ -312,7 +361,7 @@ server <- function(input, output, session) {
     return(head(df_trades, 100))
   })
   
-  # 2.19 Text in logs tab 
+  # 2.20 Text in logs tab 
   display_log <- function(log) { 
     invalidateLater(1000, session)
     text <- read_lines(log) %>% tail(38)
@@ -346,7 +395,7 @@ server <- function(input, output, session) {
     display_log("./logs/send_notifications.log")
   })
   
-  # 2.20 Table in the parameters tab
+  # 2.21 Table in the parameters tab
   output[["table_parameters"]] <- renderTable({
     params <- params()
     params[["train_window"]] <- as.character(params[["train_window"]])
