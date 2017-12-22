@@ -98,12 +98,14 @@ create_pairs <- function(params) {
     coin_list <- c("BTC_DASH", "BTC_ETH", "BTC_LTC", "BTC_REP", "BTC_XEM", "BTC_XMR", "BTC_ZEC", "BTC_DCR", "BTC_FCT", "BTC_LSK") 
   } 
   
-  # Create coin pairs
+  # Create coin pairs, filter out pairs consisting of the same coin, and create a unique identifier to identify coin pairs 
+  # that are identical but in a different order 
   coin_pairs <- expand.grid(coin_list, coin_list) %>% 
     rename(coin_y = Var1, 
            coin_x = Var2) %>% 
     filter(coin_y != coin_x) %>% 
-    mutate_if(is.factor, as.character) %>%
+    mutate_if(is.factor, as.character) %>% 
+    mutate(id = ifelse(coin_y < coin_x, str_c(coin_y, " ", coin_x), str_c(coin_x, " ", coin_y))) %>% 
     as_tibble() 
   
   # Return coin pairs
@@ -172,6 +174,12 @@ select_pairs <- function(train, coin_pairs, params) {
   if (params[["cointegration_test"]] == "distance") 
     df <- df %>% filter(cointegration_stat <= params[["distance_threshold"]]) 
 
+  # Select the top performing unique coin pair if both the coin-y-coin-x and coin-x-coin-y coin pairs are selected. 
+  df <- df %>% 
+    group_by(id) %>% 
+    filter(row_number() == 1) %>%
+    ungroup()
+  
   # Return selected coin pairs 
   return(df)
 } 

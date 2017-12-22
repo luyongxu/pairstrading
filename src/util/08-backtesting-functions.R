@@ -164,6 +164,39 @@ backtest_strategy <- function(train, test, selected_pairs, params) {
     df_strategy <- bind_rows(df_strategy, single_pair)
   } 
   
+  # Calculate scaling factor by first estimating what the maximum combined position would be for each coin pair, then 
+  # calculating the maxium capital allocation for each coin pair. Currently, the total maximumc capital allocation to 
+  # the strategy as a whole is $10,000 USD or 1 BTC. 
+  df_scale_positions <- df_strategy %>% 
+    filter(source == "test") %>% 
+    group_by(coin_y_name, coin_x_name) %>% 
+    filter(row_number() == 1)
+  if (params[["model_type"]] == "raw") { 
+    df_scale_positions <- scaling_factor %>% 
+      mutate(maximum_position = abs(coin_y_price) + abs(coin_x_price * hedge_ratio))
+  }
+  if (params[["model_type"]] == "log") {
+    df_scale_positions <- scaling_factor %>% mutate(maximum_position = 1 + abs(hedge_ratio))
+  }
+  if (params[["quote_currency"]] == "USDT") {
+    df_scale_positions <- df_scale_positions %>% 
+      mutate(maximum_capital_allocation = 10000 / nrow(df_scale_positions))
+  }
+  if (params[["quote_currency"]] == "BTC") {
+    df_scale_positions <- df_scale_positions %>% 
+      mutate(maximum_capital_allocation = 1 / nrow(df_scale_positions))
+  }
+  df_scale_positions <- df_scale_positions %>% 
+    mutate(scaling_factor = maximum_capital_allocation / maximum_position) %>% 
+    select(coin_y_name, coin_x_name, source, scaling_factor)
+  
+  # Join scaling factor to df_strategy and multiply positions by scaling factor 
+  df_strategy <- df_strategy %>% 
+    left_join(df_scale_positions) %>% 
+    mutate_at(vars(coin_y_position, coin_x_position, change_y_position, change_x_position, 
+                   coin_y_pnl, coin_x_pnl, combined_pnl, combined_position), 
+              funs(. * scaling_factor))
+
   # Return dataframe 
   return(df_strategy)
 }
