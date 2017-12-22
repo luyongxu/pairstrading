@@ -55,7 +55,32 @@ detect_errors <- function(logfile, n) {
   return(detect_true)
 }
 
-#' # 3. Notify Slack 
+#' # 3. Detect Operating System 
+#' Description  
+#' Checks the operating system of the current machine.  
+#' 
+#' Arguments  
+#' None.  
+#' 
+#' Value  
+#' Returns the operating system in a string.  
+get_os <- function() {
+  sysinf <- Sys.info()
+  if (!is.null(sysinf)) {
+    os <- sysinf[["sysname"]]
+    if (os == "Darwin")
+      os <- "osx"
+  } else { 
+    os <- .Platform$OS.type
+    if (grepl("^darwin", R.version$os))
+      os <- "OS_X"
+    if (grepl("linux-gnu", R.version$os))
+      os <- "linux"
+  }
+  return(tolower(os))
+}
+
+#' # 4. Notify Slack 
 #' Description  
 #' Notifies a slack channel if an error has occurred within the past n lines of a logfile.  
 #' 
@@ -75,7 +100,10 @@ notify_slack <- function(logfile, n, channel, username, api_token) {
   
   # Notify slack if errors or warnings are detected 
   detect <- detect_errors(logfile, n)
-  if (detect == TRUE) 
-    slackr(str_c("An error or warning was detected in ", logfile, "."))
+  if (detect == TRUE) { 
+    nodename <- Sys.info()[["nodename"]]
+    message <- str_c("An error or warning was detected in ", logfile, " on nodename ", nodename, ".")
+    slackr(message)
+  }
 }
 
