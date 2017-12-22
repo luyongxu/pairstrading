@@ -172,11 +172,12 @@ backtest_strategy <- function(train, test, selected_pairs, params) {
     group_by(coin_y_name, coin_x_name) %>% 
     filter(row_number() == 1)
   if (params[["model_type"]] == "raw") { 
-    df_scale_positions <- scaling_factor %>% 
+    df_scale_positions <- df_scale_positions %>% 
       mutate(maximum_position = abs(coin_y_price) + abs(coin_x_price * hedge_ratio))
   }
   if (params[["model_type"]] == "log") {
-    df_scale_positions <- scaling_factor %>% mutate(maximum_position = 1 + abs(hedge_ratio))
+    df_scale_positions <- df_scale_positions %>% 
+      mutate(maximum_position = 1 + abs(hedge_ratio))
   }
   if (params[["quote_currency"]] == "USDT") {
     df_scale_positions <- df_scale_positions %>% 
