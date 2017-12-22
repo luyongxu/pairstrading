@@ -129,9 +129,7 @@ plot_single <- function(train, test, coin_y, coin_x, params, print) {
     geom_histogram(aes(x = combined_return, fill = "Model"), alpha = 0.5, binwidth = 0.0005) + 
     geom_vline(xintercept = 0, alpha = 0.5) + 
     coord_cartesian(xlim = c(-0.025, 0.025)) + 
-    scale_fill_manual(name = "Return", values = c(coin_x = "darkgreen", 
-                                                  coin_y = "darkred", 
-                                                  "Model" = "darkblue")) + 
+    scale_fill_manual(name = "Return", labels = c(coin_x, coin_y, "Model"), values = c("darkgreen", "darkred", "darkblue")) + 
     labs(subtitle = label_subtitle, x = "Return", y = "Count")
   
   # if print is TRUE, print the plots. This option is used when rendering notebooks. 

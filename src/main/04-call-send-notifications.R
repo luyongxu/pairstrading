@@ -39,5 +39,4 @@ notify_slack("./logs/download_data_7200.log", n, channel, username, api_token); 
 notify_slack("./logs/download_data_14400.log", n, channel, username, api_token); gc()
 notify_slack("./logs/download_data_86400.log", n, channel, username, api_token); gc()
 notify_slack("./logs/generate_current_predictions.log", n, channel, username, api_token); gc()
-notify_slack("./logs/send_notifications.log", n, channel = channel, username, api_token); gc()
 print(str_c("Checked logs for errors at ", Sys.time(), "."))
