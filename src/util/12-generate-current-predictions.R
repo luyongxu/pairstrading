@@ -38,8 +38,8 @@ source("./src/util/10-generate-predictions-functions.R")
 #' Does not return a value.  
 generate_current_predictions <- function(source, time_resolution, params, initial_date) {  
   
-  # Initialize start_unix. Load data over past three months for performance reasons on AWS instance. 
-  start_unix <- as.numeric(Sys.time()) - (86400 * 90)
+  # Initialize start_unix. Load data over past 45 days for performance reasons on AWS instance. 
+  start_unix <- as.numeric(Sys.time()) - (86400 * 45)
   
   # Load data
   print(str_c("Generating predictions started at ", Sys.time(), "."))

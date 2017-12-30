@@ -13,7 +13,17 @@
 #'     fig_height: 5 
 #' ---
 
-#' # 1. Load Packages and Functions
+#' # 1. Capture Command Line Arguments 
+#' This script when called through the command line using Rscript has the option of including ar arguments that contains 
+#' the path to set the working directory. 
+args_params <- commandArgs(trailingOnly = TRUE)
+if (length(args_params) == 1) { 
+  wd <- args_params[1]
+  setwd(wd) 
+}
+commandArgs <- function(...) NULL
+
+#' # 2. Load Packages and Functions
 source("./src/util/01-load-packages.R")
 source("./src/util/03-set-parameters.R")
 source("./src/util/04-data-functions.R")
@@ -26,16 +36,16 @@ source("./src/util/10-generate-predictions-functions.R")
 source("./src/util/11-check-data.R")
 source("./src/util/12-generate-current-predictions.R")
 
-#' # 2. Load Params
+#' # 3. Load Params
 params <- load_params("./output/params/params.csv")
 
-#' # 3. Generate Current Predictions
+#' # 4. Generate Current Predictions
 predictions_current <- generate_current_predictions(source = "mongodb", 
                                                     time_resolution = "300", 
                                                     params = params, 
                                                     initial_date = "2017-11-01")
 
-#' # 4. Create Aggregate Predicted Balances 
+#' # 5. Create Aggregate Predicted Balances 
 #' The output from generate_current_predictions lists all coin pairs. Since an individual coin may be used in 
 #' multiple coin pairs and has predicted balances generated using different trading signals, this section 
 #' aggregates the desired balances for each individual coin.  
@@ -62,7 +72,7 @@ predicted_positions <- bind_rows(
          coin = str_replace(coin, "(BTC_)|(USDT_)", "")) %>% 
   select(date_unix, date_time, coin, pair, price, predicted_position)
 
-#' # 5. Query Current Positions 
+#' # 6. Query Current Positions 
 #' Establish connection to Poloniex API and query current balances.  
 poloniex_conn <- PoloniexR::PoloniexTradingAPI(
   key = Sys.getenv("poloniex_pairs_trading_key"), 
@@ -76,11 +86,11 @@ poloniex_balances <- PoloniexR::ReturnCompleteBalances(poloniex_conn, all.balanc
          pending_balance = on.orders, 
          total_balance = total)
 
-#' # 6. Generate Trades 
+#' # 7. Generate Trades 
 trades <- predicted_positions %>% 
   full_join(poloniex_balances) %>% 
   mutate_at(vars(date_unix, date_time), funs(na.locf(.))) %>% 
-  mutate_at(vars(balance, pending_balance, total_balance), funs(ifelse(is.na(.), 0, .))) %>% 
+  mutate_at(vars(price, balance, pending_balance, total_balance), funs(ifelse(is.na(.), 0, .))) %>% 
   mutate(pair = ifelse(is.na(pair), str_c(coin, "_", params[["quote_currency"]]), pair), 
          predicted_position = ifelse(is.na(predicted_position), 0, predicted_position)) %>% 
   mutate(exchange = "POLONIEX", 
@@ -92,9 +102,11 @@ trades <- predicted_positions %>%
          orderSize = abs(predicted_position - balance)) %>% 
   filter(coin != "BTC", coin != "BCH")
 
-#' # 7. Insert Trades Into Mongo Database 
+#' # 8. Insert Trades Into Mongo Database 
+print(str_c("Saving trades to mongo database at ", Sys.time(), "."))
 mongo_connection <- mongo(collection = "POLOINIEX_TRADES", 
                           db = "ExchangeAccountDB", 
                           url = "mongodb://localhost") 
 mongo_connection$insert(trades)
+
 
