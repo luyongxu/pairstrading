@@ -40,4 +40,10 @@ source("./src/util/12-generate-current-predictions.R")
 params <- load_params("./output/params/params.csv")
 
 #' # 4. Generate Current Predictions
-generate_current_predictions(source = "mongodb", time_resolution = "300", params = params, initial_date = "2017-11-01")
+predictions_current <- generate_current_predictions(source = "mongodb", 
+                                                    time_resolution = "300", 
+                                                    params = params, 
+                                                    initial_date = "2017-11-01")
+
+#' # 5. Write Current Predictions 
+write_feather(predictions_current, "./output/predictions/current-predictions.feather")

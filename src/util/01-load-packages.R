@@ -66,6 +66,8 @@ load_library("DT")
 load_library("formattable")
 load_library("slackr")
 load_library("here")
+load_library("PoloniexR")
+load_library("secret")
 
 #' # 2. Options 
 #' Turn off scientific notation.

@@ -59,16 +59,17 @@ generate_current_predictions <- function(source, time_resolution, params, initia
     group_by(coin_y_name, coin_x_name) %>% 
     filter(row_number() == n()) %>% 
     select(date_unix, date_time, coin_pair_id, coin_y_name, coin_x_name, coin_y_price, coin_x_price, signal, 
-           hedge_ratio, intercept, coin_y_position, coin_x_position, change_y_position, change_x_position)
+           hedge_ratio, intercept, coin_y_position, coin_x_position, change_y_position, change_x_position, 
+           coin_y_position_base, coin_x_position_base, change_y_position_base, change_x_position_base) %>% 
+    ungroup()
   
   # Print Predictions 
   options(width = 180)
   print(predictions_current %>% select(date_time, coin_y_name, coin_x_name, coin_y_position, coin_x_position))
   
-  # Save predictions 
-  print("Saving predictions.")
-  write_feather(predictions_current, "./output/predictions/current-predictions.feather")
+  # Return predictions 
   print(str_c("Predictions successfully generated at ", Sys.time(), "."))
+  return(predictions_current)
 
 }
 

@@ -1,2 +1,2 @@
 time_resolution,quote_currency,cointegration_test,adf_threshold,distance_threshold,train_window,test_window,model_type,regression_type,spread_type,rolling_window,signal_logic,signal_scaled_enter,signal_discrete_enter,signal_discrete_exit,signal_stop,signal_reenter,signal_reenter_threshold,pair_allocation,pair_allocation_scaling,return_calc
-300,BTC,eg,-4,0,30d 0H 0M 0S,20d 0H 0M 0S,raw,ols,rolling,1440,scaled,3,3,0.2,4.5,TRUE,2,equal,1,maximum
+300,BTC,eg,-3.6,0.31,24d 0H 0M 0S,6d 0H 0M 0S,log,ols,rolling,1152,scaled,3,2.2,0.25,4.7,TRUE,1.9,equal,1,maximum

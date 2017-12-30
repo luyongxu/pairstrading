@@ -31,7 +31,7 @@ source("./src/util/13-send-notifications.R")
 n <- 100
 channel <- "#alertbot" 
 username <- "pairs_trading_bot" 
-api_token <- "xoxp-120817259600-121069189777-150562361286-48c9bb2f7cadb4f13176d6d2b6acbe51"
+api_token <- Sys.getenv("slack_api_token")
 notify_slack("./logs/download_data_300.log", n, channel, username, api_token); gc()
 notify_slack("./logs/download_data_900.log", n, channel, username, api_token); gc()
 notify_slack("./logs/download_data_1800.log", n, channel, username, api_token); gc()

@@ -121,6 +121,13 @@ backtest_pair <- function(train, test, coin_y, coin_x, params) {
     select(-starts_with("BTC"), -starts_with("USDT")) %>% 
     select(date_unix, date_time, coin_y_name, coin_x_name, coin_y_price, coin_x_price, everything())
   
+  # Calculate positions in base currency 
+  df_backtest <- df_backtest %>% 
+    mutate(coin_x_position_base = coin_x_position / coin_x_price, 
+           coin_y_position_base = coin_y_position / coin_y_price, 
+           change_y_position_base = change_x_position / coin_x_price, 
+           change_x_position_base = change_y_position / coin_y_price)
+  
   # Return dataframe 
   return(df_backtest) 
 } 
@@ -195,7 +202,8 @@ backtest_strategy <- function(train, test, selected_pairs, params) {
   df_strategy <- df_strategy %>% 
     left_join(df_scale_positions) %>% 
     mutate_at(vars(coin_y_position, coin_x_position, change_y_position, change_x_position, 
-                   coin_y_pnl, coin_x_pnl, combined_pnl, combined_position), 
+                   coin_y_pnl, coin_x_pnl, combined_pnl, combined_position, coin_y_position_base, 
+                   coin_x_position_base, change_y_position_base, change_x_position_base), 
               funs(. * scaling_factor))
 
   # Return dataframe 
