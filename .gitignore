@@ -4,5 +4,6 @@
 .Ruserdata
 .Renviron
 *.feather
+*.gz
 /data/*.csv
 /logs/*.log
