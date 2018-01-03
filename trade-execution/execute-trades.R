@@ -43,7 +43,7 @@ params <- load_params("./output/params/params.csv")
 
 #' # 4. Generate Current Predictions
 predictions_current <- generate_current_predictions(
-  source = "csv", 
+  source = "mongodb", 
   time_resolution = "300", 
   params = params, 
   initial_date = "2017-11-01"
@@ -62,6 +62,7 @@ predictions_current_parsed <- parse_predicted_positions(
 )
 
 #' # 7. Get Margin Position 
+print("Querying Poloniex margin account positions.")
 poloniex_conn <- poloniex_generate_conn(
   key = Sys.getenv("poloniex_pairs_trading_key"), 
   secret = Sys.getenv("poloniex_pairs_trading_secret")
@@ -70,6 +71,7 @@ margin_position <- poloniex_margin_position(
   poloniex_conn = poloniex_conn, 
   currencyPair = "all"
 )
+print(margin_position)
 
 #' # 8. Generate Trades 
 trades <- generate_trades(
@@ -77,6 +79,7 @@ trades <- generate_trades(
   predictions_current_parsed = predictions_current_parsed, 
   diff_threshold = 0.01
 )
+print(trades)
 
 #' # 9. Execute Trades 
 trades_logs <- tibble()
@@ -112,10 +115,13 @@ if (nrow(trades) != 0) {
     # Append logs
     trades_logs <- bind_rows(trades_logs, trade)
   }
+  
+  # Print trades logs
+  print(trades_logs)
 }
 
 #' # 10. Save Trades
-print(str_c("Saving trades to mongo database at ", Sys.time(), "."))
+print(str_c("Saving trade logs to mongo database at ", Sys.time(), "."))
 mongo_connection <- mongo(collection = "POLOINIEX_TRADES", 
                           db = "ExchangeAccountDB", 
                           url = "mongodb://localhost") 
