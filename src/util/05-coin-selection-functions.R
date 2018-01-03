@@ -92,10 +92,10 @@ create_pairs <- function(params) {
   
   # Create USDT or BTC quote denominated coin list 
   if (params[["quote_currency"]] == "USDT") {
-    coin_list <- c("USDT_BTC", "USDT_DASH", "USDT_ETH", "USDT_LTC", "USDT_REP", "USDT_XMR", "USDT_ZEC")
+    coin_list <- c("USDT_BTC", "USDT_ETH", "USDT_LTC", "USDT_DASH", "USDT_XMR", "USDT_ZEC", "USDT_REP")
   }
   if (params[["quote_currency"]] == "BTC") {
-    coin_list <- c("BTC_DASH", "BTC_ETH", "BTC_LTC", "BTC_REP", "BTC_XEM", "BTC_XMR", "BTC_ZEC", "BTC_DCR", "BTC_FCT", "BTC_LSK") 
+    coin_list <- c("BTC_ETH", "BTC_STR", "BTC_LTC", "BTC_BTS", "BTC_XMR", "BTC_FCT", "BTC_DOGE", "BTC_DASH", "BTC_MAID", "BTC_CLAM") 
   } 
   
   # Create coin pairs, filter out pairs consisting of the same coin, and create a unique identifier to identify coin pairs 

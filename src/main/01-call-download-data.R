@@ -35,6 +35,5 @@ source("./src/util/02-download-data.R")
 
 #' # 3. Download Data
 tickers <- c("USDT_BTC", "USDT_ETH", "USDT_LTC", "USDT_DASH", "USDT_XMR", "USDT_ZEC", "USDT_REP", 
-             "BTC_ETH", "BTC_LTC", "BTC_DASH", "BTC_XMR", "BTC_ZEC", "BTC_REP", "BTC_XEM", "BTC_DCR", 
-             "BTC_FCT", "BTC_LSK")
+             "BTC_ETH", "BTC_STR", "BTC_LTC", "BTC_BTS", "BTC_XMR", "BTC_FCT", "BTC_DOGE", "BTC_DASH", "BTC_MAID", "BTC_CLAM")
 download_data(tickers = tickers, option = option)
