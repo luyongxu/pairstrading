@@ -101,10 +101,13 @@ generate_trades <- function(margin_position, predictions_current_parsed, diff_th
     left_join(ticker)
   
   # Diff actual positions to predicted predictions to generate desired trades 
-  # The difference must exceed the trade threshold in order to execute a trade
+  # The difference must exceed the trade threshold in order to execute a trade 
+  # Set predicted position to 0 if no predictions are generated for that coin 
+  # This means that new coin selection occurred and need to close out positions 
   trades <- trades %>% 
-    mutate(trade_amount = predicted_position - amount, 
-           trade_amount = ifelse(trade_amount / predicted_position < diff_threshold, 0, trade_amount), 
+    mutate(predicted_position = ifelse(is.na(predicted_position), 0, predicted_position), 
+           trade_amount = predicted_position - amount, 
+           trade_amount = ifelse(trade_amount / predicted_position < diff_threshold | predicted_position == 0, 0, trade_amount), 
            trade_type = case_when(
              trade_amount > 0 ~ "buy", 
              trade_amount == 0 ~ "hold", 
