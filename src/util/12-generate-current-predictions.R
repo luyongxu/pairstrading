@@ -65,7 +65,9 @@ generate_current_predictions <- function(source, time_resolution, params, initia
   
   # Print Predictions 
   options(width = 180)
-  print(predictions_current %>% select(date_time, coin_y_name, coin_x_name, coin_y_position, coin_x_position))
+  print(predictions_current %>% 
+          select(date_time, coin_y_name, coin_x_name, coin_y_position, coin_x_position, 
+                 coin_y_position_base, coin_x_position_base))
   
   # Return predictions 
   print(str_c("Predictions successfully generated at ", Sys.time(), "."))

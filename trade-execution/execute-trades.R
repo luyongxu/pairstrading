@@ -74,6 +74,7 @@ margin_position <- poloniex_margin_position(
 print(margin_position)
 
 #' # 8. Generate Trades 
+print("Generating trades.")
 trades <- generate_trades(
   margin_position = margin_position, 
   predictions_current_parsed = predictions_current_parsed, 
@@ -82,6 +83,8 @@ trades <- generate_trades(
 print(trades)
 
 #' # 9. Execute Trades 
+print("Executing trades.")
+if (nrow(trades) == 0) print("No trades are necessary to reach desired positions.")
 trades_logs <- tibble()
 if (nrow(trades) != 0) { 
   
