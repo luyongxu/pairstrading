@@ -113,9 +113,13 @@ generate_trades <- function(margin_position, predictions_current_parsed, diff_th
              trade_amount == 0 ~ "hold", 
              trade_amount < 0 ~ "sell"
            )) %>% 
-    filter(trade_type != "hold") %>% 
     select(-lendingFees, -date_unix, -date_time)
+  print(trades)
   
+  # Only keep trades that need to be executed
+  trades <- trades %>% 
+    filter(trade_type != "hold") %>% 
+    
   # Return trades
   return(trades)
   
