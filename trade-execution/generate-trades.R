@@ -107,18 +107,16 @@ generate_trades <- function(margin_position, predictions_current_parsed, diff_th
   trades <- trades %>% 
     mutate(predicted_position = ifelse(is.na(predicted_position), 0, predicted_position), 
            trade_amount = predicted_position - amount, 
-           trade_amount = ifelse(trade_amount / predicted_position < diff_threshold | predicted_position == 0, 0, trade_amount), 
-           trade_type = case_when(
-             trade_amount > 0 ~ "buy", 
-             trade_amount == 0 ~ "hold", 
-             trade_amount < 0 ~ "sell"
-           )) %>% 
+           trade_amount = ifelse(abs(trade_amount / predicted_position) < diff_threshold | predicted_position == 0, 0, trade_amount), 
+           trade_type = case_when(trade_amount > 0 ~ "buy", 
+                                  trade_amount == 0 ~ "hold", 
+                                  trade_amount < 0 ~ "sell")) %>% 
     select(-lendingFees, -date_unix, -date_time)
   print(trades)
   
   # Only keep trades that need to be executed
   trades <- trades %>% 
-    filter(trade_type != "hold") %>% 
+    filter(trade_type != "hold")
     
   # Return trades
   return(trades)

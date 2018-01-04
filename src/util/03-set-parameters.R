@@ -114,7 +114,7 @@ save_params <- function(params, filename) {
 #' Value  
 #' Returns a list of parameters.  
 load_params <- function(filename) { 
-  df_params <- read_csv(filename)
+  df_params <- read_csv(filename, col_types = c("iccddcccccicidddldcic"))
   list_params <- df_params %>% 
     mutate(train_window = days(str_match(train_window, "([0-9]*)d.*")[, 2]), 
            test_window = days(str_match(test_window, "([0-9]*)d.*")[, 2])) %>% 

@@ -50,39 +50,43 @@ predictions_current <- generate_current_predictions(
 )
 
 #' # 5. Temporary Testing Code 
-#' Temporarily reduce coin pairs to just one coin pair and temporarily reduce position size by a factor of 10
+#' Temporarily reduce coin pairs to just one coin pair
 predictions_current <- predictions_current %>% 
   filter(row_number() == 1) %>% 
-  mutate(coin_y_position_base = coin_y_position_base / 10, 
-         coin_x_position_base = coin_x_position_base / 10)
+  mutate(coin_y_position_base = coin_y_position_base, 
+         coin_x_position_base = coin_x_position_base)
 
 #' # 6. Parse Predicted Predictions 
 predictions_current_parsed <- parse_predicted_positions(
   predictions_current = predictions_current
 )
 
-#' # 7. Get Margin Position 
-print("Querying Poloniex margin account positions.")
+#' # 7. Return Margin Account Summary 
+print("Querying Poloniex margin account summary.")
 poloniex_conn <- poloniex_generate_conn(
   key = Sys.getenv("poloniex_pairs_trading_key"), 
   secret = Sys.getenv("poloniex_pairs_trading_secret")
 )
+margin_account_summary <- poloniex_return_margin_account_summary(
+  poloniex_conn = poloniex_conn
+)
+
+#' # 8. Get Margin Position 
+print("Querying Poloniex margin account positions.")
 margin_position <- poloniex_margin_position(
   poloniex_conn = poloniex_conn, 
   currencyPair = "all"
 )
-print(margin_position)
 
-#' # 8. Generate Trades 
+#' # 9. Generate Trades 
 print("Generating trades.")
 trades <- generate_trades(
   margin_position = margin_position, 
   predictions_current_parsed = predictions_current_parsed, 
   diff_threshold = 0.01
 )
-print(trades)
 
-#' # 9. Execute Trades 
+#' # 10. Execute Trades 
 print("Executing trades.")
 if (nrow(trades) == 0) print("No trades are necessary to reach desired positions.")
 trades_logs <- tibble()
@@ -123,7 +127,7 @@ if (nrow(trades) != 0) {
   print(trades_logs)
 }
 
-#' # 10. Save Trades
+#' # 11. Save Trades
 print(str_c("Saving trade logs to mongo database at ", Sys.time(), "."))
 mongo_connection <- mongo(collection = "POLOINIEX_TRADES", 
                           db = "ExchangeAccountDB", 

@@ -103,10 +103,43 @@ poloniex_margin_position <- function(poloniex_conn, currencyPair) {
     mutate_at(vars(amount, total, basePrice, liquidationPrice, pl, lendingFees), funs(as.numeric))
   
   # Return dataframe
+  print(df)
   return(df) 
 }
 
-#' # 6. Margin Buy 
+#' # 6. Return Margin Account Summary 
+#' Description  
+#' Returns a summary of your entire margin account. This is the same information you will find in the Margin 
+#' Account section of the Margin Trading page, under the Markets list. 
+#' 
+#' Arguments  
+#' poloniex_conn: An object created by the generate_poloniex_conn() function.  
+#' 
+#' Sample output  
+#' {"totalValue": "0.00346561","pl": "-0.00001220","lendingFees": "0.00000000","netValue": "0.00345341",
+#' "totalBorrowedValue": "0.00123220","currentMargin": "2.80263755"}
+#' 
+#' Value  
+#' A dataframe containing the margin account summary information.  
+poloniex_return_margin_account_summary <- function(poloniex_conn) { 
+  
+  # Query margin account summary
+  margin_account_summary <- PoloniexR::ProcessTradingRequest(
+    theObject = poloniex_conn, 
+    command = poloniex_conn@commands$returnMarginAccountSummary
+  )
+  
+  # Parse margin account summary data into dataframe 
+  df <- margin_account_summary %>% 
+    bind_rows()
+  
+  # Return dataframe
+  print(df)
+  return(df)
+
+}
+
+#' # 7. Margin Buy 
 #' Description   
 #' Places a margin buy order in a given market. Required POST parameters are "currencyPair", "rate", and "amount". 
 #' You may optionally specify a maximum lending rate using the "lendingRate" parameter. If successful, the method 
@@ -153,7 +186,7 @@ poloniex_margin_buy <- function(poloniex_conn, currencyPair, rate, slippage, amo
   
 }
 
-#' # 7. Margin Sell 
+#' # 8. Margin Sell 
 #' Description   
 #' Places a margin sell order in a given market. Parameters and output are the same as for the marginBuy method. 
 #' 
@@ -198,7 +231,7 @@ poloniex_margin_sell <- function(poloniex_conn, currencyPair, rate, slippage, am
   
 }
 
-#' # 8. Close Margin Position 
+#' # 9. Close Margin Position 
 #' Description  
 #' Closes your margin position in a given market (specified by the "currencyPair" POST parameter) using a market order. 
 #' This call will also return success if you do not have an open position in the specified market. 
