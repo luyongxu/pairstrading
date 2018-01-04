@@ -132,7 +132,7 @@ print(str_c("Saving trade logs to mongo database at ", Sys.time(), "."))
 mongo_connection <- mongo(collection = "POLOINIEX_TRADES", 
                           db = "ExchangeAccountDB", 
                           url = "mongodb://localhost") 
-mongo_connection$insert(trades)
+suppressMessages(mongo_connection$insert(trades))
 
 
 
